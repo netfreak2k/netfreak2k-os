@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>N2K AI Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>Netfreak2k OS</strong>
+    <nav><span>Desktop</span><span>Apps</span><span>System</span></nav>
+    <div class="status">N2K Glass · 0.1.0-dev</div>
+  </header>
+
+  <main>
+    <section class="hero glass">
+      <div>
+        <p class="eyebrow">N2K AI Dashboard</p>
+        <h1>Your lightweight AI workspace.</h1>
+        <p>Customize modules, launch Chrome, work with files and keep the system under control.</p>
+      </div>
+      <button id="customize">Customize</button>
+    </section>
+
+    <section class="grid" id="dashboard">
+      <article class="card glass" draggable="true"><h2>ChatGPT</h2><p>Open ChatGPT in Google Chrome.</p><button data-url="https://chatgpt.com">Open</button></article>
+      <article class="card glass" draggable="true"><h2>Chrome</h2><p>Primary browser for Netfreak2k OS.</p><button data-url="https://www.google.com/chrome/">Launch</button></article>
+      <article class="card glass" draggable="true"><h2>Quick Notes</h2><textarea placeholder="Write a note…"></textarea></article>
+      <article class="card glass" draggable="true"><h2>System</h2><p>CPU · RAM · Storage · Network</p><small>Live metrics backend follows in a later milestone.</small></article>
+      <article class="card glass" draggable="true"><h2>Files</h2><p>Your files and recent documents.</p></article>
+      <article class="card glass" draggable="true"><h2>N2K Terminal</h2><code>netfreak@n2k ~ ❯</code></article>
+      <article class="card glass" draggable="true"><h2>Office</h2><p>Documents · Spreadsheets · Presentations</p></article>
+      <article class="card glass" draggable="true"><h2>Radio</h2><p>Internet radio and favorites.</p></article>
+      <article class="card glass" draggable="true"><h2>Updates</h2><p>GitHub release channel: Developer</p></article>
+    </section>
+  </main>
+
+  <footer class="dock glass">
+    <span>Chrome</span><span>AI Dashboard</span><span>Files</span><span>Office</span><span>Radio</span><span>Terminal</span><span>Settings</span>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
