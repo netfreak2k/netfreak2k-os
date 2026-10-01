@@ -9,14 +9,15 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(cat "$ROOT_DIR/VERSION")"
 
+mapfile -t COMMON_PACKAGES < <(grep -Ev '^\s*(#|$)' "$ROOT_DIR/packages/common.txt")
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y   ca-certificates curl git rsync jq sudo   network-manager bluez pipewire pipewire-audio   xdg-utils unzip p7zip-full file   python3 python3-venv   htop lm-sensors   nftables openssh-client
+DEBIAN_FRONTEND=noninteractive apt-get install -y "${COMMON_PACKAGES[@]}"
 
 install -d /etc/netfreak2k /usr/local/lib/netfreak2k /opt/netfreak2k/dashboard
 install -m 0644 "$ROOT_DIR/core/etc/netfreak2k/defaults.conf" /etc/netfreak2k/defaults.conf
-printf '%s
-' "$VERSION" > /etc/netfreak2k/version
+printf '%s\n' "$VERSION" > /etc/netfreak2k/version
 install -m 0755 "$ROOT_DIR/core/usr/local/bin/n2k" /usr/local/bin/n2k
+install -m 0755 "$ROOT_DIR/core/usr/local/lib/netfreak2k/"* /usr/local/lib/netfreak2k/
 
 rsync -a --delete "$ROOT_DIR/dashboard/" /opt/netfreak2k/dashboard/
 
