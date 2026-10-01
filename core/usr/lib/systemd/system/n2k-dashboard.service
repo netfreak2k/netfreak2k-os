@@ -1,0 +1,18 @@
+[Unit]
+Description=Netfreak2k OS AI Dashboard Preview
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+WorkingDirectory=/opt/netfreak2k/dashboard
+ExecStart=/usr/bin/python3 -m http.server 8080 --bind 127.0.0.1
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
