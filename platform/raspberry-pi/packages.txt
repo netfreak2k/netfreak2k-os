@@ -1,0 +1,6 @@
+# Raspberry Pi platform packages
+# Keep Pi 3 baseline lightweight.
+raspi-config
+raspberrypi-sys-mods
+rfkill
+wireless-tools
