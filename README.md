@@ -2,18 +2,22 @@
 
 **Lightweight · AI-ready · Personal · Recoverable**
 
-Netfreak2k OS is a lightweight Linux desktop platform for Raspberry Pi 3 and newer. It aims for a polished, modern desktop experience inspired by contemporary macOS design principles while using only legally redistributable open assets for themes, icons, fonts and wallpapers.
+Netfreak2k OS is a lightweight, cross-platform Linux desktop operating-system project. Raspberry Pi 3+ is the primary development and minimum performance target, while the same shared OS core is also intended to build for x86_64 PCs and virtualized environments such as Proxmox.
+
+It aims for a polished, modern desktop experience inspired by contemporary macOS design principles while using only legally redistributable open assets for themes, icons, fonts and wallpapers.
 
 The public repository contains only the reusable base operating system. Personal work data and user-specific workspace state stay private and restorable.
 
 ## Core goals
 
-- Raspberry Pi 3+ as the minimum target
-- Lightweight desktop with restrained visual effects
-- Modern **N2K Glass** design language
+- Raspberry Pi 3+ as the minimum hardware target
+- shared core for ARM64 and x86_64
+- automatic builds for Raspberry Pi, generic x86_64 and Proxmox
+- lightweight desktop with restrained visual effects
+- modern **N2K Glass** design language
 - Google Chrome as a required first-class browser
-- Freely customizable AI dashboard built into the desktop experience
-- Branded **N2K Terminal**
+- freely customizable AI dashboard built into the desktop experience
+- branded **N2K Terminal**
 - Office suite
 - YouTube, Netflix and other mainstream web services through Chrome where platform DRM/codec support allows
 - Radio and media playback
@@ -23,6 +27,35 @@ The public repository contains only the reusable base operating system. Personal
 - GitHub-based, user-approved updates
 - Backup, restore and recovery designed from the start
 - Public OS development, private personal workspace/state
+
+## Cross-platform build model
+
+Development may happen directly on a Raspberry Pi, but shared features are not tied to Pi hardware.
+
+```text
+Develop on Pi
+    ↓
+Shared OS Core
+    ↓
+GitHub dev branch
+    ↓
+CI / automated tests
+    ↓
+Build matrix
+├── Raspberry Pi ARM64 image
+├── x86_64 ISO
+└── Proxmox QCOW2
+```
+
+Platform-specific drivers, boot configuration and virtualization support are isolated from the shared desktop/core code.
+
+Target release artifacts:
+
+```text
+netfreak2k-os-rpi-arm64.img.xz
+netfreak2k-os-amd64.iso
+netfreak2k-os-proxmox-amd64.qcow2
+```
 
 ## Public OS vs. private workspace
 
@@ -87,7 +120,7 @@ Early development / architecture phase.
 
 Initial target: **0.1.0-dev**
 
-## Hardware target
+## Hardware and virtualization targets
 
 Primary bootstrap target:
 
@@ -95,7 +128,12 @@ Primary bootstrap target:
 - 64-bit Linux base where practical
 - SSD preferred for the system drive
 
-The same architecture should scale upward to Raspberry Pi 4, Pi 5 and compatible ARM64 systems.
+Additional targets:
+
+- Raspberry Pi 4 / Pi 5
+- generic x86_64 PCs and mini-PCs
+- Proxmox/QEMU virtual machines using VirtIO
+- other compatible ARM64 systems where practical
 
 ## Updates
 
