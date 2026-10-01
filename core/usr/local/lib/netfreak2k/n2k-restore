@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARCHIVE="${1:-}"
+if [[ -z "$ARCHIVE" ]]; then
+  echo "Usage: n2k restore /path/to/n2k-workspace-*.tar.gz" >&2
+  exit 2
+fi
+
+if [[ ! -f "$ARCHIVE" ]]; then
+  echo "Backup not found: $ARCHIVE" >&2
+  exit 3
+fi
+
+if [[ -f "$ARCHIVE.sha256" ]]; then
+  (cd "$(dirname "$ARCHIVE")" && sha256sum -c "$(basename "$ARCHIVE").sha256")
+else
+  echo "Warning: no SHA256 sidecar found."
+fi
+
+echo "Backup contents:"
+tar -tzf "$ARCHIVE" | head -n 80
+
+echo
+echo "Restore is intentionally confirmation-gated in 0.1.0-dev."
+read -r -p "Restore these files to their recorded paths? Type RESTORE: " CONFIRM
+[[ "$CONFIRM" == "RESTORE" ]] || { echo "Cancelled."; exit 1; }
+
+tar -xzf "$ARCHIVE" -C /
+echo "Workspace restore completed. Log out/in or reboot if desktop settings changed."
