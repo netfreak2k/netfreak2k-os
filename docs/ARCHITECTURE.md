@@ -9,6 +9,61 @@ Netfreak2k OS has two deliberately separated domains:
 
 The private workspace is not bundled into the public OS image.
 
+## Cross-platform development model
+
+Raspberry Pi is the primary hands-on development platform, but Netfreak2k OS is not Raspberry-Pi-specific.
+
+General features are implemented in a shared core and then built automatically for multiple targets.
+
+```text
+Development on Raspberry Pi
+        ↓
+Shared Netfreak2k OS Core
+        ↓
+Git push to dev
+        ↓
+Automated tests
+        ↓
+Build matrix
+├── ARM64 / Raspberry Pi image
+├── x86_64 / generic ISO
+└── x86_64 / Proxmox QCOW2
+        ↓
+Target-specific validation
+        ↓
+Developer artifacts / releases
+```
+
+Platform-specific code must be isolated from the shared core.
+
+Suggested layout:
+
+```text
+platform/
+├── common/
+├── raspberry-pi/
+└── x86_64/
+```
+
+Examples of Raspberry Pi specific concerns:
+
+- firmware and boot configuration
+- board-specific GPU/display setup
+- GPIO and Pi hardware integration
+- Pi-specific wireless/driver handling
+
+Examples of x86_64 / Proxmox concerns:
+
+- VirtIO drivers
+- QEMU Guest Agent
+- ACPI shutdown/reboot
+- SPICE/noVNC compatibility
+- dynamic display sizing
+- virtual disk/network defaults
+- optional cloud-init support
+
+A shared desktop feature such as the AI Dashboard, N2K Terminal, theme, update manager or settings UI should normally be changed once and then flow into every supported build.
+
 ## Platform layers
 
 ```text
@@ -34,13 +89,16 @@ Desktop / Platform Services
 ├── Backup / recovery
 └── User settings
 
-Linux Base
-├── Lightweight ARM64 distribution base
+Shared Linux Core
 ├── systemd services
 ├── package management
 ├── firewall
 ├── logging / diagnostics
-└── hardware support
+└── common hardware abstraction
+
+Platform Adapters
+├── ARM64 / Raspberry Pi
+└── x86_64 / PC / Proxmox
 ```
 
 ## Raspberry Pi performance rule
@@ -50,7 +108,7 @@ Raspberry Pi 3 is the minimum supported design target. The default profile must 
 Two visual profiles are planned:
 
 - **Pi 3 / Performance** — reduced blur, restrained animation, minimal background services
-- **Enhanced** — richer visual effects for Pi 4, Pi 5 and stronger systems
+- **Enhanced** — richer visual effects for Pi 4, Pi 5, x86_64 and stronger systems
 
 ## Desktop philosophy
 
