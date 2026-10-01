@@ -1,0 +1,21 @@
+# Netfreak2k OS common package intent
+ca-certificates
+curl
+git
+rsync
+jq
+sudo
+network-manager
+bluez
+pipewire
+pipewire-audio
+xdg-utils
+unzip
+p7zip-full
+file
+python3
+python3-venv
+htop
+lm-sensors
+nftables
+openssh-client
