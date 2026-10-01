@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+USER_NAME="${SUDO_USER:-$USER}"
+USER_HOME="$(getent passwd "$USER_NAME" | cut -d: -f6)"
+DEST="${1:-$USER_HOME/Backups}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT="$DEST/n2k-workspace-$STAMP.tar.gz"
+
+mkdir -p "$DEST"
+
+INCLUDES=()
+for p in   "$USER_HOME/.config/netfreak2k"   "$USER_HOME/.local/share/netfreak2k"   "$USER_HOME/Documents"   "$USER_HOME/.config/gtk-3.0"   "$USER_HOME/.config/gtk-4.0"; do
+  [[ -e "$p" ]] && INCLUDES+=("$p")
+done
+
+if [[ "${#INCLUDES[@]}" -eq 0 ]]; then
+  echo "No Netfreak2k workspace data found to back up yet."
+  exit 0
+fi
+
+echo "Creating private workspace backup..."
+tar   --exclude='*/Cache/*'   --exclude='*/Cookies*'   --exclude='*/Login Data*'   --exclude='*/.ssh/*'   -czf "$OUT" "${INCLUDES[@]}"
+
+chmod 600 "$OUT"
+sha256sum "$OUT" > "$OUT.sha256"
+
+echo "Backup created:"
+echo "$OUT"
+echo
+echo "Browser cookies, login databases and SSH keys are intentionally excluded."
+echo "For sensitive backups, store this archive on encrypted storage."
