@@ -3,7 +3,9 @@
 ## 0.1.0-dev — Foundation
 
 - Raspberry Pi 3 bootstrap on SSD
-- Lightweight ARM64 Linux base
+- shared cross-platform Netfreak2k OS core
+- ARM64 Raspberry Pi platform layer
+- x86_64 platform layer
 - Netfreak2k OS branding
 - N2K Glass desktop foundation
 - performance profile for Raspberry Pi 3
@@ -22,6 +24,7 @@
 - removable storage
 - Tailscale integration
 - Git-based build workflow
+- CI build matrix for Raspberry Pi, x86_64 ISO and Proxmox QCOW2
 - update checker foundation
 - backup / recovery design
 
@@ -38,7 +41,19 @@
 - appearance settings
 - light/dark N2K Glass themes
 
-## 0.3 — Personalization
+## 0.3 — Multi-platform builds
+
+- reproducible ARM64 Raspberry Pi image
+- reproducible x86_64 ISO
+- Proxmox-ready QCOW2 image
+- VirtIO defaults
+- QEMU Guest Agent
+- ACPI shutdown/reboot validation
+- SPICE/noVNC validation
+- optional cloud-init support
+- automated target-specific smoke tests
+
+## 0.4 — Personalization
 
 - customizable AI dashboard
 - user-defined dashboard tiles
@@ -48,7 +63,7 @@
 - startup applications
 - performance / enhanced appearance profiles
 
-## 0.4 — Recovery and lifecycle
+## 0.5 — Recovery and lifecycle
 
 - private workspace export
 - encrypted private backup support
@@ -58,12 +73,14 @@
 - health checks after updates
 - signed public releases
 
-## Later
+## Release artifact goal
 
-- reproducible image builder
-- Pi 4 / Pi 5 enhanced profile
-- additional ARM64 hardware targets
-- optional local-AI backend support
-- optional user-installable modules
+```text
+netfreak2k-os-rpi-arm64.img.xz
+netfreak2k-os-amd64.iso
+netfreak2k-os-proxmox-amd64.qcow2
+```
+
+General features should be developed once in the shared core and propagated through the automated build matrix. Hardware-specific differences stay isolated in platform adapters.
 
 Special-purpose personal projects are intentionally not part of the base OS roadmap.
