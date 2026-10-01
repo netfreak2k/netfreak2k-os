@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+credentials/
+
+# Local user configuration
+config/local/
+config/user/
+*.local.json
+
+# Build output
+build/output/
+dist/
+*.img
+*.img.xz
+*.iso
+
+# Logs / runtime
+*.log
+logs/
+run/
+tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
