@@ -18,11 +18,15 @@ jobs:
         run: |
           bash -n scripts/*.sh
           bash -n core/usr/local/bin/n2k
+          for f in core/usr/local/lib/netfreak2k/*; do bash -n "$f"; done
       - name: Required project files
         run: |
           test -s VERSION
           test -s dashboard/index.html
           test -s docs/ARCHITECTURE.md
+          test -s packages/common.txt
+          test -s platform/raspberry-pi/packages.txt
+          test -s platform/x86_64/packages.txt
 
   build-matrix:
     needs: validate
