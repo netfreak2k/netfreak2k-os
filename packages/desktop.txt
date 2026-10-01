@@ -1,0 +1,12 @@
+# Candidate lightweight desktop stack for 0.1.0-dev.
+# Final compositor/window manager choice requires Pi 3 measurement.
+lxqt-core
+pcmanfm-qt
+qterminal
+pavucontrol
+network-manager-gnome
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+vlc
+evince
