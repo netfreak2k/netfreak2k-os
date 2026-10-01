@@ -1,0 +1,4 @@
+# x86_64 / Proxmox platform packages
+qemu-guest-agent
+spice-vdagent
+acpid
