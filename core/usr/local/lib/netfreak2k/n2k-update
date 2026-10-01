@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="netfreak2k/netfreak2k-os"
+CHANNEL="${N2K_CHANNEL:-developer}"
+CURRENT="$(cat /etc/netfreak2k/version 2>/dev/null || echo 0.0.0)"
+API="https://api.github.com/repos/$REPO/releases"
+
+echo "Netfreak2k OS Update"
+echo "Installed: $CURRENT"
+echo "Channel:   $CHANNEL"
+
+if ! command -v curl >/dev/null || ! command -v jq >/dev/null; then
+  echo "curl and jq are required." >&2
+  exit 2
+fi
+
+JSON="$(curl -fsSL --connect-timeout 10 "$API")" || {
+  echo "Unable to contact GitHub Releases." >&2
+  exit 3
+}
+
+if [[ "$CHANNEL" == "stable" ]]; then
+  RELEASE="$(jq -c '[.[] | select(.draft==false and .prerelease==false)][0] // empty' <<<"$JSON")"
+else
+  RELEASE="$(jq -c '[.[] | select(.draft==false)][0] // empty' <<<"$JSON")"
+fi
+
+if [[ -z "$RELEASE" ]]; then
+  echo "No published release is available for this channel yet."
+  exit 0
+fi
+
+TAG="$(jq -r '.tag_name' <<<"$RELEASE")"
+NAME="$(jq -r '.name // .tag_name' <<<"$RELEASE")"
+URL="$(jq -r '.html_url' <<<"$RELEASE")"
+
+echo "Available: $TAG — $NAME"
+echo "Details:   $URL"
+echo
+echo "0.1.0-dev only checks and reports releases."
+echo "Automatic installation will be enabled only after checksum/signature and rollback support are implemented."
