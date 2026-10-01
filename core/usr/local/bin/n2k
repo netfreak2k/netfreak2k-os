@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION_FILE="/etc/netfreak2k/version"
+CONFIG_FILE="/etc/netfreak2k/defaults.conf"
+
+[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
+
+version() {
+  if [[ -f "$VERSION_FILE" ]]; then cat "$VERSION_FILE"; else echo "${N2K_VERSION:-0.1.0-dev}"; fi
+}
+
+status() {
+  echo "Netfreak2k OS $(version)"
+  echo "Host: $(hostname)"
+  echo "Kernel: $(uname -r)"
+  echo "Arch: $(uname -m)"
+  echo "Uptime: $(uptime -p 2>/dev/null || true)"
+  echo "Memory: $(free -h | awk '/Mem:/ {print $3 " / " $2}')"
+  echo "Disk: $(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')"
+  if command -v vcgencmd >/dev/null 2>&1; then
+    echo "Temperature: $(vcgencmd measure_temp | cut -d= -f2)"
+  fi
+  if command -v google-chrome >/dev/null 2>&1 || command -v google-chrome-stable >/dev/null 2>&1; then
+    echo "Chrome: installed"
+  else
+    echo "Chrome: not installed"
+  fi
+}
+
+doctor() {
+  local failed=0
+  echo "N2K Doctor"
+  for cmd in systemctl ip df free; do
+    if command -v "$cmd" >/dev/null 2>&1; then echo "✓ $cmd"; else echo "✗ $cmd missing"; failed=1; fi
+  done
+  if systemctl is-system-running --quiet 2>/dev/null; then
+    echo "✓ systemd healthy"
+  else
+    echo "! systemd reports: $(systemctl is-system-running 2>/dev/null || true)"
+  fi
+  df -P / | awk 'NR==2 {gsub("%","",$5); if ($5 > 90) print "! root filesystem above 90%"; else print "✓ disk usage OK"}'
+  exit "$failed"
+}
+
+case "${1:-help}" in
+  status) status ;;
+  doctor) doctor ;;
+  version|--version|-v) version ;;
+  update) exec sudo /usr/local/lib/netfreak2k/n2k-update ;;
+  backup) exec sudo /usr/local/lib/netfreak2k/n2k-backup "${@:2}" ;;
+  restore) exec sudo /usr/local/lib/netfreak2k/n2k-restore "${@:2}" ;;
+  info) status ;;
+  network) ip -brief address ;;
+  help|*)
+    cat <<'EOF'
+N2K Terminal commands:
+  n2k status    Show system status
+  n2k doctor    Run basic diagnostics
+  n2k update    Check/install OS updates
+  n2k backup    Create workspace backup
+  n2k restore   Restore workspace backup
+  n2k network   Show network interfaces
+  n2k version   Show OS version
+EOF
+    ;;
+esac
