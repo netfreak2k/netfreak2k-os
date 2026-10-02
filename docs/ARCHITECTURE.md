@@ -1,11 +1,11 @@
 # Netfreak2k OS Architecture
 
-## Two-part model
+## Product model
 
-There are only two top-level concepts in the project ecosystem:
+There are two top-level concepts:
 
-1. **Netfreak2k OS** — the public, general-purpose operating-system platform.
-2. **N2K Workspace** — the maintainer's private personal work and development environment.
+1. **Netfreak2k OS** — the public general-purpose operating-system platform.
+2. **N2K Workspace** — the maintainer's private work and development environment.
 
 N2K Workspace is not bundled into the public OS image.
 
@@ -13,51 +13,86 @@ N2K Workspace is not bundled into the public OS image.
 
 ```text
 User Experience
-├── Local Desktop
+├── N2K Glass Desktop
+├── Dock + Top Bar + Control Center
+├── Settings / Support / Diagnostics
+├── AI Dashboard
+├── Automation Editor
+├── Energy Dashboard
 ├── Web UI
 └── Remote Desktop
 
-Platform Services
-├── Chrome integration
-├── Hardware detection and firmware support
-├── Network manager
-├── Wi-Fi
-├── Bluetooth
-├── Tailscale
-├── Wi-Fi client / access point fallback
-├── Update manager
-├── Backup / recovery
-└── App and service framework
+Desktop Services
+├── App / Web-App Manager
+├── Password Manager
+├── Permission Broker
+├── Clipboard / Nearby Share
+├── Device Overview
+├── Multi-device Sync
+└── Notifications
 
-Optional Capabilities
+System Services
+├── Hardware Detection
+├── NetworkManager / Wi-Fi / Bluetooth
+├── Audio / PipeWire
+├── VPN / Tailscale
+├── Printing / Scanning
+├── Backup / Snapshot / Recovery
+├── Update Manager
+├── System Health / SMART / Thermal
+├── Power Management
+├── Automation Runtime
+└── Emergency Mode
+
+AI Services
+├── Cloud Provider Connectors
+├── Local Model Runtime
+├── Permission / Folder Grants
+├── Local-vs-Cloud Routing
+└── Local Activity Log
+
+Optional Integrations
 ├── Reticulum / LXMF
 ├── MeshCore
 ├── Home Assistant
-├── Local AI
-└── Energy / telemetry integrations
+├── Energy / Solar / UPS
+└── Generator Control
 
 Linux Base
-└── Lightweight Linux distribution base
+└── Lightweight upstream Linux distribution
 ```
 
-## Hardware support baseline
+## Architectural principles
 
-Netfreak2k OS is intended to be usable immediately after installation on supported hardware.
+### Daily-driver first
 
-Core hardware support is a **base-system requirement**, not an optional add-on:
+Routine desktop use must not require terminal knowledge.
 
-- Automatic detection of common hardware during installation and boot
-- Wi-Fi support included by default, including required free/non-free firmware where legally distributable
-- Bluetooth stack and desktop controls included by default
-- Ethernet, USB, audio, graphics, webcam, input-device and storage detection
-- Clear reporting when a device needs firmware or a driver that cannot be bundled
-- Network and Bluetooth controls available through the graphical desktop without requiring terminal commands for normal use
+### Hardware-first usability
 
-The target user experience is: install or boot the system, choose a Wi-Fi network, enter the password, pair Bluetooth devices if needed, and start working.
+Wi-Fi, Bluetooth, Ethernet, audio, graphics, USB/storage, printers/scanners and common input/output hardware are base-system responsibilities.
+
+### Local-first privacy
+
+Local processing and local storage are preferred where practical. Cloud use must be visible and user-controlled.
+
+### Explicit permissions
+
+AI and apps do not receive blanket access to user data. Folder/resource access must be explicitly granted and revocable.
+
+### Recovery before risk
+
+Major updates and automated repairs should create a recovery point when possible.
+
+### Mature upstream components
+
+Prefer established Linux components for core plumbing instead of rebuilding them unnecessarily.
+
+### Cross-platform target
+
+The architecture must support x86-64 PCs/notebooks, Raspberry Pi systems and virtual machines. Hardware-specific features should be capability-detected.
 
 ## Workspace-to-OS improvement flow
-
-Changes developed in N2K Workspace can become Netfreak2k OS improvements when they are generally useful.
 
 ```text
 Workspace change
@@ -72,14 +107,14 @@ Classification
             ↓
         Review
             ↓
-        dev
+        developer
             ↓
         beta
             ↓
         stable
 ```
 
-The stable OS must never be overwritten directly by experimental Workspace changes.
+Stable builds must never be overwritten directly by experimental Workspace changes.
 
 ## Desktop philosophy
 
