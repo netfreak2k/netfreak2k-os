@@ -1,0 +1,45 @@
+name: Build amd64 bootstrap ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/build-amd64.yml"
+      - "scripts/build-amd64.sh"
+      - "config/build.env"
+      - "config/packages/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install live-build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build
+
+      - name: Preflight
+        run: bash scripts/preflight.sh
+
+      - name: Build bootstrap ISO
+        run: sudo -E bash scripts/build-amd64.sh
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum *.iso > SHA256SUMS
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netfreak2k-os-amd64-bootstrap
+          path: |
+            dist/*.iso
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
