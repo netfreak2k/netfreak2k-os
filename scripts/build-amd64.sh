@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../config/build.env
+# shellcheck disable=SC1091
 source "${ROOT_DIR}/config/build.env"
 
 if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
