@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../config/build.env\nsource "${ROOT_DIR}/config/build.env"
+# shellcheck source=../config/build.env
+source "${ROOT_DIR}/config/build.env"
 
 if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
   echo "ERROR: this first build script must run on an amd64 Debian-compatible builder." >&2
