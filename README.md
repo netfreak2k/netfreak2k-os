@@ -44,7 +44,11 @@ The maintainer's private **N2K Workspace** remains separate from the public OS.
 
 - [Product Specification](docs/PRODUCT_SPEC.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Architecture Decisions](docs/DECISIONS.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Build Guide](docs/BUILD.md)
+- [Hardware / VM Test Checklist](docs/HARDWARE_TEST.md)
+- [Computer Checkpoint](docs/COMPUTER_CHECKPOINT.md)
 - [Update Model](docs/UPDATES.md)
 
 ## Design
