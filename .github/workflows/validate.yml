@@ -1,0 +1,33 @@
+name: Validate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Shell syntax
+        run: |
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+
+      - name: ShellCheck
+        run: |
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+
+      - name: Repository preflight
+        run: bash scripts/preflight.sh
+
+      - name: Check package-list duplicates
+        run: |
+          cat config/packages/*.list             | sed -E '/^[[:space:]]*(#|$)/d'             | sort             | uniq -d             | tee /tmp/duplicates.txt
+          test ! -s /tmp/duplicates.txt
