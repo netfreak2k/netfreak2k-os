@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>N2K AI Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>Netfreak2k OS</strong>
+    <nav><span>Desktop</span><span>Apps</span><span>System</span></nav>
+    <div class="status">N2K Glass · 0.1.0-dev</div>
+  </header>
+  <main>
+    <section class="hero glass">
+      <div>
+        <p class="eyebrow">N2K AI Dashboard</p>
+        <h1>Dein KI-Arbeitsplatz.</h1>
+        <p>Mehrere KI-Anbieter, lokale Werkzeuge und Systemfunktionen an einem Ort.</p>
+      </div>
+      <button id="customize">Anordnen</button>
+    </section>
+    <section class="grid" id="dashboard">
+      <article class="card glass" draggable="true"><h2>ChatGPT</h2><p>ChatGPT im Browser öffnen.</p><button data-url="https://chatgpt.com">Öffnen</button></article>
+      <article class="card glass" draggable="true"><h2>Chrome</h2><p>Primärer Browser von Netfreak2k OS.</p><button data-url="https://www.google.com/chrome/">Öffnen</button></article>
+      <article class="card glass" draggable="true"><h2>Notizen</h2><textarea placeholder="Notiz…"></textarea></article>
+      <article class="card glass" draggable="true"><h2>System</h2><p>CPU · RAM · Speicher · Netzwerk</p><small>Live-Daten folgen in einer späteren Phase.</small></article>
+      <article class="card glass" draggable="true"><h2>Dateien</h2><p>Dateien und zuletzt verwendete Dokumente.</p></article>
+      <article class="card glass" draggable="true"><h2>N2K Terminal</h2><code>netfreak@n2k ~ ❯</code></article>
+      <article class="card glass" draggable="true"><h2>Office</h2><p>Dokumente · Tabellen · Präsentationen</p></article>
+      <article class="card glass" draggable="true"><h2>Energie</h2><p>Solar · Batterie · Verbrauch</p></article>
+      <article class="card glass" draggable="true"><h2>Updates</h2><p>Kanal: Developer</p></article>
+    </section>
+  </main>
+  <footer class="dock glass">
+    <span>Chrome</span><span>KI</span><span>Dateien</span><span>Office</span><span>Energie</span><span>Terminal</span><span>Einstellungen</span>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
