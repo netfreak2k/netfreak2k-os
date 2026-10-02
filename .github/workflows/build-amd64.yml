@@ -18,16 +18,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install live-build
+      - name: Build inside Debian Stable
         run: |
-          sudo apt-get update
-          sudo apt-get install -y live-build
-
-      - name: Preflight
-        run: bash scripts/preflight.sh
-
-      - name: Build bootstrap ISO
-        run: sudo -E bash scripts/build-amd64.sh
+          docker run --rm --privileged \
+            -v "$PWD:/work" \
+            -w /work \
+            debian:stable \
+            bash -lc '
+              apt-get update
+              apt-get install -y live-build sudo git ca-certificates xorriso
+              bash scripts/preflight.sh
+              bash scripts/build-amd64.sh
+            '
 
       - name: Checksums
         run: |
