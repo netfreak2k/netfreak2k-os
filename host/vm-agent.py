@@ -15,6 +15,7 @@ TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/var/lib/netfreak2k/ag
 VM_NAME = "netfreak2k-homeassistant"
 HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
+UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
@@ -120,7 +121,8 @@ def check_updates_now():
 
 
 def trigger_update():
-    if not Path(UPDATE_SCRIPT).is_file():
+    update_target = UPDATE_COMMAND if Path(UPDATE_COMMAND).is_file() else UPDATE_SCRIPT
+    if not Path(update_target).is_file():
         raise RuntimeError("update_script_missing")
 
     result = subprocess.run(
@@ -129,7 +131,7 @@ def trigger_update():
             "--unit=netfreak2k-web-update",
             "--collect",
             "--property=Type=exec",
-            UPDATE_SCRIPT,
+            update_target,
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
