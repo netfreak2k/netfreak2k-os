@@ -2351,23 +2351,60 @@ document.getElementById("open-onion")?.addEventListener("click", () => {
 document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
-async function loadTorBrowserStatus() {
-  const state = document.getElementById("tor-browser-state");
+function setTorControlState({installed=false, running=false, error=false} = {}) {
+  const dot = document.getElementById("overview-tor-dot");
+  const overviewState = document.getElementById("overview-tor-status");
   const install = document.getElementById("tor-browser-install");
   const open = document.getElementById("tor-browser-open");
+  const startButtons = [
+    document.getElementById("overview-tor-start"),
+    document.getElementById("tor-browser-start")
+  ].filter(Boolean);
+  const stopButtons = [
+    document.getElementById("overview-tor-stop"),
+    document.getElementById("tor-browser-stop")
+  ].filter(Boolean);
+  const restartButtons = [
+    document.getElementById("overview-tor-restart"),
+    document.getElementById("tor-browser-restart")
+  ].filter(Boolean);
+
+  if (dot) {
+    dot.classList.remove("running", "stopped", "missing", "error", "unknown");
+    dot.classList.add(error ? "error" : running ? "running" : installed ? "stopped" : "missing");
+  }
+  if (overviewState) {
+    overviewState.textContent = error ? "Fehler" : running ? "Tor aktiv" : installed ? "gestoppt" : "nicht installiert";
+  }
+  if (install) install.classList.toggle("hidden", installed);
+  if (open) open.disabled = !running;
+  startButtons.forEach(button => {
+    button.disabled = !installed || running || error;
+    button.classList.toggle("hidden", !installed);
+  });
+  stopButtons.forEach(button => {
+    button.disabled = !running || error;
+    button.classList.toggle("hidden", !installed);
+  });
+  restartButtons.forEach(button => {
+    button.disabled = !running || error;
+    button.classList.toggle("hidden", !installed);
+  });
+}
+
+async function loadTorBrowserStatus() {
+  const state = document.getElementById("tor-browser-state");
   const wrap = document.getElementById("tor-browser-frame-wrap");
-  if (!state || !install || !open || !wrap) return;
+  if (!state || !wrap) return;
   try {
     const data = await request("/api/catalog", {headers:{}});
     const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "tor-browser");
     const installed = Boolean(app?.installed);
     const running = app?.state === "running";
-    state.textContent = running ? "Bereit · eingebettet" : installed ? "Installiert · gestoppt" : "Nicht installiert";
+
+    state.textContent = running ? "● Tor aktiv · eingebettet" : installed ? "Installiert · gestoppt" : "Nicht installiert";
     state.className = running ? "running" : "";
-    const overviewState = document.getElementById("overview-tor-status");
-    if (overviewState) overviewState.textContent = running ? "bereit" : installed ? "gestoppt" : "nicht installiert";
-    install.classList.toggle("hidden", installed);
-    open.disabled = !running;
+    setTorControlState({installed, running});
 
     if (running && !wrap.querySelector("iframe")) {
       wrap.innerHTML = "";
@@ -2378,10 +2415,45 @@ async function loadTorBrowserStatus() {
       frame.referrerPolicy = "no-referrer";
       frame.setAttribute("allow", "clipboard-read; clipboard-write");
       wrap.appendChild(frame);
+    } else if (!running && wrap.querySelector("iframe")) {
+      wrap.innerHTML = `
+        <div class="tor-browser-placeholder">
+          <strong>Tor Browser ist gestoppt</strong>
+          <span>Starte die isolierte Sitzung über das Dashboard oder hier im Workspace.</span>
+        </div>`;
     }
   } catch (error) {
     console.error(error);
     state.textContent = "Status nicht verfügbar";
+    state.className = "";
+    setTorControlState({error:true});
+  }
+}
+
+async function torBrowserAction(action) {
+  const container = "netfreak2k-app-tor-browser";
+  const buttons = [
+    document.getElementById("overview-tor-start"),
+    document.getElementById("overview-tor-stop"),
+    document.getElementById("overview-tor-restart"),
+    document.getElementById("tor-browser-start"),
+    document.getElementById("tor-browser-stop"),
+    document.getElementById("tor-browser-restart")
+  ].filter(Boolean);
+  buttons.forEach(button => button.disabled = true);
+  try {
+    await request("/api/apps/action", {
+      method: "POST",
+      body: JSON.stringify({name: container, action}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadTorBrowserStatus();
+    loadApps();
+    loadCatalog();
+  } catch (error) {
+    console.error(error);
+    alert("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
+    await loadTorBrowserStatus();
   }
 }
 
@@ -2394,6 +2466,29 @@ document.getElementById("tor-browser-install")?.addEventListener("click", async 
   }
   await installCatalogApp("tor-browser", "Tor Browser", {password});
   setTimeout(loadTorBrowserStatus, 2500);
+});
+
+document.getElementById("overview-tor-start")?.addEventListener("click", event => {
+  event.stopPropagation();
+  torBrowserAction("start");
+});
+document.getElementById("overview-tor-stop")?.addEventListener("click", event => {
+  event.stopPropagation();
+  torBrowserAction("stop");
+});
+document.getElementById("overview-tor-restart")?.addEventListener("click", event => {
+  event.stopPropagation();
+  torBrowserAction("restart");
+});
+document.getElementById("tor-browser-start")?.addEventListener("click", () => torBrowserAction("start"));
+document.getElementById("tor-browser-stop")?.addEventListener("click", () => torBrowserAction("stop"));
+document.getElementById("tor-browser-restart")?.addEventListener("click", () => torBrowserAction("restart"));
+
+document.querySelector(".onion-explorer-widget")?.addEventListener("keydown", event => {
+  if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
+    event.preventDefault();
+    switchView("privacy-panel");
+  }
 });
 
 document.getElementById("tor-browser-open")?.addEventListener("click", () => {
