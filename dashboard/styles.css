@@ -1329,3 +1329,265 @@ body::after{
   .overview-screen .widget{min-height:150px}
   .overview-screen .widget-head h3{font-size:13px}
 }
+
+
+/* Compact overview layout — desktop-first, readable without scrolling */
+@media(min-width:1260px){
+  .overview-screen{
+    gap:8px;
+  }
+
+  .overview-inline-status{
+    min-height:28px;
+    padding:5px 10px;
+  }
+
+  .mini-metrics{
+    gap:7px;
+  }
+
+  .overview-screen .mini-metric{
+    min-height:58px;
+    padding:7px 10px;
+    gap:9px;
+    border-radius:12px;
+  }
+
+  .overview-screen .metric-ring,
+  .overview-screen .mini-icon{
+    width:40px;
+    height:40px;
+    flex-basis:40px;
+  }
+
+  .overview-screen .metric-ring::before{
+    inset:4px;
+  }
+
+  .overview-screen .metric-ring span{
+    font-size:8px;
+  }
+
+  .overview-screen .mini-icon{
+    font-size:17px;
+    border-radius:10px;
+  }
+
+  .overview-screen .mini-metric small{
+    font-size:8px;
+  }
+
+  .overview-screen .mini-metric strong{
+    margin-top:2px;
+    font-size:9px;
+    line-height:1.2;
+  }
+
+  .overview-screen .widget-grid{
+    gap:7px;
+  }
+
+  .overview-screen .drive-widget,
+  .overview-screen .network-widget,
+  .overview-screen .calendar-widget,
+  .overview-screen .recent-widget,
+  .overview-screen .ha-widget,
+  .overview-screen .activity-widget,
+  .overview-screen .quick-widget,
+  .overview-screen .matrix-widget{
+    grid-column:span 3;
+  }
+
+  .overview-screen .widget{
+    min-height:122px;
+    padding:10px;
+    border-radius:13px;
+  }
+
+  .overview-screen .widget-head{
+    margin-bottom:6px;
+    gap:7px;
+  }
+
+  .overview-screen .widget-head small{
+    font-size:7px;
+  }
+
+  .overview-screen .widget-head h3{
+    margin-top:2px;
+    font-size:11px;
+    line-height:1.15;
+  }
+
+  .overview-screen .widget-head>span{
+    font-size:14px;
+  }
+
+  .overview-screen .drive-widget-body{
+    gap:8px;
+    margin-top:6px;
+  }
+
+  .overview-screen .drive-donut{
+    width:45px;
+    height:45px;
+  }
+
+  .overview-screen .drive-donut::before{
+    inset:5px;
+  }
+
+  .overview-screen .drive-donut span{
+    font-size:8px;
+  }
+
+  .overview-screen .widget-stat-copy strong,
+  .overview-screen .ha-widget-status strong,
+  .overview-screen .widget-list-row strong{
+    font-size:9px;
+    line-height:1.25;
+  }
+
+  .overview-screen .widget-stat-copy span,
+  .overview-screen .ha-widget-status span,
+  .overview-screen .widget-list-row small,
+  .overview-screen .widget-empty{
+    font-size:8px;
+    line-height:1.25;
+  }
+
+  .overview-screen .network-values{
+    gap:5px;
+  }
+
+  .overview-screen .network-values span{
+    font-size:7px;
+  }
+
+  .overview-screen .network-values strong{
+    font-size:11px;
+  }
+
+  .overview-screen .network-widget canvas{
+    height:25px;
+    margin-top:2px;
+  }
+
+  .overview-screen .network-widget>small{
+    font-size:7px;
+  }
+
+  .overview-screen .widget-detail-lines{
+    gap:2px;
+    margin:3px 0 1px;
+  }
+
+  .overview-screen .widget-detail-lines>span{
+    grid-template-columns:40px minmax(0,1fr);
+    min-height:16px;
+    padding:1px 4px;
+    gap:4px;
+    border-radius:5px;
+  }
+
+  .overview-screen .widget-detail-lines b{
+    font-size:6px;
+  }
+
+  .overview-screen .widget-detail-lines strong{
+    font-size:7px;
+  }
+
+  .overview-screen .overview-list{
+    gap:1px;
+  }
+
+  .overview-screen .widget-list-row{
+    gap:5px;
+    padding:2px 0;
+  }
+
+  .overview-screen .widget-file-icon{
+    width:21px;
+    height:21px;
+    flex-basis:21px;
+    border-radius:6px;
+    font-size:8px;
+  }
+
+  .overview-screen .calendar-date-badge{
+    width:25px;
+    height:25px;
+    flex-basis:25px;
+    border-radius:6px;
+  }
+
+  .overview-screen .calendar-date-badge strong{
+    font-size:9px!important;
+  }
+
+  .overview-screen .calendar-date-badge small{
+    font-size:6px!important;
+  }
+
+  .overview-screen .ha-widget-status{
+    gap:7px;
+    margin-top:10px;
+  }
+
+  .overview-screen .quick-grid{
+    gap:4px;
+  }
+
+  .overview-screen .quick-grid button{
+    min-height:31px;
+    padding:4px;
+    border-radius:7px;
+    font-size:7px;
+  }
+
+  .overview-screen .quick-grid span{
+    margin-bottom:1px;
+    font-size:11px;
+  }
+
+  .overview-screen .matrix-widget{
+    min-height:122px;
+    padding:0;
+  }
+
+  .overview-screen .matrix-widget canvas{
+    min-height:122px;
+    height:122px;
+  }
+
+  .overview-screen .matrix-overlay{
+    padding:8px 9px;
+  }
+
+  .overview-screen .matrix-overlay small{
+    font-size:6px;
+  }
+
+  .overview-screen .matrix-overlay strong{
+    margin-top:1px;
+    font-size:10px;
+  }
+
+  .overview-screen .matrix-overlay span{
+    margin-top:1px;
+    font-size:7px;
+  }
+
+  .overview-screen .overview-statusbar{
+    border-radius:11px;
+  }
+
+  .overview-screen .overview-statusbar button{
+    min-height:30px;
+  }
+
+  .overview-screen .overview-statusbar strong{
+    font-size:8px;
+  }
+}
