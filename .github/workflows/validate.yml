@@ -48,7 +48,6 @@ jobs:
         env:
           N2K_HTTP_PORT: "18080"
         run: |
-          set -x
           sudo mkdir -p /run/netfreak2k
           sudo install -d -m 0770 -o 65534 -g 65534 /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
           docker compose -f server/docker-compose.yml down -v --remove-orphans || true
