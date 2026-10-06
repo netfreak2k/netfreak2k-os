@@ -2,7 +2,7 @@
 
 **Offgrid · Mesh · Local Intelligence**
 
-Netfreak2k OS is now being developed as a **browser-managed virtualization appliance** on a Proxmox VE base. The user-facing experience remains CasaOS/Umbrel-like, while Proxmox provides the VM/container/storage layer underneath.
+Netfreak2k OS is being developed as a **browser-managed background platform for Linux Mint**, similar in user experience to CasaOS or Umbrel. Linux Mint remains the host, while Netfreak2k provides the web UI, app layer and managed virtualization needed for full Home Assistant OS.
 
 > **KEIN NETZ. KEIN PROBLEM.**
 
@@ -40,11 +40,11 @@ http://netfreak2k.local/
 
 ## Installation
 
-The previous Debian/Ubuntu one-command installer is now **legacy** and is not the recommended path.
+The target installation method is a single Netfreak2k installer for Linux Mint.
 
-The target installation method is a dedicated **Netfreak2k Appliance image/installer based on Proxmox VE**. If an existing Linux installation must remain untouched, Netfreak2k must be installed on a separate disk, separate machine, or an already-existing hypervisor.
+The installer may add only runtime dependencies required by Netfreak2k itself, such as Docker and KVM/QEMU/libvirt. It must not replace Linux Mint, repartition the system disk, replace the bootloader or remove the desktop environment.
 
-See [Appliance Architecture](docs/APPLIANCE_ARCHITECTURE.md).
+See [Host Architecture](docs/APPLIANCE_ARCHITECTURE.md).
 
 ## Current architecture
 
@@ -135,14 +135,14 @@ Telemetry is disabled by default and may only be enabled after explicit user opt
 A project license will be selected before the first public stable release.
 ## Home Assistant
 
-Home Assistant is mandatory and runs as **Home Assistant OS in a dedicated KVM VM**.
+Home Assistant is mandatory and runs as **Home Assistant OS in a dedicated KVM/QEMU VM managed by Netfreak2k**.
 
-This provides:
+This gives the full supported Home Assistant experience with:
 
-- Home Assistant Core
+- Core
 - Supervisor
 - Apps/Add-ons
 - HAOS updates
 - backups
 
-Home Assistant Container is not sufficient for the Netfreak2k target experience.
+No Proxmox installation is required. Netfreak2k uses the Linux KVM/libvirt stack underneath and exposes Home Assistant through the Netfreak2k web UI.
