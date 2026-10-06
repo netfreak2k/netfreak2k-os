@@ -2327,27 +2327,47 @@ function startMatrixSimulation() {
   const canvas = document.getElementById("matrix-canvas");
   if (!canvas || canvas.dataset.running === "true") return;
   canvas.dataset.running = "true";
+
   const ctx = canvas.getContext("2d");
   const chars = "01N2KABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&*+<>/";
-  const fontSize = 12;
-  let columns = Math.max(1, Math.floor(canvas.width / fontSize));
-  let drops = Array.from({length: columns}, () => Math.floor(Math.random() * -20));
+  const fontSize = 14;
+  const columnStep = Math.round(fontSize * 1.45);
+  const columns = Math.max(1, Math.floor(canvas.width / columnStep));
+  const drops = Array.from({length: columns}, () => Math.floor(Math.random() * -28));
 
-  const draw = () => {
+  let lastFrame = 0;
+  const frameDelay = 170;
+
+  const draw = timestamp => {
     if (!document.body.contains(canvas)) return;
-    ctx.fillStyle = "rgba(2,7,5,.15)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.font = `${fontSize}px monospace`;
-    ctx.fillStyle = "rgba(88,255,138,.8)";
-    for (let i=0;i<drops.length;i+=1) {
-      const char = chars[Math.floor(Math.random()*chars.length)];
-      ctx.fillText(char,i*fontSize,drops[i]*fontSize);
-      if (drops[i]*fontSize > canvas.height && Math.random() > .975) drops[i] = 0;
-      drops[i] += 1;
+
+    if (timestamp - lastFrame >= frameDelay) {
+      lastFrame = timestamp;
+
+      ctx.fillStyle = "rgba(2,7,5,.28)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Consolas, monospace`;
+      ctx.fillStyle = "rgba(88,255,138,.72)";
+
+      for (let i = 0; i < drops.length; i += 1) {
+        const char = chars[Math.floor(Math.random() * chars.length)];
+        const x = i * columnStep;
+        const y = drops[i] * fontSize;
+
+        ctx.fillText(char, x, y);
+
+        if (y > canvas.height && Math.random() > .988) {
+          drops[i] = 0;
+        } else if (Math.random() > .32) {
+          drops[i] += 1;
+        }
+      }
     }
+
     requestAnimationFrame(draw);
   };
-  draw();
+
+  requestAnimationFrame(draw);
 }
 startMatrixSimulation();
 
