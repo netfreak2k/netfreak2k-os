@@ -104,6 +104,7 @@ function enterApp(username) {
   loadUpdates();
   loadCatalog();
   loadOfficeStatus();
+  loadTorBrowserStatus();
   loadStorage();
   loadVms();
   loadBackups();
@@ -705,12 +706,12 @@ async function loadCatalog() {
   }
 }
 
-async function installCatalogApp(appId, name) {
+async function installCatalogApp(appId, name, options = {}) {
   if (!confirm(`${name} jetzt als verwaltete Netfreak2k-App installieren?`)) return;
   try {
     await request("/api/catalog/install", {
       method: "POST",
-      body: JSON.stringify({app_id: appId}),
+      body: JSON.stringify({app_id: appId, options}),
       headers: {"X-CSRF-Token": csrfToken}
     });
     setTimeout(() => {
@@ -2327,6 +2328,53 @@ document.getElementById("open-onion")?.addEventListener("click", () => {
 document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
+async function loadTorBrowserStatus() {
+  const state = document.getElementById("tor-browser-state");
+  const install = document.getElementById("tor-browser-install");
+  const open = document.getElementById("tor-browser-open");
+  const wrap = document.getElementById("tor-browser-frame-wrap");
+  if (!state || !install || !open || !wrap) return;
+  try {
+    const data = await request("/api/catalog", {headers:{}});
+    const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "tor-browser");
+    const installed = Boolean(app?.installed);
+    const running = app?.state === "running";
+    state.textContent = running ? "Bereit · Port 6901" : installed ? "Installiert · gestoppt" : "Nicht installiert";
+    state.className = running ? "running" : "";
+    install.classList.toggle("hidden", installed);
+    open.disabled = !running;
+
+    if (running && !wrap.querySelector("iframe")) {
+      wrap.innerHTML = "";
+      const frame = document.createElement("iframe");
+      frame.className = "tor-browser-frame";
+      frame.src = `https://${window.location.hostname}:6901/`;
+      frame.title = "N2K Tor Browser";
+      frame.referrerPolicy = "no-referrer";
+      frame.setAttribute("allow", "clipboard-read; clipboard-write");
+      wrap.appendChild(frame);
+    }
+  } catch (error) {
+    console.error(error);
+    state.textContent = "Status nicht verfügbar";
+  }
+}
+
+document.getElementById("tor-browser-install")?.addEventListener("click", async () => {
+  const password = prompt("Lege ein Passwort für den isolierten Tor-Browser fest (mindestens 10 Zeichen):");
+  if (!password) return;
+  if (password.length < 10 || password.length > 64) {
+    alert("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
+    return;
+  }
+  await installCatalogApp("tor-browser", "Tor Browser", {password});
+  setTimeout(loadTorBrowserStatus, 2500);
+});
+
+document.getElementById("tor-browser-open")?.addEventListener("click", () => {
+  window.open(`https://${window.location.hostname}:6901/`, "_blank", "noopener");
+});
+
 function normalizeOnionUrl(value) {
   let raw = String(value || "").trim();
   if (!raw) return null;
@@ -2513,6 +2561,7 @@ setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
 setInterval(loadCatalog, 60000);
 setInterval(loadOfficeStatus, 30000);
+setInterval(loadTorBrowserStatus, 30000);
 setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
