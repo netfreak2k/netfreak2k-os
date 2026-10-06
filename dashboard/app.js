@@ -77,6 +77,7 @@ function enterApp(username) {
   loadStatus();
   loadApps();
   loadHomeAssistant();
+  loadUpdates();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -171,11 +172,16 @@ async function loadStatus() {
 
     document.getElementById("host-name").textContent = host.hostname || "–";
     document.getElementById("host-os").textContent = host.os?.name || "Linux";
+    document.getElementById("host-os-mini").textContent = host.os?.name || "Linux";
     document.getElementById("host-uptime").textContent = formatUptime(host.uptime_seconds);
+    document.getElementById("host-memory-percent").textContent =
+      memory.used_percent == null ? "–" : `${memory.used_percent}%`;
     document.getElementById("host-memory").textContent =
       memory.used_percent == null
         ? "–"
-        : `${memory.used_percent}% · ${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}`;
+        : `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}`;
+    document.getElementById("host-load-primary").textContent =
+      load["1m"] == null ? "–" : String(load["1m"]);
     document.getElementById("host-load").textContent =
       load["1m"] == null ? "–" : `${load["1m"]} · ${load["5m"]} · ${load["15m"]}`;
 
@@ -249,12 +255,14 @@ async function loadHomeAssistant() {
     const data = await request("/api/homeassistant", {headers: {}});
     state.textContent = data.state || "unbekannt";
     state.classList.toggle("running", data.state === "running");
+    const vmState = document.getElementById("vm-ha-state");
+    if (vmState) vmState.textContent = data.state || "unbekannt";
     if (!data.available) {
       detail.textContent = "VM-Agent nicht erreichbar.";
     } else if (!data.installed) {
       detail.textContent = "Home Assistant OS ist noch nicht installiert.";
     } else if (data.reachable) {
-      detail.textContent = "Supervisor/Apps bereit · Home Assistant erreichbar.";
+      detail.textContent = "Supervisor / Apps bereit · Home Assistant erreichbar.";
     } else if (data.state === "running") {
       detail.textContent = "VM läuft · Home Assistant startet noch.";
     } else {
@@ -287,8 +295,38 @@ document.getElementById("ha-start")?.addEventListener("click", () => homeAssista
 document.getElementById("ha-restart")?.addEventListener("click", () => homeAssistantAction("restart"));
 document.getElementById("ha-shutdown")?.addEventListener("click", () => homeAssistantAction("shutdown"));
 
+async function loadUpdates() {
+  const title = document.getElementById("update-title");
+  const detail = document.getElementById("update-detail");
+  if (!title || !detail) return;
+  try {
+    const data = await request("/api/updates", {headers: {}});
+    if (!data.available) {
+      title.textContent = "Update-Status noch nicht verfügbar";
+      detail.textContent = "Die nächste automatische GitHub-Prüfung aktualisiert diesen Bereich.";
+      return;
+    }
+    if (data.update_available) {
+      title.textContent = "Neue Version verfügbar";
+      const sha = data.remote_sha ? data.remote_sha.slice(0, 12) : "GitHub";
+      detail.textContent = `Neuer Stand ${sha} erkannt. Installation erfolgt bewusst per Update-Befehl.`;
+    } else if (data.note === "github_api_unavailable") {
+      title.textContent = "GitHub-Prüfung momentan nicht möglich";
+      detail.textContent = "Netfreak2k läuft weiter; die nächste Prüfung erfolgt automatisch.";
+    } else {
+      title.textContent = "Netfreak2k ist aktuell";
+      detail.textContent = "Kein neuer GitHub-Stand erkannt.";
+    }
+  } catch (error) {
+    console.error(error);
+    title.textContent = "Update-Status nicht erreichbar";
+    detail.textContent = "Die Weboberfläche bleibt uneingeschränkt nutzbar.";
+  }
+}
+
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
+document.getElementById("refresh-updates")?.addEventListener("click", loadUpdates);
 document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
@@ -303,3 +341,4 @@ bootstrapAuth().catch(error => {
 setInterval(loadStatus, 30000);
 setInterval(loadApps, 30000);
 setInterval(loadHomeAssistant, 15000);
+setInterval(loadUpdates, 60000);
