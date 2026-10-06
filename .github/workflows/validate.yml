@@ -46,19 +46,41 @@ jobs:
         env:
           N2K_HTTP_PORT: "18080"
         run: |
+          docker compose -f server/docker-compose.yml down -v --remove-orphans || true
           docker compose -f server/docker-compose.yml up -d
+
           for i in {1..20}; do
-            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null \
-              && curl -fsS http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server"'; then
-              exit 0
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then
+              break
             fi
             sleep 1
           done
-          docker compose -f server/docker-compose.yml logs
-          exit 1
+
+          curl -fsS http://127.0.0.1:18080/api/setup | grep -q '"configured":false'
+
+          SETUP_RESPONSE="$(curl -fsS \
+            -c /tmp/n2k-cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"ciadmin","password":"ci-test-password-123"}' \
+            http://127.0.0.1:18080/api/setup)"
+
+          CSRF="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["csrf"])' <<<"$SETUP_RESPONSE")"
+
+          curl -fsS \
+            -b /tmp/n2k-cookies.txt \
+            http://127.0.0.1:18080/api/status \
+            | grep -q '"product":"Netfreak2k Server"'
+
+          curl -fsS \
+            -b /tmp/n2k-cookies.txt \
+            -H "X-CSRF-Token: $CSRF" \
+            -H 'Content-Type: application/json' \
+            -d '{}' \
+            http://127.0.0.1:18080/api/logout \
+            | grep -q '"authenticated":false'
 
       - name: Stop test stack
         if: always()
         env:
           N2K_HTTP_PORT: "18080"
-        run: docker compose -f server/docker-compose.yml down --remove-orphans
+        run: docker compose -f server/docker-compose.yml down -v --remove-orphans
