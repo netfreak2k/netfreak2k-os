@@ -1793,6 +1793,63 @@ async function loadUpdates() {
     const top = document.getElementById("top-update-status");
     const topDot = top?.querySelector(".health-dot");
     const topText = top?.querySelector("strong");
+    const progress = data.progress || {};
+    const installed = data.installed || {};
+
+    const setText = (id, value) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    };
+
+    const progressValue = Math.max(0, Math.min(100, Number(progress.progress) || 0));
+    const progressFill = document.getElementById("update-progress-fill");
+    if (progressFill) progressFill.style.width = `${progressValue}%`;
+    setText("update-progress-percent", `${progressValue}%`);
+    setText("update-step", progress.message || "Bereit");
+
+    const runtimeState = progress.state || "idle";
+    const statePill = document.getElementById("update-state-pill");
+    if (statePill) {
+      statePill.textContent =
+        runtimeState === "running" ? "Update läuft" :
+        runtimeState === "completed" ? "Abgeschlossen" :
+        runtimeState === "failed" ? "Fehlgeschlagen" :
+        data.update_available ? "Verfügbar" : "Aktuell";
+      statePill.classList.toggle("running", runtimeState === "running" || runtimeState === "completed");
+      statePill.classList.toggle("warning", runtimeState === "failed" || data.update_available);
+    }
+
+    setText("update-installed-ref", installed.ref || data.ref || "main");
+    setText("update-installed-fingerprint",
+      installed.fingerprint ? installed.fingerprint.slice(0, 16) : "Fingerprint unbekannt");
+    setText("update-remote-ref", data.ref || "main");
+    setText("update-remote-fingerprint",
+      data.remote_fingerprint ? data.remote_fingerprint.slice(0, 16) : "nicht verfügbar");
+    setText("update-last-check",
+      Number.isFinite(data.checked_at) ? formatDateTime(data.checked_at) : "noch nicht geprüft");
+    setText("update-installed-at",
+      Number.isFinite(installed.installed_at) ? formatDateTime(installed.installed_at) : "unbekannt");
+    setText("update-source", `Quelle: GitHub · ${data.repo || "netfreak2k/netfreak2k-os"}`);
+    setText("update-runtime-state",
+      runtimeState === "running" ? "Installation aktiv" :
+      runtimeState === "completed" ? "Letztes Update erfolgreich" :
+      runtimeState === "failed" ? "Letztes Update fehlgeschlagen" :
+      "Kein Update aktiv");
+
+    const stageOrder = ["prepare","download","extract","validate","install","services","containers","restart","verify","completed"];
+    const currentIndex = stageOrder.indexOf(progress.step);
+    document.querySelectorAll("[data-update-stage]").forEach(stage => {
+      const idx = stageOrder.indexOf(stage.dataset.updateStage);
+      stage.classList.toggle("active", currentIndex >= 0 && idx === currentIndex);
+      stage.classList.toggle("done", currentIndex >= 0 && idx >= 0 && idx < currentIndex);
+    });
+
+    if (Number.isFinite(progress.updated_at)) {
+      setText("update-progress-time", `zuletzt aktualisiert ${formatDateTime(progress.updated_at)}`);
+    } else {
+      setText("update-progress-time", "–");
+    }
+
     if (!data.available) {
       title.textContent = "Update-Status noch nicht verfügbar";
       detail.textContent = "Die nächste automatische GitHub-Prüfung aktualisiert diesen Bereich.";
@@ -1800,6 +1857,23 @@ async function loadUpdates() {
       if (topDot) topDot.className = "health-dot";
       return;
     }
+
+    if (runtimeState === "running") {
+      title.textContent = "Systemupdate läuft";
+      detail.textContent = progress.message || "Netfreak2k wird aktualisiert.";
+      if (topText) topText.textContent = "Update läuft";
+      if (topDot) topDot.className = "health-dot info";
+      return;
+    }
+
+    if (runtimeState === "failed") {
+      title.textContent = "Update fehlgeschlagen";
+      detail.textContent = progress.message || "Der Update-Vorgang konnte nicht abgeschlossen werden.";
+      if (topText) topText.textContent = "Update fehlgeschlagen";
+      if (topDot) topDot.className = "health-dot warn";
+      return;
+    }
+
     if (data.update_available) {
       title.textContent = "Neue Version verfügbar";
       if (topText) topText.textContent = "Update verfügbar";
@@ -1812,8 +1886,10 @@ async function loadUpdates() {
       if (topDot) topDot.className = "health-dot warn";
       detail.textContent = "Netfreak2k läuft weiter; die nächste Prüfung erfolgt automatisch.";
     } else {
-      title.textContent = "Netfreak2k ist aktuell";
-      detail.textContent = "Kein neuer GitHub-Stand erkannt.";
+      title.textContent = runtimeState === "completed" ? "Update erfolgreich abgeschlossen" : "Netfreak2k ist aktuell";
+      detail.textContent = runtimeState === "completed"
+        ? "Der neue Stand wurde installiert und die Dienste wurden neu gestartet."
+        : "Kein neuer GitHub-Stand erkannt.";
       if (topText) topText.textContent = "System aktuell";
       if (topDot) topDot.className = "health-dot ok";
     }
@@ -1922,13 +1998,15 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     });
     document.getElementById("update-title").textContent = "Update läuft";
     document.getElementById("update-detail").textContent =
-      "Netfreak2k lädt den aktuellen GitHub-Stand. Die Oberfläche startet danach automatisch neu.";
+      "Netfreak2k startet den Update-Vorgang. Der Fortschritt wird live angezeigt.";
+    const updateProgressPoll = setInterval(() => loadUpdates(), 1200);
     let attempts = 0;
     const waitForServer = async () => {
       attempts += 1;
       try {
         const response = await fetch("/api/healthz", {cache: "no-store"});
         if (response.ok && attempts > 2) {
+          clearInterval(updateProgressPoll);
           window.location.reload();
           return;
         }
