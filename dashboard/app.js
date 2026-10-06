@@ -594,7 +594,28 @@ document.getElementById("refresh-status")?.addEventListener("click", loadStatus)
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
 document.getElementById("create-backup")?.addEventListener("click", createBackup);
-document.getElementById("refresh-updates")?.addEventListener("click", loadUpdates);
+document.getElementById("refresh-updates")?.addEventListener("click", async () => {
+  const button = document.getElementById("refresh-updates");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Prüfe …";
+  try {
+    await request("/api/updates/check", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadUpdates();
+  } catch (error) {
+    console.error(error);
+    document.getElementById("update-title").textContent = "Prüfung fehlgeschlagen";
+    document.getElementById("update-detail").textContent =
+      "GitHub konnte momentan nicht geprüft werden. Die automatische Prüfung läuft später erneut.";
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+});
 document.getElementById("install-update")?.addEventListener("click", async () => {
   const button = document.getElementById("install-update");
   if (!confirm("Netfreak2k Server-OS jetzt aus GitHub aktualisieren? Die Weboberfläche wird dabei kurz neu gestartet.")) return;
