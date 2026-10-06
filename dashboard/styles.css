@@ -1106,3 +1106,27 @@ body::after{
   .privacy-status-grid{grid-template-columns:1fr}
   .matrix-widget{grid-column:span 12}
 }
+
+
+/* Dedicated UseNeXT widget */
+.usenext-widget{grid-column:span 4}
+.usenext-widget-body{display:flex;align-items:center;gap:10px;margin:8px 0 7px}
+.usenext-mark{
+  width:36px;height:36px;flex:0 0 36px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(145deg,rgba(64,137,255,.18),rgba(35,77,143,.12));
+  border:1px solid rgba(108,166,255,.14);color:#a7cbff;font-weight:900
+}
+.usenext-widget-body strong,.usenext-widget-body span{display:block}
+.usenext-widget-body strong{font-size:10px}.usenext-widget-body span{font-size:7px;color:#7e8995;margin-top:2px}
+.usenext-panel-body{min-width:0;flex:1}
+.usenext-server-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}
+.usenext-server-grid span{
+  min-width:0;padding:8px 9px;border-radius:10px;background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.045)
+}
+.usenext-server-grid b,.usenext-server-grid strong{display:block}
+.usenext-server-grid b{font-size:6px;color:#74808b;text-transform:uppercase;letter-spacing:.07em}
+.usenext-server-grid strong{font-size:8px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.usenext-actions{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:900px){.usenext-server-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.usenext-widget{grid-column:span 12}}
