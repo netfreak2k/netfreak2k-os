@@ -52,6 +52,8 @@ jobs:
 
           docker exec netfreak2k-api sh -c 'id && ls -ld /workspace /workspace/users /workspace/shared'
           docker exec netfreak2k-api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/setup').read().decode())"
+          docker exec netfreak2k-web getent hosts netfreak2k-api
+          docker exec netfreak2k-web wget -qO- http://netfreak2k-api:8080/setup
 
           ready=0
           for i in {1..40}; do
@@ -61,7 +63,11 @@ jobs:
             fi
             sleep 1
           done
-          test "$ready" = "1"
+          if [[ "$ready" != "1" ]]; then
+            docker logs netfreak2k-web || true
+            docker logs netfreak2k-api || true
+            exit 1
+          fi
 
           SETUP_RESPONSE="$(curl --retry 8 --retry-delay 1 --retry-all-errors -fsS -c /tmp/n2k-cookies.txt -H 'Content-Type: application/json' -d '{"username":"ciadmin","password":"ci-test-password-123"}' http://127.0.0.1:18080/api/setup)"
           printf '%s\n' "$SETUP_RESPONSE" | grep -q '"authenticated":true'
