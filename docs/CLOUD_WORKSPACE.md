@@ -54,19 +54,22 @@ Implemented foundation:
 - rename files and folders
 - expiring high-entropy file share links
 - global search across workspace filenames and calendar titles
-- image thumbnails in the media area
+- favorites with persistent metadata
+- copy and move between allowed workspace areas
+- file version snapshots when an existing upload is replaced
+- restore of older versions while preserving the current version
+- active share-link management and revocation
+- image thumbnails and gallery layout in the media area
 - path traversal protection
 - per-user logical separation
 
 ## Planned next layers
 
-- file move/copy
-- favorites
-- file version history
 - quota support
-- richer gallery/timeline
-- media indexing
+- richer gallery timeline and albums
+- media metadata/indexing
 - optional share-link passwords
+- version retention policy and automatic pruning
 - WebDAV
 - SMB/NFS integration
 - external backup targets
@@ -98,3 +101,18 @@ The first global search layer covers:
 - calendar event titles
 
 The search deliberately does not index file contents yet. Content indexing will require explicit resource limits and file-type parsers before it is enabled.
+
+
+## Drive 2.0 metadata model
+
+Favorites, share links and file-version metadata are stored in the local Netfreak2k SQLite database.
+
+Version payloads themselves are stored below the authenticated user's hidden `.versions` directory inside the N2K Drive storage boundary. They are not exposed through normal workspace listing or search.
+
+When a user replaces an existing file, the previous file is snapshotted first. Restoring an older version snapshots the current file before replacement, so restoration remains reversible.
+
+Move and rename operations update related favorite/version metadata to keep references consistent.
+
+## Transfer model
+
+Copy and move operations accept only known N2K Drive areas and paths resolved through the same path-safety layer used by the normal workspace API. The browser cannot submit an arbitrary host filesystem destination.
