@@ -18,12 +18,12 @@ docker compose version >/dev/null || die "Docker Compose v2 fehlt."
 
 log "Prüfe GitHub auf neue Netfreak2k-Version."
 remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | sed -n 's/.*"sha":"\([0-9a-f]\{40\}\)".*/\1/p' | head -n1)"
+remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
 [[ -n "${remote_sha}" ]] || die "Aktueller GitHub-Commit konnte nicht ermittelt werden."
 
 installed_sha=""
 if [[ -f "${STATE_DIR}/version.json" ]]; then
-  installed_sha="$(sed -n 's/.*"sha":"\([^"]*\)".*/\1/p' "${STATE_DIR}/version.json" | head -n1)"
+  installed_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("sha",""))' "${STATE_DIR}/version.json")"
 fi
 
 if [[ "${installed_sha}" == "${remote_sha}" ]]; then
