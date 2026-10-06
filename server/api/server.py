@@ -214,7 +214,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(3)
+        client.settimeout(360 if action == "app_install" else 5)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
