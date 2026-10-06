@@ -3,6 +3,9 @@ let workspaceArea = "documents";
 let workspacePath = "";
 let calendarCursor = new Date();
 let calendarEvents = [];
+const networkHistoryDown = [];
+const networkHistoryUp = [];
+let activeView = "dashboard-top";
 
 function show(element, visible = true) {
   element.classList.toggle("hidden", !visible);
@@ -90,6 +93,9 @@ function enterApp(username) {
   loadFavorites();
   loadShares();
   loadCalendar();
+  updateDesktopClock();
+  loadOverview();
+  switchView("dashboard-top");
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -185,26 +191,7 @@ async function loadStatus() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   setConnection(false, "Verbinde …");
   try {
-    const data = await request("/api/status", {headers: {}});
-    const host = data.host || {};
-    const memory = host.memory || {};
-    const load = host.load || {};
-
-    document.getElementById("host-name").textContent = host.hostname || "–";
-    document.getElementById("host-os").textContent = host.os?.name || "Linux";
-    document.getElementById("host-os-mini").textContent = host.os?.name || "Linux";
-    document.getElementById("host-uptime").textContent = formatUptime(host.uptime_seconds);
-    document.getElementById("host-memory-percent").textContent =
-      memory.used_percent == null ? "–" : `${memory.used_percent}%`;
-    document.getElementById("host-memory").textContent =
-      memory.used_percent == null
-        ? "–"
-        : `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}`;
-    document.getElementById("host-load-primary").textContent =
-      load["1m"] == null ? "–" : String(load["1m"]);
-    document.getElementById("host-load").textContent =
-      load["1m"] == null ? "–" : `${load["1m"]} · ${load["5m"]} · ${load["15m"]}`;
-
+    await request("/api/status", {headers: {}});
     setConnection(true, "Server online");
   } catch (error) {
     if (error.status === 401) {
@@ -216,6 +203,242 @@ async function loadStatus() {
     setConnection(false, "Serverstatus nicht erreichbar");
   }
 }
+
+function formatRate(bytesPerSecond) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond < 0) return "0 B/s";
+  const units = ["B/s","KB/s","MB/s","GB/s"];
+  let value = bytesPerSecond;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toFixed(unit >= 2 ? 1 : 0)} ${units[unit]}`;
+}
+
+function setRing(id, value) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const percent = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+  element.style.setProperty("--ring-value", `${percent * 3.6}deg`);
+}
+
+function updateDesktopClock() {
+  const now = new Date();
+  const clock = document.getElementById("desktop-clock");
+  const date = document.getElementById("desktop-date");
+  if (clock) {
+    clock.textContent = now.toLocaleTimeString("de-DE", {hour: "2-digit", minute: "2-digit"});
+  }
+  if (date) {
+    date.textContent = now.toLocaleDateString("de-DE", {
+      weekday: "long", day: "2-digit", month: "long", year: "numeric"
+    });
+  }
+}
+
+function drawNetworkChart() {
+  const canvas = document.getElementById("network-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  const values = [...networkHistoryDown, ...networkHistoryUp];
+  const max = Math.max(1, ...values);
+  const draw = (history, alpha) => {
+    if (history.length < 2) return;
+    ctx.beginPath();
+    history.forEach((value, index) => {
+      const x = (index / Math.max(history.length - 1, 1)) * width;
+      const y = height - 6 - ((value / max) * (height - 16));
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(231,196,106,${alpha})`;
+    ctx.stroke();
+  };
+  draw(networkHistoryDown, 0.95);
+  draw(networkHistoryUp, 0.45);
+}
+
+function pushNetworkHistory(down, up) {
+  networkHistoryDown.push(Number(down) || 0);
+  networkHistoryUp.push(Number(up) || 0);
+  while (networkHistoryDown.length > 36) networkHistoryDown.shift();
+  while (networkHistoryUp.length > 36) networkHistoryUp.shift();
+  drawNetworkChart();
+}
+
+function renderOverviewList(containerId, items, renderer, emptyText) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  if (!items.length) {
+    container.innerHTML = `<div class="widget-empty">${emptyText}</div>`;
+    return;
+  }
+  items.forEach(item => container.appendChild(renderer(item)));
+}
+
+function recentItemNode(item) {
+  const row = document.createElement("div");
+  row.className = "widget-list-row";
+  const ext = (item.name.split(".").pop() || "").toLowerCase();
+  const icon = /^(png|jpg|jpeg|gif|webp|avif)$/.test(ext) ? "▧" :
+    /^(mp3|wav|flac|m4a|ogg)$/.test(ext) ? "♪" :
+    /^(mp4|mkv|webm|mov)$/.test(ext) ? "▶" : "▤";
+  row.innerHTML = '<span class="widget-file-icon"></span><div><strong></strong><small></small></div>';
+  row.querySelector(".widget-file-icon").textContent = icon;
+  row.querySelector("strong").textContent = item.name;
+  row.querySelector("small").textContent =
+    `${workspaceAreaNames[item.area] || item.area} · ${formatDateTime(item.modified_at)}`;
+  return row;
+}
+
+function eventItemNode(item) {
+  const row = document.createElement("div");
+  row.className = "widget-list-row calendar-row";
+  row.innerHTML = '<span class="calendar-date-badge"><strong></strong><small></small></span><div><strong></strong><small></small></div>';
+  const date = new Date(item.start_at * 1000);
+  row.querySelector(".calendar-date-badge strong").textContent = String(date.getDate()).padStart(2, "0");
+  row.querySelector(".calendar-date-badge small").textContent =
+    date.toLocaleDateString("de-DE", {month: "short"}).replace(".", "");
+  row.querySelector("div>strong").textContent = item.title;
+  row.querySelector("div>small").textContent =
+    date.toLocaleTimeString("de-DE", {hour: "2-digit", minute: "2-digit"});
+  return row;
+}
+
+function renderActivity(data) {
+  const activity = [];
+  for (const file of (data.recent || []).slice(0, 3)) {
+    activity.push({time: file.modified_at, title: file.name, detail: "Zu N2K Drive hinzugefügt"});
+  }
+  if (data.backup?.created_at) {
+    activity.push({time: data.backup.created_at, title: "Backup abgeschlossen", detail: data.backup.id || "Netfreak2k Backup"});
+  }
+  if (data.update?.update_available) {
+    activity.push({time: Math.floor(Date.now() / 1000), title: "Update verfügbar", detail: "Neuer Netfreak2k-Stand"});
+  }
+  activity.sort((a,b) => b.time - a.time);
+  renderOverviewList("overview-activity", activity.slice(0, 5), item => {
+    const row = document.createElement("div");
+    row.className = "widget-list-row";
+    row.innerHTML = '<span class="activity-dot"></span><div><strong></strong><small></small></div>';
+    row.querySelector("strong").textContent = item.title;
+    row.querySelector("small").textContent = `${item.detail} · ${formatDateTime(item.time)}`;
+    return row;
+  }, "Noch keine Aktivität.");
+}
+
+async function loadOverview() {
+  if (document.getElementById("app-shell").classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/overview", {headers: {}});
+    const memory = data.memory || {};
+    const storage = data.storage || {};
+    const network = data.network || {};
+    const cpu = data.cpu_percent;
+
+    document.getElementById("overview-cpu").textContent =
+      Number.isFinite(cpu) ? `${Math.round(cpu)}%` : "…";
+    document.getElementById("overview-cpu-label").textContent =
+      Number.isFinite(cpu) ? "Auslastung" : "wird gemessen";
+    setRing("cpu-ring", cpu);
+
+    document.getElementById("overview-ram").textContent =
+      Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–";
+    document.getElementById("overview-ram-label").textContent =
+      memory.total_bytes ? `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}` : "–";
+    setRing("ram-ring", memory.used_percent);
+
+    document.getElementById("overview-storage").textContent =
+      Number.isFinite(storage.used_percent) ? `${Math.round(storage.used_percent)}%` : "–";
+    document.getElementById("overview-storage-label").textContent =
+      storage.total_bytes ? `${formatBytes(storage.free_bytes)} frei` : "–";
+    setRing("storage-ring", storage.used_percent);
+    setRing("drive-storage-ring", storage.used_percent);
+    document.getElementById("drive-storage-percent").textContent =
+      Number.isFinite(storage.used_percent) ? `${Math.round(storage.used_percent)}%` : "–";
+    document.getElementById("drive-storage-copy").textContent =
+      storage.total_bytes ? `${formatBytes(storage.used_bytes)} von ${formatBytes(storage.total_bytes)}` : "Speicherstatus nicht verfügbar";
+    document.getElementById("drive-meta").textContent =
+      `${data.favorites_count || 0} Favoriten · ${data.shares_count || 0} Freigaben`;
+
+    document.getElementById("overview-uptime").textContent = formatUptime(data.uptime_seconds);
+
+    document.getElementById("network-down").textContent = formatRate(network.down_bps);
+    document.getElementById("network-up").textContent = formatRate(network.up_bps);
+    document.getElementById("network-interface").textContent =
+      Array.isArray(network.interfaces) && network.interfaces.length
+        ? network.interfaces.join(" · ")
+        : "Netzwerk";
+    pushNetworkHistory(network.down_bps, network.up_bps);
+
+    renderOverviewList("overview-calendar", data.upcoming || [], eventItemNode, "Keine kommenden Termine.");
+    renderOverviewList("overview-recent", data.recent || [], recentItemNode, "Noch keine Dateien.");
+
+    const haOk = data.homeassistant?.available &&
+      data.homeassistant?.state === "running" &&
+      data.homeassistant?.reachable;
+    document.getElementById("overview-ha").textContent = haOk ? "Home Assistant online" : "Home Assistant prüfen";
+    document.getElementById("overview-ha-detail").textContent =
+      haOk ? "VM läuft · Oberfläche erreichbar" : (data.homeassistant?.state || "nicht erreichbar");
+    document.getElementById("overview-ha-dot").classList.toggle("ok", haOk);
+    document.getElementById("overview-ha-dot").classList.toggle("warn", !haOk);
+
+    const apps = data.apps || {};
+    document.getElementById("overview-apps").textContent =
+      `${apps.running || 0} Apps aktiv${apps.stopped ? ` · ${apps.stopped} gestoppt` : ""}`;
+    document.getElementById("overview-apps-dot").classList.toggle("ok", !apps.stopped);
+    document.getElementById("overview-apps-dot").classList.toggle("warn", Boolean(apps.stopped));
+
+    const backup = data.backup;
+    document.getElementById("overview-backup").textContent =
+      backup?.created_at ? `Backup ${formatDateTime(backup.created_at)}` : "Noch kein Backup";
+    document.getElementById("overview-backup-dot").classList.toggle("ok", Boolean(backup));
+    document.getElementById("overview-backup-dot").classList.toggle("warn", !backup);
+
+    const updateAvailable = Boolean(data.update?.update_available);
+    document.getElementById("overview-update").textContent =
+      updateAvailable ? "Update verfügbar" : "System aktuell";
+    document.getElementById("overview-update-dot").classList.toggle("ok", !updateAvailable);
+    document.getElementById("overview-update-dot").classList.toggle("info", updateAvailable);
+
+    const healthOk = Boolean(data.health?.ok);
+    document.getElementById("overview-system").textContent = healthOk ? "System gesund" : "Hinweis vorhanden";
+    document.getElementById("overview-system-dot").classList.toggle("ok", healthOk);
+    document.getElementById("overview-system-dot").classList.toggle("warn", !healthOk);
+    document.getElementById("overview-health-copy").textContent =
+      healthOk ? "Alle wichtigen Dienste sehen gut aus." : "Ein Bereich benötigt deine Aufmerksamkeit.";
+
+    const warningBox = document.getElementById("overview-warning");
+    const warnings = data.health?.warnings || [];
+    if (warnings.length) {
+      const warning = warnings[0];
+      warningBox.innerHTML = '<div><strong></strong><span></span></div><button>Öffnen</button>';
+      warningBox.querySelector("strong").textContent = warning.title;
+      warningBox.querySelector("span").textContent = warning.detail;
+      warningBox.className = `overview-warning ${warning.level || "warning"}`;
+      warningBox.querySelector("button").addEventListener("click", () => switchView(warning.target));
+    } else {
+      warningBox.className = "overview-warning hidden";
+      warningBox.innerHTML = "";
+    }
+
+    renderActivity(data);
+  } catch (error) {
+    if (error.status === 401) {
+      csrfToken = "";
+      await bootstrapAuth();
+      return;
+    }
+    console.error(error);
+  }
+}
+
 
 async function loadApps() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
@@ -1398,14 +1621,58 @@ document.addEventListener("keydown", event => {
   }
 });
 
-document.querySelectorAll(".nav-item[data-target]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const target = document.getElementById(btn.dataset.target);
-    if (!target) return;
-    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-    btn.classList.add("active");
-    target.scrollIntoView({behavior: "smooth", block: "start"});
+const viewGroups = {
+  "workspace-panel": ["workspace-panel", "drive-management-panel"],
+  "calendar-panel": ["calendar-panel"],
+  "home-assistant-panel": ["home-assistant-panel"],
+  "apps-panel": ["apps-panel", "app-store-panel"],
+  "vms-panel": ["vms-panel"],
+  "storage-panel": ["storage-panel"],
+  "backups-panel": ["backups-panel"],
+  "network-panel": ["network-panel"],
+  "ai-panel": ["ai-panel"],
+  "energy-panel": ["energy-panel"],
+  "updates-panel": ["updates-panel"]
+};
+
+function switchView(targetId) {
+  activeView = targetId || "dashboard-top";
+  const overview = document.getElementById("dashboard-top");
+  const grid = document.getElementById("module-grid");
+
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.classList.toggle("active", item.dataset.target === activeView);
   });
+
+  if (activeView === "dashboard-top" || activeView === "system") {
+    show(overview, true);
+    show(grid, false);
+    window.scrollTo({top: 0, behavior: "smooth"});
+    return;
+  }
+
+  show(overview, false);
+  show(grid, true);
+  const visible = new Set(viewGroups[activeView] || [activeView]);
+  Array.from(grid.children).forEach(panel => {
+    panel.classList.toggle("module-hidden", !visible.has(panel.id));
+  });
+  grid.classList.add("module-mode");
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+document.querySelectorAll(".nav-item[data-target]").forEach(btn => {
+  btn.addEventListener("click", () => switchView(btn.dataset.target));
+});
+
+document.querySelectorAll("[data-target-view]").forEach(btn => {
+  btn.addEventListener("click", event => {
+    event.stopPropagation();
+    switchView(btn.dataset.targetView);
+  });
+});
+document.querySelectorAll("[data-view]").forEach(btn => {
+  btn.addEventListener("click", () => switchView("dashboard-top"));
 });
 
 document.querySelectorAll("[data-url]").forEach(btn => {
@@ -1419,6 +1686,8 @@ bootstrapAuth().catch(error => {
     "Die Netfreak2k-API konnte nicht geladen werden.";
 });
 
+setInterval(updateDesktopClock, 1000);
+setInterval(loadOverview, 5000);
 setInterval(loadStatus, 30000);
 setInterval(loadApps, 30000);
 setInterval(loadHomeAssistant, 15000);
