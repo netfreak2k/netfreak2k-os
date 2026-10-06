@@ -33,6 +33,16 @@ services:
       - /etc/hostname:/host/etc/hostname:ro
       - netfreak2k-data:/data
       - netfreak2k-inventory:/inventory:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
     networks:
       - netfreak2k
 
@@ -43,7 +53,8 @@ services:
     container_name: netfreak2k-web
     restart: unless-stopped
     depends_on:
-      - netfreak2k-api
+      netfreak2k-api:
+        condition: service_healthy
     ports:
       - "${N2K_HTTP_PORT:-80}:80"
     networks:
