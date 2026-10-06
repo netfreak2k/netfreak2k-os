@@ -1,99 +1,54 @@
-# Netfreak2k Appliance Architecture
+# Netfreak2k on Linux Mint — Final Host Architecture
 
-## Product model
+## Goal
 
-Netfreak2k is a browser-managed virtualization appliance built on top of Proxmox VE technologies.
+Netfreak2k runs in the background on an existing Linux Mint installation, similar to CasaOS or Umbrel.
 
-The user interacts primarily with the Netfreak2k web UI. Proxmox VE provides the virtualization substrate underneath.
-
-The appliance is accessed through:
+The user opens Netfreak2k through the server IP in a browser:
 
 ```text
 http://NETFREAK2K-IP/
 ```
 
-The Netfreak2k UI becomes the main front door. Proxmox's native administration UI remains available as an advanced/admin fallback.
+Linux Mint remains the host operating system.
+
+Netfreak2k is the user-facing server platform.
 
 ## Host layout
 
 ```text
-Physical server / ThinkPad
+Linux Mint
 │
-└── Netfreak2k Appliance Host
-    │
-    ├── Proxmox VE base
-    │   ├── KVM/QEMU
-    │   ├── LXC
-    │   ├── storage
-    │   ├── networking
-    │   ├── backup/snapshots
-    │   └── VM lifecycle
-    │
-    ├── Netfreak2k Management VM/Container
-    │   ├── Netfreak2k Web UI
-    │   ├── API
-    │   ├── app catalog
-    │   ├── system overview
-    │   └── orchestration
-    │
+├── Netfreak2k background services
+│   ├── Web UI
+│   ├── API
+│   ├── app management
+│   ├── storage/backup integration
+│   └── VM orchestration
+│
+├── Docker / containers for ordinary Netfreak2k apps
+│
+└── KVM/QEMU + libvirt
     └── Home Assistant OS VM
         ├── Home Assistant Core
         ├── Supervisor
         ├── Apps/Add-ons
-        ├── backups
-        └── HAOS updates
+        ├── HAOS updates
+        └── Home Assistant backups
 ```
 
-## Home Assistant requirement
+## User experience
 
-Home Assistant must run as **Home Assistant OS in a KVM VM**.
-
-This is mandatory because the product requires the full Home Assistant experience:
-
-- Home Assistant Supervisor
-- Apps/Add-ons
-- HAOS updates
-- backups
-- supported Home Assistant appliance behavior
-
-Home Assistant Container is not sufficient for this requirement.
-
-Home Assistant Supervised installed directly on the Netfreak2k/Proxmox host is not used.
-
-## Netfreak2k OS inside the appliance
-
-"Netfreak2k OS" is the user-facing management environment.
-
-It does not need to replace or modify the Proxmox base directly for normal use. It runs as a dedicated management guest and controls allowed Proxmox resources through a scoped API/service account.
-
-The Netfreak2k web UI should eventually provide:
-
-- Home page/dashboard
-- Home Assistant launch/status
-- VM and container overview
-- app catalog
-- storage overview
-- backups
-- network overview
-- AI services
-- energy/off-grid services
-- automation
-- update status
-
-## One roof
-
-The user should not need to jump between unrelated admin interfaces for normal operation.
-
-The intended flow is:
+Normal use happens under one Netfreak2k web interface.
 
 ```text
 Browser
   ↓
 Netfreak2k Web UI
+  ├── Dashboard
   ├── Home Assistant
   ├── Apps
   ├── VMs
-  ├── Containers
   ├── Storage
   ├── Backups
   ├── Network
@@ -101,42 +56,71 @@ Netfreak2k Web UI
   └── Energy
 ```
 
-Home Assistant itself remains a separate guest and may be opened inside a dedicated Netfreak2k view or in its own browser tab.
+The user does not need to operate libvirt or QEMU manually.
 
-## Existing Linux protection
+## Home Assistant
 
-Netfreak2k Appliance is **not installed into an existing Linux desktop/server**.
+Home Assistant must run as Home Assistant OS in a KVM virtual machine.
 
-If an existing Linux installation must remain completely untouched, supported deployment choices are:
+This is mandatory because Home Assistant OS provides the supported full stack with:
 
-1. install Netfreak2k Appliance on a separate physical machine,
-2. install it on a separate SSD/NVMe and boot from that disk,
-3. run it as a VM on an already-existing hypervisor.
+- Home Assistant Core
+- Supervisor
+- Apps/Add-ons
+- one-click update flows
+- backups
 
-Installing the Proxmox-based appliance bare-metal onto the same disk as an existing Linux installation would replace/modify that host and is therefore not allowed by the "existing Linux untouched" requirement.
+Home Assistant Container is not sufficient because it does not provide Apps/Add-ons.
 
-## Networking
+The old Home Assistant Supervised-on-Debian installation method is not used.
 
-Default design:
+## What Netfreak2k installs
 
-- one physical LAN bridge
-- Netfreak2k management guest obtains a LAN address
-- Home Assistant OS obtains its own LAN presence through a bridged VM NIC
-- future mDNS name: `netfreak2k.local`
-- Home Assistant remains discoverable on the LAN for device integrations
+Netfreak2k may install and configure only dependencies required for its own operation, including:
 
-## Storage
+- Docker Engine / Compose for Netfreak2k app workloads where needed
+- QEMU/KVM
+- libvirt
+- virtual networking/bridge support needed for VMs
+- Netfreak2k services and data directories
 
-The appliance owns only storage explicitly assigned to it.
+These components are treated as internal Netfreak2k runtime dependencies.
 
-VM disks, backups and Netfreak2k data live on Proxmox-managed storage.
+Netfreak2k must not replace Linux Mint, repartition the system disk, replace the bootloader, or remove the user's desktop environment.
 
-An existing Linux disk that is meant to remain untouched must not be automatically imported, mounted read-write, repartitioned or used as appliance storage.
+## Home Assistant networking
 
-## Security
+The preferred design gives the HAOS VM its own LAN presence through a bridged or otherwise discovery-compatible virtual NIC.
 
-- Netfreak2k uses a scoped Proxmox API identity
-- no direct unrestricted root API access from the browser
-- state-changing VM/storage operations require authenticated Netfreak2k sessions
-- destructive operations require explicit confirmation
-- Proxmox native UI remains the recovery/admin interface
+This allows Home Assistant discovery protocols and integrations to work as naturally as possible.
+
+## USB passthrough
+
+Netfreak2k must provide a UI for attaching selected USB devices to HAOS, for example:
+
+- Zigbee coordinators
+- Z-Wave adapters
+- Thread radios
+- Bluetooth adapters where desired
+
+## Lifecycle
+
+Netfreak2k manages HAOS VM lifecycle:
+
+- create/import official HAOS KVM image
+- start
+- stop
+- restart
+- autostart with host
+- state/health display
+- backup hooks
+- VM snapshot integration
+- controlled USB passthrough
+
+## Safety
+
+Netfreak2k must not expose unrestricted libvirt or root access to the browser.
+
+State-changing VM operations require authentication and explicit permissions.
+
+Destructive storage operations require explicit confirmation.
