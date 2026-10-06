@@ -1618,3 +1618,22 @@ body::after{
 }
 @media(max-width:1050px){.v1-widget-grid>.widget{grid-column:span 6}}
 @media(max-width:620px){.v1-widget-grid{grid-template-columns:1fr}.v1-widget-grid>.widget{grid-column:1!important}}
+
+/* SYSTEM CENTER V1 */
+.auth-form select{
+  width:100%;margin-top:6px;padding:10px 11px;border-radius:10px;
+  border:1px solid rgba(255,229,168,.12);background:rgba(8,13,20,.92);color:#f4f6f8
+}
+.system-center-panel{grid-column:1/-1}
+.system-center-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.system-center-grid section{
+  padding:14px;border-radius:14px;background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,229,168,.08)
+}
+.system-center-grid small,.system-center-grid strong,.system-center-grid span{display:block}
+.system-center-grid small{font-size:7px;letter-spacing:.1em;color:#a99668}
+.system-center-grid strong{margin-top:5px;font-size:14px;color:#f4f6f8}
+.system-center-grid span{margin-top:5px;font-size:8px;line-height:1.4;color:#8e9aa6}
+.system-center-grid .system-center-wide{grid-column:span 2}
+@media(max-width:820px){.system-center-grid{grid-template-columns:1fr 1fr}.system-center-grid .system-center-wide{grid-column:span 2}}
+@media(max-width:520px){.system-center-grid{grid-template-columns:1fr}.system-center-grid .system-center-wide{grid-column:1}}
