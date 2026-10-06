@@ -93,6 +93,7 @@ printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
 
 log "Installiere eingeschränkten Netfreak2k VM-Agenten."
 install -d -m 0755 /usr/local/lib/netfreak2k /run/netfreak2k /var/lib/netfreak2k
+install -d -m 0770 -o nobody -g nogroup /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
 if [[ ! -s /var/lib/netfreak2k/agent.token ]]; then
   python3 -c 'import secrets; print(secrets.token_urlsafe(48))' > /var/lib/netfreak2k/agent.token
 fi
