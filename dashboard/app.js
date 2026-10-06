@@ -2309,20 +2309,43 @@ function startMatrixSimulation() {
 }
 startMatrixSimulation();
 
-document.getElementById("open-onion")?.addEventListener("click", () => {
-  let value = document.getElementById("onion-url")?.value.trim() || "";
-  if (!value) return;
-  if (!/^https?:\/\//i.test(value)) value = "http://" + value;
-  try {
-    const parsed = new URL(value);
-    if (!parsed.hostname.toLowerCase().endsWith(".onion")) {
-      alert("Bitte eine gültige .onion-Adresse eingeben.");
-      return;
-    }
-    window.open(parsed.href, "_blank", "noopener");
-  } catch (_) {
-    alert("Die Onion-Adresse ist ungültig.");
+async function openOnionInTorWorkspace(value) {
+  const normalized = normalizeOnionUrl(value);
+  if (!normalized) {
+    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    return;
   }
+
+  const explorerInput = document.getElementById("onion-explorer-url");
+  const simpleInput = document.getElementById("onion-url");
+  if (explorerInput) explorerInput.value = normalized;
+  if (simpleInput) simpleInput.value = normalized;
+
+  const history = onionLoad("history").filter(item => item.url !== normalized);
+  history.unshift({url: normalized, at: Date.now()});
+  onionSave("history", history);
+  renderOnionExplorer();
+
+  switchView("privacy-panel");
+  await loadTorBrowserStatus();
+
+  const stateText = document.getElementById("tor-browser-state")?.textContent || "";
+  if (!stateText.startsWith("Bereit")) {
+    alert("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
+    document.getElementById("tor-browser-install")?.focus();
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(normalized);
+  } catch (_) {}
+
+  document.querySelector(".tor-browser-shell")?.scrollIntoView({behavior:"smooth", block:"start"});
+  alert("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
+}
+
+document.getElementById("open-onion")?.addEventListener("click", () => {
+  openOnionInTorWorkspace(document.getElementById("onion-url")?.value || "");
 });
 
 document.getElementById("tor-project")?.addEventListener("click", () => {
@@ -2339,8 +2362,10 @@ async function loadTorBrowserStatus() {
     const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "tor-browser");
     const installed = Boolean(app?.installed);
     const running = app?.state === "running";
-    state.textContent = running ? "Bereit · Port 6901" : installed ? "Installiert · gestoppt" : "Nicht installiert";
+    state.textContent = running ? "Bereit · eingebettet" : installed ? "Installiert · gestoppt" : "Nicht installiert";
     state.className = running ? "running" : "";
+    const overviewState = document.getElementById("overview-tor-status");
+    if (overviewState) overviewState.textContent = running ? "bereit" : installed ? "gestoppt" : "nicht installiert";
     install.classList.toggle("hidden", installed);
     open.disabled = !running;
 
@@ -2435,17 +2460,7 @@ function renderOnionExplorer() {
 renderOnionExplorer();
 
 document.getElementById("onion-explorer-open")?.addEventListener("click", () => {
-  const input = document.getElementById("onion-explorer-url");
-  const value = normalizeOnionUrl(input?.value);
-  if (!value) {
-    alert("Bitte eine gültige .onion-Adresse eingeben.");
-    return;
-  }
-  const history = onionLoad("history").filter(item => item.url !== value);
-  history.unshift({url:value,at:Date.now()});
-  onionSave("history",history);
-  renderOnionExplorer();
-  window.open(value, "_blank", "noopener");
+  openOnionInTorWorkspace(document.getElementById("onion-explorer-url")?.value || "");
 });
 
 document.getElementById("onion-explorer-save")?.addEventListener("click", () => {
