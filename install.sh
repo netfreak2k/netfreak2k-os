@@ -124,7 +124,7 @@ detect_port() {
 download_release() {
   local tmp backup_env=""
   tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
+  trap "rm -rf '$tmp'" EXIT
 
   if [[ -f "${N2K_DIR}/server/.env" ]]; then
     backup_env="$(cat "${N2K_DIR}/server/.env")"
