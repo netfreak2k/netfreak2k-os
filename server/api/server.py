@@ -374,6 +374,16 @@ def workspace_rename(username, area, rel, old_name, new_name):
     if target.exists():
         raise ValueError("already_exists")
     source.rename(target)
+    with db_connect() as conn:
+        conn.execute(
+            "UPDATE favorites SET name=? WHERE username=? AND area=? AND rel_path=? AND name=?",
+            (new_name, username, area, str(safe_relative(rel)), old_name),
+        )
+        conn.execute(
+            "UPDATE file_versions SET name=? WHERE username=? AND area=? AND rel_path=? AND name=?",
+            (new_name, username, area, str(safe_relative(rel)), old_name),
+        )
+        conn.commit()
     return {"renamed": True, "name": new_name}
 
 
@@ -657,8 +667,26 @@ def workspace_transfer(username, mode, source_area, source_rel, name, target_are
         shutil.move(str(source), str(target))
         with db_connect() as conn:
             conn.execute(
-                "DELETE FROM favorites WHERE username=? AND area=? AND rel_path=? AND name=?",
-                (username, source_area, str(safe_relative(source_rel)), name),
+                "UPDATE favorites SET area=?, rel_path=? WHERE username=? AND area=? AND rel_path=? AND name=?",
+                (
+                    target_area,
+                    str(safe_relative(target_rel)),
+                    username,
+                    source_area,
+                    str(safe_relative(source_rel)),
+                    name,
+                ),
+            )
+            conn.execute(
+                "UPDATE file_versions SET area=?, rel_path=? WHERE username=? AND area=? AND rel_path=? AND name=?",
+                (
+                    target_area,
+                    str(safe_relative(target_rel)),
+                    username,
+                    source_area,
+                    str(safe_relative(source_rel)),
+                    name,
+                ),
             )
             conn.commit()
     return {"transferred": True, "mode": mode, "name": name, "area": target_area, "path": str(safe_relative(target_rel))}
