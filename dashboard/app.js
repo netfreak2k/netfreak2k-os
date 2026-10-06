@@ -2106,6 +2106,8 @@ const viewGroups = {
   "backups-panel": ["backups-panel"],
   "network-panel": ["network-panel"],
   "office-panel": ["office-panel"],
+  "terminal-panel": ["terminal-panel"],
+  "privacy-panel": ["privacy-panel"],
   "ai-panel": ["ai-panel"],
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
@@ -2157,6 +2159,178 @@ document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
 
+
+const terminalCommands = {
+  help: async () => [
+    "Verfügbare Befehle:",
+    "  help      Befehlsübersicht",
+    "  status    Serverstatus",
+    "  cpu       CPU-Auslastung",
+    "  ram       Arbeitsspeicher",
+    "  storage   Host-Speicher",
+    "  network   Netzwerkstatus",
+    "  apps      Verwaltete Apps",
+    "  vms       Virtuelle Maschinen",
+    "  uptime    Laufzeit",
+    "  clear     Terminal leeren"
+  ],
+  status: async () => {
+    const data = await request("/api/status", {headers:{}});
+    const host = data.host || {};
+    return [
+      `Produkt: ${data.product || "Netfreak2k Server-OS"}`,
+      `Version: ${data.version || "unbekannt"}`,
+      `Host: ${host.hostname || "unbekannt"}`,
+      `OS: ${host.os?.PRETTY_NAME || host.os?.NAME || "unbekannt"}`
+    ];
+  },
+  cpu: async () => {
+    const data = await request("/api/overview", {headers:{}});
+    return [`CPU: ${Number.isFinite(data.cpu_percent) ? data.cpu_percent + "%" : "wird gemessen"}`];
+  },
+  ram: async () => {
+    const data = await request("/api/overview", {headers:{}});
+    const m = data.memory || {};
+    return [
+      `RAM: ${Number.isFinite(m.used_percent) ? m.used_percent + "%" : "–"}`,
+      `Belegt: ${formatBytes(m.used_bytes)} / ${formatBytes(m.total_bytes)}`
+    ];
+  },
+  storage: async () => {
+    const data = await request("/api/storage", {headers:{}});
+    const h = data.host || {};
+    return [
+      `Speicher: ${Number.isFinite(h.used_percent) ? h.used_percent + "% belegt" : "–"}`,
+      `Belegt: ${formatBytes(h.used_bytes)}`,
+      `Frei: ${formatBytes(h.free_bytes)}`,
+      `Gesamt: ${formatBytes(h.total_bytes)}`
+    ];
+  },
+  network: async () => {
+    const data = await request("/api/overview", {headers:{}});
+    const n = data.network || {};
+    return [
+      `Interfaces: ${Array.isArray(n.interfaces) && n.interfaces.length ? n.interfaces.join(", ") : "–"}`,
+      `Download: ${formatRate(n.down_bps)}`,
+      `Upload: ${formatRate(n.up_bps)}`,
+      `Ping: ${Number.isFinite(n.ping_ms) ? n.ping_ms + " ms" : "–"}`,
+      `Provider: ${n.provider || "–"}`,
+      `WAN: ${n.public_ip || "–"}`
+    ];
+  },
+  apps: async () => {
+    const data = await request("/api/apps", {headers:{}});
+    const items = Array.isArray(data.containers) ? data.containers : [];
+    return items.length ? items.map(item => `${item.name}: ${item.state || "unknown"}`) : ["Keine verwalteten Apps gefunden."];
+  },
+  vms: async () => {
+    const data = await request("/api/vms", {headers:{}});
+    const items = Array.isArray(data.vms) ? data.vms : [];
+    return items.length ? items.map(item => `${item.name}: ${item.state || "unknown"}`) : ["Keine VMs gefunden."];
+  },
+  uptime: async () => {
+    const data = await request("/api/status", {headers:{}});
+    return [`Uptime: ${formatUptime(data.host?.uptime_seconds)}`];
+  }
+};
+
+function terminalPrint(lines, className="") {
+  const output = document.getElementById("terminal-output");
+  if (!output) return;
+  for (const line of (Array.isArray(lines) ? lines : [lines])) {
+    const row = document.createElement("div");
+    row.className = `terminal-line ${className}`.trim();
+    row.textContent = line;
+    output.appendChild(row);
+  }
+  output.scrollTop = output.scrollHeight;
+}
+
+async function runTerminalCommand(raw) {
+  const command = String(raw || "").trim();
+  if (!command) return;
+  terminalPrint([`n2k@server:~$ ${command}`], "terminal-command");
+  const name = command.split(/\s+/)[0].toLowerCase();
+
+  if (name === "clear") {
+    const output = document.getElementById("terminal-output");
+    if (output) output.innerHTML = "";
+    return;
+  }
+
+  const handler = terminalCommands[name];
+  if (!handler) {
+    terminalPrint([`Befehl nicht erlaubt: ${name}`, "Tippe help für die freigegebene Befehlsliste."], "terminal-error");
+    return;
+  }
+
+  try {
+    terminalPrint(await handler());
+  } catch (error) {
+    console.error(error);
+    terminalPrint(["Fehler: Status konnte nicht geladen werden."], "terminal-error");
+  }
+}
+
+document.getElementById("terminal-form")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const input = document.getElementById("terminal-input");
+  const value = input?.value || "";
+  if (input) input.value = "";
+  await runTerminalCommand(value);
+});
+
+function startMatrixSimulation() {
+  const canvas = document.getElementById("matrix-canvas");
+  if (!canvas || canvas.dataset.running === "true") return;
+  canvas.dataset.running = "true";
+  const ctx = canvas.getContext("2d");
+  const chars = "01N2KABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&*+<>/";
+  const fontSize = 12;
+  let columns = Math.max(1, Math.floor(canvas.width / fontSize));
+  let drops = Array.from({length: columns}, () => Math.floor(Math.random() * -20));
+
+  const draw = () => {
+    if (!document.body.contains(canvas)) return;
+    ctx.fillStyle = "rgba(2,7,5,.15)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.font = `${fontSize}px monospace`;
+    ctx.fillStyle = "rgba(88,255,138,.8)";
+    for (let i=0;i<drops.length;i+=1) {
+      const char = chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(char,i*fontSize,drops[i]*fontSize);
+      if (drops[i]*fontSize > canvas.height && Math.random() > .975) drops[i] = 0;
+      drops[i] += 1;
+    }
+    requestAnimationFrame(draw);
+  };
+  draw();
+}
+startMatrixSimulation();
+
+document.getElementById("open-onion")?.addEventListener("click", () => {
+  let value = document.getElementById("onion-url")?.value.trim() || "";
+  if (!value) return;
+  if (!/^https?:\/\//i.test(value)) value = "http://" + value;
+  try {
+    const parsed = new URL(value);
+    if (!parsed.hostname.toLowerCase().endsWith(".onion")) {
+      alert("Bitte eine gültige .onion-Adresse eingeben.");
+      return;
+    }
+    window.open(parsed.href, "_blank", "noopener");
+  } catch (_) {
+    alert("Die Onion-Adresse ist ungültig.");
+  }
+});
+
+document.getElementById("tor-project")?.addEventListener("click", () => {
+  window.open("https://www.torproject.org/download/", "_blank", "noopener");
+});
+
+document.getElementById("usenet-info")?.addEventListener("click", () => {
+  alert("Usenet ist kein Tor-Darknet. Im nächsten Schritt kann hier eine provider-neutrale Newsreader-/NZB-Konfiguration eingebunden werden.");
+});
 
 function aiStorageKey(pane) {
   return `n2k_ai_pane_${pane}`;
