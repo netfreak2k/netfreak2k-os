@@ -1664,15 +1664,18 @@ function switchView(targetId) {
   window.scrollTo({top: 0, behavior: "smooth"});
 }
 
-document.querySelectorAll(".nav-item[data-target]").forEach(btn => {
-  btn.addEventListener("click", () => switchView(btn.dataset.target));
+document.querySelector(".side-nav")?.addEventListener("click", event => {
+  const button = event.target.closest(".nav-item[data-target]");
+  if (!button) return;
+  event.preventDefault();
+  switchView(button.dataset.target);
 });
 
-document.querySelectorAll("[data-target-view]").forEach(btn => {
-  btn.addEventListener("click", event => {
-    event.stopPropagation();
-    switchView(btn.dataset.targetView);
-  });
+document.addEventListener("click", event => {
+  const button = event.target.closest("[data-target-view]");
+  if (!button) return;
+  event.stopPropagation();
+  switchView(button.dataset.targetView);
 });
 document.querySelectorAll("[data-view]").forEach(btn => {
   btn.addEventListener("click", () => switchView("dashboard-top"));
