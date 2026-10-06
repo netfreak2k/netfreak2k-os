@@ -54,6 +54,8 @@ systemctl restart netfreak2k-vm-agent.service
 systemctl restart netfreak2k-ha-proxy.service
 systemctl enable --now netfreak2k-update-check.timer
 
+install -d -m 0770 -o nobody -g nogroup /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
+
 log "Baue und starte aktualisierte Webplattform."
 cd "${N2K_DIR}/server"
 docker compose up -d --build
