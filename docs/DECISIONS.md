@@ -83,3 +83,27 @@ This is not an optional community add-on. Netfreak2k must provide a supported in
 
 The Home Assistant deployment must not require replacing the host operating system with Home Assistant OS.
 
+## ADR-010 — Netfreak2k becomes a Proxmox-based appliance
+
+**Status:** Accepted
+
+Netfreak2k is no longer primarily installed as a Docker stack inside an existing Debian/Ubuntu host.
+
+The primary product becomes a browser-managed appliance built on a Proxmox VE virtualization base.
+
+Proxmox provides KVM/QEMU, LXC, storage, networking, backup/snapshot and lifecycle primitives.
+
+The Netfreak2k user-facing environment runs as a dedicated management guest and becomes the normal web entry point.
+
+Home Assistant runs as Home Assistant OS in a dedicated KVM VM.
+
+The existing Linux installation of a user must not be modified by the appliance. Therefore the appliance requires a separate machine, separate boot/storage device, or an already-existing hypervisor.
+
+## ADR-011 — Existing-Linux installer is legacy
+
+**Status:** Accepted
+
+The previous `install.sh` path that installed Netfreak2k directly into Debian/Ubuntu is no longer the primary architecture and must not be presented as the recommended installation method.
+
+The target installation artifact becomes a dedicated Netfreak2k Appliance image/installer based on Proxmox VE.
+
