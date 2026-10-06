@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/socat TCP-LISTEN:8123,reuseaddr,fork TCP:192.168.122.50:8123
+ExecStart=/usr/bin/socat TCP-LISTEN:8123,reuseaddr,fork TCP:192.168.122.50:80
 Restart=always
 RestartSec=2
 NoNewPrivileges=true
