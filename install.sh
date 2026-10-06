@@ -90,6 +90,11 @@ printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
 
 log "Installiere eingeschränkten Netfreak2k VM-Agenten."
 install -d -m 0755 /usr/local/lib/netfreak2k /run/netfreak2k /var/lib/netfreak2k
+if [[ ! -s /var/lib/netfreak2k/agent.token ]]; then
+  python3 -c 'import secrets; print(secrets.token_urlsafe(48))' > /var/lib/netfreak2k/agent.token
+fi
+chown root:nogroup /var/lib/netfreak2k/agent.token
+chmod 0640 /var/lib/netfreak2k/agent.token
 install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent.py
 install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
