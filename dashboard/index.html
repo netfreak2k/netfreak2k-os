@@ -7,43 +7,84 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <strong>Netfreak2k Server</strong>
-    <nav><span>Dashboard</span><span>Apps</span><span>System</span></nav>
-    <div class="status"><span id="server-dot" class="dot"></span><span id="server-state">Verbinde …</span></div>
-  </header>
+  <div id="auth-shell" class="auth-shell">
+    <section class="auth-card glass">
+      <p class="eyebrow">Netfreak2k Server</p>
+      <h1 id="auth-title">Wird geladen …</h1>
+      <p id="auth-copy">Die lokale Serverkonfiguration wird geprüft.</p>
 
-  <main>
-    <section class="hero glass">
-      <div>
-        <p class="eyebrow">N2K Server · 0.1.0-dev</p>
-        <h1>Dein Server. Eine Weboberfläche.</h1>
-        <p>Netfreak2k läuft im Hintergrund und verändert dein bestehendes Betriebssystem nicht.</p>
+      <form id="setup-form" class="auth-form hidden">
+        <label>Admin-Benutzer
+          <input id="setup-username" autocomplete="username" minlength="3" maxlength="32" required>
+        </label>
+        <label>Passwort
+          <input id="setup-password" type="password" autocomplete="new-password" minlength="10" required>
+        </label>
+        <label>Passwort wiederholen
+          <input id="setup-password-repeat" type="password" autocomplete="new-password" minlength="10" required>
+        </label>
+        <button type="submit">Netfreak2k einrichten</button>
+      </form>
+
+      <form id="login-form" class="auth-form hidden">
+        <label>Benutzer
+          <input id="login-username" autocomplete="username" required>
+        </label>
+        <label>Passwort
+          <input id="login-password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Anmelden</button>
+      </form>
+
+      <p id="auth-error" class="auth-error hidden"></p>
+      <small class="auth-note">Die Anmeldung wird lokal auf diesem Netfreak2k-Server gespeichert.</small>
+    </section>
+  </div>
+
+  <div id="app-shell" class="hidden">
+    <header class="topbar">
+      <strong>Netfreak2k Server</strong>
+      <nav><span>Dashboard</span><span>Apps</span><span>System</span></nav>
+      <div class="status">
+        <span id="server-dot" class="dot"></span>
+        <span id="server-state">Verbinde …</span>
+        <span id="session-user"></span>
+        <button id="logout" class="button-quiet">Abmelden</button>
       </div>
-      <button id="refresh-status">Status aktualisieren</button>
-    </section>
+    </header>
 
-    <section class="system-overview glass">
-      <div><span class="metric-label">Host</span><strong id="host-name">–</strong></div>
-      <div><span class="metric-label">System</span><strong id="host-os">–</strong></div>
-      <div><span class="metric-label">Laufzeit</span><strong id="host-uptime">–</strong></div>
-      <div><span class="metric-label">RAM</span><strong id="host-memory">–</strong></div>
-      <div><span class="metric-label">Load</span><strong id="host-load">–</strong></div>
-    </section>
+    <main>
+      <section class="hero glass">
+        <div>
+          <p class="eyebrow">N2K Server · 0.1.0-dev</p>
+          <h1>Dein Server. Eine Weboberfläche.</h1>
+          <p>Netfreak2k läuft im Hintergrund und verändert dein bestehendes Betriebssystem nicht.</p>
+        </div>
+        <button id="refresh-status">Status aktualisieren</button>
+      </section>
 
-    <section class="grid" id="dashboard">
-      <article class="card glass"><h2>Apps</h2><p>Container und Dienste zentral verwalten.</p><span class="badge">folgt</span></article>
-      <article class="card glass"><h2>Speicher</h2><p>Festplatten, SMART, Freigaben und Backups.</p><span class="badge">folgt</span></article>
-      <article class="card glass"><h2>KI</h2><p>Cloud- und lokale KI-Dienste an einem Ort.</p><button data-url="https://chatgpt.com">ChatGPT öffnen</button></article>
-      <article class="card glass"><h2>Netzwerk</h2><p>LAN, Tailscale und später netfreak2k.local.</p><span class="badge">folgt</span></article>
-      <article class="card glass"><h2>Automationen</h2><p>Wenn/Dann-Regeln für Dienste, Energie und Backups.</p><span class="badge">folgt</span></article>
-      <article class="card glass"><h2>Energie</h2><p>Solar, Batterie, USV und Verbrauch.</p><span class="badge">folgt</span></article>
-    </section>
-  </main>
+      <section class="system-overview glass">
+        <div><span class="metric-label">Host</span><strong id="host-name">–</strong></div>
+        <div><span class="metric-label">System</span><strong id="host-os">–</strong></div>
+        <div><span class="metric-label">Laufzeit</span><strong id="host-uptime">–</strong></div>
+        <div><span class="metric-label">RAM</span><strong id="host-memory">–</strong></div>
+        <div><span class="metric-label">Load</span><strong id="host-load">–</strong></div>
+      </section>
 
-  <footer class="dock glass">
-    <span>Dashboard</span><span>Apps</span><span>Dateien</span><span>KI</span><span>Energie</span><span>Einstellungen</span>
-  </footer>
+      <section class="grid" id="dashboard">
+        <article class="card glass"><h2>Apps</h2><p>Container und Dienste zentral verwalten.</p><span class="badge">folgt</span></article>
+        <article class="card glass"><h2>Speicher</h2><p>Festplatten, SMART, Freigaben und Backups.</p><span class="badge">folgt</span></article>
+        <article class="card glass"><h2>KI</h2><p>Cloud- und lokale KI-Dienste an einem Ort.</p><button data-url="https://chatgpt.com">ChatGPT öffnen</button></article>
+        <article class="card glass"><h2>Netzwerk</h2><p>LAN, Tailscale und später netfreak2k.local.</p><span class="badge">folgt</span></article>
+        <article class="card glass"><h2>Automationen</h2><p>Wenn/Dann-Regeln für Dienste, Energie und Backups.</p><span class="badge">folgt</span></article>
+        <article class="card glass"><h2>Energie</h2><p>Solar, Batterie, USV und Verbrauch.</p><span class="badge">folgt</span></article>
+      </section>
+    </main>
+
+    <footer class="dock glass">
+      <span>Dashboard</span><span>Apps</span><span>Dateien</span><span>KI</span><span>Energie</span><span>Einstellungen</span>
+    </footer>
+  </div>
 
   <script src="app.js"></script>
 </body>
