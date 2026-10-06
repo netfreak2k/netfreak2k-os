@@ -1,8 +1,8 @@
-# Netfreak2k OS Product Specification
+# Netfreak2k Server-OS Product Specification
 
 ## 1. Product vision
 
-Netfreak2k OS is a lightweight, general-purpose Linux desktop operating system with a modern N2K Glass interface, strong hardware auto-detection, local-first privacy, AI integration, resilient recovery, multi-device workflows, automation, and optional off-grid/energy capabilities.
+Netfreak2k Server-OS is a lightweight, general-purpose Linux desktop operating system with a modern N2K Glass interface, strong hardware auto-detection, local-first privacy, AI integration, resilient recovery, multi-device workflows, automation, and optional off-grid/energy capabilities.
 
 The system should be usable as a normal daily-driver OS without requiring terminal knowledge for routine tasks.
 
@@ -14,7 +14,7 @@ The public OS remains separate from the maintainer's private N2K Workspace.
 
 ## 2. Supported system classes
 
-Netfreak2k OS should adapt automatically to the detected platform:
+Netfreak2k Server-OS should adapt automatically to the detected platform:
 
 - x86-64 desktop PCs
 - x86-64 notebooks
@@ -171,7 +171,7 @@ A central Default Apps section should configure browser, mail, PDF, images, musi
 
 ## 7. Web apps
 
-Netfreak2k OS should support installing web services as desktop-like apps.
+Netfreak2k Server-OS should support installing web services as desktop-like apps.
 
 Examples:
 
@@ -233,7 +233,7 @@ Permissions should be requested on first access.
 
 ## 9. Local password manager
 
-Netfreak2k OS should include an integrated password manager.
+Netfreak2k Server-OS should include an integrated password manager.
 
 Requirements:
 
@@ -733,7 +733,7 @@ The following decisions are currently explicit:
 
 ## 29. Implementation principle
 
-Netfreak2k OS should prefer mature upstream Linux components over unnecessary custom reinvention.
+Netfreak2k Server-OS should prefer mature upstream Linux components over unnecessary custom reinvention.
 
 Custom development should focus on:
 
@@ -751,7 +751,7 @@ Custom development should focus on:
 The system should remain lightweight enough to scale down to constrained hardware while providing richer features on stronger x86-64 and Raspberry Pi systems.
 ## 30. Mandatory Home Assistant support
 
-Home Assistant is a required first-class workload in Netfreak2k Server.
+Home Assistant is a required first-class workload in Netfreak2k Server-OS.
 
 Requirements:
 
