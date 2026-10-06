@@ -2328,8 +2328,11 @@ document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
 
-document.getElementById("usenet-info")?.addEventListener("click", () => {
-  alert("Usenet ist kein Tor-Darknet. Im nächsten Schritt kann hier eine provider-neutrale Newsreader-/NZB-Konfiguration eingebunden werden.");
+document.getElementById("usenext-login")?.addEventListener("click", () => {
+  window.open("https://www.usenext.com/signin", "_blank", "noopener");
+});
+document.getElementById("usenext-help")?.addEventListener("click", () => {
+  window.open("https://www.usenext.com/usenet-infos/newsreader", "_blank", "noopener");
 });
 
 function aiStorageKey(pane) {
