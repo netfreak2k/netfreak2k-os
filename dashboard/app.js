@@ -126,6 +126,9 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
   const username = document.getElementById("setup-username").value.trim();
   const password = document.getElementById("setup-password").value;
   const repeat = document.getElementById("setup-password-repeat").value;
+  const device_name = document.getElementById("setup-device-name")?.value.trim() || "n2k-server";
+  const profile = document.getElementById("setup-profile")?.value || "home-server";
+  const ai_provider = document.getElementById("setup-ai-provider")?.value || "chatgpt";
   if (password !== repeat) {
     authError("Die beiden Passwörter stimmen nicht überein.");
     return;
@@ -133,7 +136,7 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
   try {
     const data = await request("/api/setup", {
       method: "POST",
-      body: JSON.stringify({username, password})
+      body: JSON.stringify({username, password, device_name, profile, ai_provider})
     });
     csrfToken = data.csrf || "";
     enterApp(data.username);
@@ -213,8 +216,23 @@ async function loadStatus() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   setConnection(false, "Verbinde …");
   try {
-    await request("/api/status", {headers: {}});
+    const data = await request("/api/status", {headers: {}});
     setConnection(true, "Server online");
+    const host = data.host || {};
+    const memory = host.memory || {};
+    const network = host.network || {};
+    setText("system-hostname", host.hostname || "–");
+    setText("system-os", host.os?.PRETTY_NAME || host.os?.NAME || "Linux");
+    setText("system-cpu", Number.isFinite(host.cpu_percent) ? `${Math.round(host.cpu_percent)}%` : "–");
+    setText("system-load", Array.isArray(host.load) ? `Load: ${host.load.join(" · ")}` : "Load: –");
+    setText("system-ram", Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–");
+    setText("system-memory-detail", memory.total_bytes ? `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}` : "–");
+    setText("system-uptime", formatUptime(host.uptime_seconds));
+    setText("system-version", `Netfreak2k ${data.version || "–"}`);
+    setText("system-network", Array.isArray(network.interfaces) && network.interfaces.length ? network.interfaces.join(" · ") : "Netzwerk");
+    setText("system-network-detail", network.public_ip ? `WAN ${network.public_ip}` : "WAN-IP nicht verfügbar");
+    const state = document.getElementById("system-center-state");
+    if (state) { state.textContent = "Online"; state.classList.add("running"); }
   } catch (error) {
     if (error.status === 401) {
       csrfToken = "";
@@ -534,6 +552,24 @@ async function loadOverview() {
     document.getElementById("overview-system-dot").classList.toggle("warn", !healthOk);
     document.getElementById("overview-health-copy").textContent =
       healthOk ? "Alle wichtigen Dienste sehen gut aus." : "Ein Bereich benötigt deine Aufmerksamkeit.";
+
+    setText("v1-hw-cpu", Number.isFinite(cpu) ? `${Math.round(cpu)}%` : "–");
+    setText("v1-hw-ram", Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–");
+    setText("v1-hw-uptime", formatUptime(data.uptime_seconds));
+    setText("v1-hw-health", healthOk ? "OK" : "Prüfen");
+
+    const servicesSummary = document.getElementById("v1-services-summary");
+    if (servicesSummary) {
+      servicesSummary.textContent = `${apps.running || 0} aktiv${apps.stopped ? ` · ${apps.stopped} gestoppt` : ""}`;
+    }
+
+    const v1UpdateDot = document.getElementById("v1-update-dot");
+    const v1UpdateCopy = document.getElementById("v1-update-copy");
+    if (v1UpdateDot && v1UpdateCopy) {
+      v1UpdateCopy.textContent = updateAvailable ? "Update verfügbar" : "System aktuell";
+      v1UpdateDot.classList.toggle("ok", !updateAvailable);
+      v1UpdateDot.classList.toggle("info", updateAvailable);
+    }
 
     const warningBox = document.getElementById("overview-warning");
     const warnings = data.health?.warnings || [];
@@ -2099,6 +2135,7 @@ document.addEventListener("keydown", event => {
 });
 
 const viewGroups = {
+  "system-panel": ["system-panel"],
   "workspace-panel": ["workspace-panel", "drive-management-panel"],
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
@@ -2122,7 +2159,7 @@ function switchView(targetId) {
     item.classList.toggle("active", item.dataset.target === activeView);
   });
 
-  if (activeView === "dashboard-top" || activeView === "system") {
+  if (activeView === "dashboard-top") {
     show(overview, true);
     show(grid, false);
     window.scrollTo({top: 0, behavior: "smooth"});
@@ -2153,7 +2190,7 @@ document.addEventListener("click", event => {
   switchView(button.dataset.targetView);
 });
 document.querySelectorAll("[data-view]").forEach(btn => {
-  btn.addEventListener("click", () => switchView("dashboard-top"));
+  btn.addEventListener("click", () => switchView(btn.dataset.view === "system" ? "system-panel" : "dashboard-top"));
 });
 
 document.querySelectorAll("[data-url]").forEach(btn => {

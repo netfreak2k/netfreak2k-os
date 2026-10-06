@@ -711,6 +711,13 @@ WALLPAPER_IDS = {
 }
 
 
+PREFERENCE_VALUES = {
+    "usage_profile": {"home-server", "ai-workspace", "custom"},
+    "ai_provider": {"chatgpt", "local", "none"},
+    "update_channel": {"stable", "beta", "developer"},
+}
+
+
 def preferences_payload(username):
     with db_connect() as conn:
         rows = conn.execute(
@@ -721,15 +728,28 @@ def preferences_payload(username):
     wallpaper = prefs.get("wallpaper", "01-night-bay")
     if wallpaper not in WALLPAPER_IDS:
         wallpaper = "01-night-bay"
-    return {"wallpaper": wallpaper}
+    return {
+        "wallpaper": wallpaper,
+        "device_name": prefs.get("device_name", "n2k-server"),
+        "usage_profile": prefs.get("usage_profile", "home-server"),
+        "ai_provider": prefs.get("ai_provider", "chatgpt"),
+        "update_channel": prefs.get("update_channel", "developer"),
+    }
 
 
 def set_preference(username, key, value):
-    if key != "wallpaper":
+    value = str(value or "").strip()
+    if key == "wallpaper":
+        if value not in WALLPAPER_IDS:
+            raise ValueError("invalid_wallpaper")
+    elif key == "device_name":
+        if not value or len(value) > 48 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value):
+            raise ValueError("invalid_device_name")
+    elif key in PREFERENCE_VALUES:
+        if value not in PREFERENCE_VALUES[key]:
+            raise ValueError("invalid_preference_value")
+    else:
         raise ValueError("invalid_preference")
-    value = str(value or "")
-    if value not in WALLPAPER_IDS:
-        raise ValueError("invalid_wallpaper")
     now = int(time.time())
     with db_connect() as conn:
         conn.execute(
@@ -1858,7 +1878,20 @@ class Handler(BaseHTTPRequestHandler):
                 data = self.read_json()
                 username = str(data.get("username", "")).strip()
                 password = str(data.get("password", ""))
+                device_name = str(data.get("device_name", "n2k-server")).strip()[:48] or "n2k-server"
+                profile = str(data.get("profile", "home-server")).strip()
+                ai_provider = str(data.get("ai_provider", "chatgpt")).strip()
+                if profile not in {"home-server", "ai-workspace", "custom"}:
+                    raise ValueError("invalid_profile")
+                if ai_provider not in {"chatgpt", "local", "none"}:
+                    raise ValueError("invalid_ai_provider")
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,47}", device_name):
+                    raise ValueError("invalid_device_name")
                 create_admin(username, password)
+                set_preference(username, "device_name", device_name)
+                set_preference(username, "usage_profile", profile)
+                set_preference(username, "ai_provider", ai_provider)
+                set_preference(username, "update_channel", "developer")
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
                 return
