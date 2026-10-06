@@ -51,7 +51,9 @@
       </div>
 
       <nav class="side-nav">
-        <button class="nav-item active" data-target="dashboard-top"><span>⌂</span>Dashboard</button>
+        <button class="nav-item active" data-target="dashboard-top"><span>⌂</span>Übersicht</button>
+        <button class="nav-item" data-target="workspace-panel"><span>▤</span>Arbeitsplatz</button>
+        <button class="nav-item" data-target="calendar-panel"><span>□</span>Kalender</button>
         <button class="nav-item" data-target="home-assistant-panel"><span>◇</span>Home Assistant</button>
         <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
         <button class="nav-item" data-target="vms-panel"><span>▣</span>VMs</button>
@@ -74,7 +76,12 @@
         <div>
           <p class="eyebrow">N2K CONTROL CENTER</p>
           <h1>Netfreak2k Server-OS</h1>
-          <p class="subtitle">Dein Server. Eine Weboberfläche.</p>
+          <p class="subtitle">Private Cloud · Server · Home Assistant · Arbeitsplatz</p>
+        </div>
+        <div class="command-search">
+          <span>⌕</span>
+          <input id="global-search" type="search" placeholder="Netfreak2k durchsuchen …" aria-label="Suche">
+          <kbd>⌘ K</kbd>
         </div>
         <div class="top-actions">
           <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
@@ -108,6 +115,74 @@
         </section>
 
         <section class="dashboard-grid">
+          <article id="workspace-panel" class="panel workspace-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K DRIVE</p>
+                <h2>Arbeitsplatz</h2>
+                <p>Deine private Cloud direkt auf diesem Server.</p>
+              </div>
+              <div class="workspace-tools">
+                <input id="workspace-upload-input" type="file" multiple hidden>
+                <button id="workspace-upload" class="primary compact">Dateien hochladen</button>
+                <button id="workspace-new-folder" class="secondary compact">Neuer Ordner</button>
+              </div>
+            </div>
+            <div class="drive-shell">
+              <aside class="drive-sidebar">
+                <button class="drive-area active" data-area="documents">▤ Dokumente</button>
+                <button class="drive-area" data-area="media">▧ Bilder & Videos</button>
+                <button class="drive-area" data-area="audio">♪ Audio</button>
+                <button class="drive-area" data-area="downloads">⇩ Downloads</button>
+                <button class="drive-area" data-area="personal">◉ Persönlich</button>
+                <button class="drive-area" data-area="shared">⇄ Shared</button>
+                <button class="drive-area" data-area="trash">⌫ Papierkorb</button>
+              </aside>
+              <section class="drive-content">
+                <div class="drive-pathbar">
+                  <button id="workspace-up" class="icon-button" title="Eine Ebene höher">↑</button>
+                  <div id="workspace-breadcrumbs" class="breadcrumbs">Dokumente</div>
+                  <span id="workspace-summary" class="muted">–</span>
+                </div>
+                <div id="workspace-list" class="workspace-list">
+                  <div class="app-empty">Arbeitsplatz wird geladen …</div>
+                </div>
+              </section>
+            </div>
+          </article>
+
+          <article id="calendar-panel" class="panel calendar-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K CALENDAR</p>
+                <h2>Kalender</h2>
+                <p>Lokale Termine heute – CalDAV-Synchronisation folgt als nächste Schicht.</p>
+              </div>
+              <div class="calendar-nav">
+                <button id="calendar-prev" class="secondary compact">‹</button>
+                <strong id="calendar-month">–</strong>
+                <button id="calendar-next" class="secondary compact">›</button>
+              </div>
+            </div>
+            <div class="calendar-shell">
+              <div>
+                <div class="calendar-weekdays">
+                  <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+              </div>
+              <aside class="event-editor">
+                <h3>Termin anlegen</h3>
+                <label>Titel<input id="event-title" maxlength="160" placeholder="z. B. Wartung"></label>
+                <label>Beginn<input id="event-start" type="datetime-local"></label>
+                <label>Ende<input id="event-end" type="datetime-local"></label>
+                <label>Notiz<textarea id="event-notes" rows="3" maxlength="2000"></textarea></label>
+                <button id="event-create" class="primary">Termin speichern</button>
+                <div id="upcoming-events" class="upcoming-events"></div>
+              </aside>
+            </div>
+          </article>
+
           <article id="home-assistant-panel" class="panel ha-panel section-anchor">
             <div class="panel-head">
               <div class="panel-title-wrap">
