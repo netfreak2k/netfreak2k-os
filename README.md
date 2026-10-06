@@ -1,8 +1,8 @@
-# Netfreak2k OS
+# Netfreak2k Server-OS
 
 **Offgrid · Mesh · Local Intelligence**
 
-Netfreak2k OS is being developed as a **browser-managed background platform for Linux Mint**, similar in user experience to CasaOS or Umbrel. Linux Mint remains the host, while Netfreak2k provides the web UI, app layer and managed virtualization needed for full Home Assistant OS.
+Netfreak2k Server-OS is being developed as a **browser-managed background platform for Linux Mint**, similar in user experience to CasaOS or Umbrel. Linux Mint remains the host, while Netfreak2k provides the web UI, app layer and managed virtualization needed for full Home Assistant OS.
 
 > **KEIN NETZ. KEIN PROBLEM.**
 
@@ -53,7 +53,7 @@ Existing Linux host
         │
         └── Docker
              │
-             └── Netfreak2k Server
+             └── Netfreak2k Server-OS
                     │
                     ├── Web UI
                     ├── Apps
