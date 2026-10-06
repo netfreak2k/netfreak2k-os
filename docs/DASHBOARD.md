@@ -101,3 +101,30 @@ The first supported editor engine is ONLYOFFICE Docs Community Edition. It is in
 
 The global search stays centered in the topbar. Greeting, user actions, clock and date are grouped on the right, with the clock occupying the far-right visual position.
 
+## N2K Terminal
+
+The dashboard includes a branded Netfreak2k diagnostic terminal. It intentionally does not expose an unrestricted host shell.
+
+The browser-side terminal maps a small allowlist of diagnostic commands to existing authenticated Netfreak2k APIs:
+
+- help
+- status
+- cpu
+- ram
+- storage
+- network
+- apps
+- vms
+- uptime
+- clear
+
+This preserves the rule that the browser does not receive arbitrary root, Docker or libvirt command execution.
+
+## N2K Underground / Privacy
+
+The overview contains a small animated Matrix-style widget that opens the Underground/Privacy module.
+
+The module explicitly distinguishes Usenet from Tor/Onion services. Netfreak2k does not expose an open server-side SOCKS or HTTP proxy. The Onion launcher only validates and passes a `.onion` URL to the user's current browser. Actual Onion connectivity therefore requires a Tor-capable client/browser.
+
+The Usenet area is provider-neutral and is reserved for a future newsreader/NZB integration rather than hard-wiring one commercial provider.
+
