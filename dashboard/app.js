@@ -1438,8 +1438,12 @@ async function loadHomeAssistant() {
     if (vmState) vmState.textContent = data.state || "unbekannt";
     if (!data.available) {
       detail.textContent = "VM-Agent nicht erreichbar.";
+    } else if (data.kvm === false) {
+      detail.textContent = "KVM ist auf diesem Host nicht verfügbar.";
     } else if (!data.installed) {
       detail.textContent = "Home Assistant OS ist noch nicht installiert.";
+    } else if (data.network && data.network.active === false) {
+      detail.textContent = "VM vorhanden · libvirt-Netz ist nicht aktiv.";
     } else if (data.reachable) {
       detail.textContent = "Supervisor / Apps bereit · Home Assistant erreichbar.";
     } else if (data.state === "running") {
@@ -1453,6 +1457,17 @@ async function loadHomeAssistant() {
   }
 }
 
+function homeAssistantErrorMessage(code) {
+  const messages = {
+    libvirt_default_network_missing: "Das libvirt-Standardnetz fehlt.",
+    libvirt_network_start_failed: "Das libvirt-Netz konnte nicht gestartet werden.",
+    haos_not_installed: "Die Home-Assistant-OS-VM ist nicht installiert.",
+    agent_auth_failed: "Der Netfreak2k-VM-Agent konnte nicht authentifiziert werden.",
+    vm_agent_error: "Der Netfreak2k-VM-Agent hat einen Fehler gemeldet."
+  };
+  return messages[code] || code || "Unbekannter Fehler";
+}
+
 async function homeAssistantAction(action) {
   try {
     await request("/api/homeassistant/action", {
@@ -1461,9 +1476,10 @@ async function homeAssistantAction(action) {
       headers: {"X-CSRF-Token": csrfToken}
     });
     await loadHomeAssistant();
+    await loadOverview();
   } catch (error) {
     console.error(error);
-    alert("Home Assistant Aktion konnte nicht ausgeführt werden.");
+    alert(`Home Assistant konnte nicht gestartet werden:\n${homeAssistantErrorMessage(error.code)}`);
   }
 }
 
