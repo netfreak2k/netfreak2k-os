@@ -79,9 +79,17 @@ jobs:
             exit "$setup_rc"
           fi
           printf '%s\n' "$SETUP_RESPONSE" | grep -q '"authenticated":true'
+          CSRF="$(printf '%s' "$SETUP_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrf"])')"
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace?area=documents' | grep -q '"area":"documents"'
+          printf 'hello n2k\n' >/tmp/n2k-drive-test.txt
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/octet-stream' --data-binary @/tmp/n2k-drive-test.txt 'http://127.0.0.1:18080/api/workspace/upload?area=documents&path=&name=drive-test.txt' | grep -q '"uploaded":true'
+          curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/search?q=drive-test' | grep -q '"name":"drive-test.txt"'
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","old_name":"drive-test.txt","new_name":"drive-renamed.txt"}' http://127.0.0.1:18080/api/workspace/rename | grep -q '"renamed":true'
+          SHARE_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","name":"drive-renamed.txt","hours":1}' http://127.0.0.1:18080/api/workspace/share)"
+          SHARE_TOKEN="$(printf '%s' "$SHARE_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+          curl -fsS "http://127.0.0.1:18080/api/share?token=$SHARE_TOKEN" | grep -q 'hello n2k'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/calendar | grep -q '"events":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant | grep -q '"available":false'
 
