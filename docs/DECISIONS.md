@@ -187,3 +187,13 @@ This keeps N2K Drive and N2K Calendar as the authoritative data stores, avoids d
 
 See `docs/SYNC.md`.
 
+## ADR-019: Network and Storage are visual-detail modules; Energy placeholder removed
+
+**Status:** Accepted
+
+Network and Storage are operational modules that benefit from richer graphical telemetry than the overview desktop. Their dedicated views may therefore use larger charts, capacity graphics and detailed live metrics.
+
+The empty Energy placeholder is removed from navigation until Netfreak2k has a real hardware-backed energy implementation. Placeholder modules should not occupy first-class navigation.
+
+See `docs/DASHBOARD.md`.
+
