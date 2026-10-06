@@ -131,6 +131,17 @@ def db_connect():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            username TEXT NOT NULL,
+            pref_key TEXT NOT NULL,
+            pref_value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (username, pref_key)
+        )
+        """
+    )
     columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)").fetchall()}
     if "uid" not in columns:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN uid TEXT")
@@ -592,6 +603,54 @@ def upsert_caldav_event(username, uid, ics):
             )
         conn.commit()
     return uid
+
+
+WALLPAPER_IDS = {
+    "01-night-bay",
+    "02-aurora",
+    "03-golden-dunes",
+    "04-misty-forest",
+    "05-cosmic-nebula",
+    "06-glass-waves",
+    "07-server-geometry",
+    "08-golden-coast",
+    "09-cyber-city",
+    "10-mountain-lake",
+}
+
+
+def preferences_payload(username):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT pref_key,pref_value FROM user_preferences WHERE username=?",
+            (username,),
+        ).fetchall()
+    prefs = {row[0]: row[1] for row in rows}
+    wallpaper = prefs.get("wallpaper", "01-night-bay")
+    if wallpaper not in WALLPAPER_IDS:
+        wallpaper = "01-night-bay"
+    return {"wallpaper": wallpaper}
+
+
+def set_preference(username, key, value):
+    if key != "wallpaper":
+        raise ValueError("invalid_preference")
+    value = str(value or "")
+    if value not in WALLPAPER_IDS:
+        raise ValueError("invalid_wallpaper")
+    now = int(time.time())
+    with db_connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO user_preferences (username,pref_key,pref_value,updated_at)
+            VALUES (?,?,?,?)
+            ON CONFLICT(username,pref_key)
+            DO UPDATE SET pref_value=excluded.pref_value, updated_at=excluded.updated_at
+            """,
+            (username, key, value, now),
+        )
+        conn.commit()
+    return {"saved": True, key: value}
 
 
 def ensure_workspace(username):
@@ -1658,6 +1717,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(payload)
             return
 
+        if path == "/preferences":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(preferences_payload(session["username"]))
+            return
+
         if path == "/calendar":
             session = self.require_auth()
             if not session:
@@ -1916,6 +1982,21 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self.read_json()
                 self.send_json(version_restore(session["username"], data.get("id")))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/preferences":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                key = str(data.get("key", ""))
+                value = data.get("value")
+                self.send_json(set_preference(session["username"], key, value))
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
