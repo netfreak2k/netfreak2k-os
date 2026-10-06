@@ -48,7 +48,8 @@ jobs:
         run: |
           docker compose -f server/docker-compose.yml up -d
           for i in {1..20}; do
-            if curl -fsS http://127.0.0.1:18080/healthz; then
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null \
+              && curl -fsS http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server"'; then
               exit 0
             fi
             sleep 1
