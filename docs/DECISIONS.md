@@ -105,4 +105,48 @@ This provides the full Home Assistant stack including Supervisor and Apps/Add-on
 
 Netfreak2k is the normal user-facing management layer. libvirt/QEMU are implementation details and are not intended as separate user-facing products.
 
+## ADR-012: N2K Golden Glass is the product UI identity
 
+**Status:** Accepted
+
+Netfreak2k Server-OS uses the original **N2K Golden Glass** design language.
+
+The interface may use general modern desktop principles such as translucency, blur, rounded surfaces and layered depth, but must not copy proprietary Apple assets, fonts, icons, wallpapers, sounds or source code.
+
+Warm gold/amber light, the N2K brand, original component geometry and server/cloud information architecture are deliberate differentiators.
+
+See `docs/DESIGN_AND_BRANDING.md`.
+
+## ADR-013: N2K Drive is a first-party workspace, not a third-party file-manager skin
+
+**Status:** Accepted
+
+The private-cloud workspace is implemented as a Netfreak2k-owned UI and API constrained to `/srv/netfreak2k`.
+
+The API receives no general writable host filesystem access. Personal user data and shared data have explicit roots. Path traversal is rejected.
+
+The former optional File Browser catalog entry is removed from new installations because the upstream project is archived and no longer receives security fixes.
+
+Standards such as WebDAV and SMB may be added as interoperability layers later without replacing N2K Drive as the product UI.
+
+See `docs/CLOUD_WORKSPACE.md`.
+
+## ADR-014: N2K Calendar is local-first with future CalDAV interoperability
+
+**Status:** Accepted
+
+Calendar events are stored locally in the Netfreak2k SQLite database and scoped to the authenticated local user.
+
+The built-in web calendar is the product UI. CalDAV will be added later as a standards-based synchronization layer after security and license review.
+
+See `docs/CALENDAR.md`.
+
+## ADR-015: Every shipped dependency requires a license register entry
+
+**Status:** Accepted
+
+Any new runtime dependency, optional app, redistributed binary, font, icon set, wallpaper, illustration or other third-party asset must be reviewed for licensing and maintenance status before inclusion.
+
+The same change that introduces a dependency must update `THIRD_PARTY_NOTICES.md`.
+
+Unknown-license assets are not permitted.
