@@ -5,7 +5,7 @@ N2K_REPO="${N2K_REPO:-netfreak2k/netfreak2k-os}"
 N2K_REF="${N2K_REF:-main}"
 N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 STATE_DIR="${N2K_STATE_DIR:-/var/lib/netfreak2k}"
-API_URL="https://api.github.com/repos/${N2K_REPO}/commits/${N2K_REF}"
+ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
 
 log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
 die(){ printf '\n[Netfreak2k] FEHLER: %s\n' "$*" >&2; exit 1; }
@@ -16,22 +16,8 @@ command -v curl >/dev/null || die "curl fehlt."
 command -v docker >/dev/null || die "Docker fehlt."
 docker compose version >/dev/null || die "Docker Compose v2 fehlt."
 
-log "Prüfe GitHub auf neue Netfreak2k-Version."
-remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
-[[ -n "${remote_sha}" ]] || die "Aktueller GitHub-Commit konnte nicht ermittelt werden."
-
-installed_sha=""
-if [[ -f "${STATE_DIR}/version.json" ]]; then
-  installed_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("sha",""))' "${STATE_DIR}/version.json")"
-fi
-
-if [[ "${installed_sha}" == "${remote_sha}" ]]; then
-  log "Netfreak2k ist bereits aktuell (${remote_sha:0:12})."
-  exit 0
-fi
-
-archive_url="https://github.com/${N2K_REPO}/archive/${remote_sha}.tar.gz"
+log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
+archive_url="${ARCHIVE_URL}"
 tmp="$(mktemp -d)"
 backup_env="$(mktemp)"
 # shellcheck disable=SC2064
@@ -39,7 +25,7 @@ trap "rm -rf '${tmp}' '${backup_env}'" EXIT
 
 cp "${N2K_DIR}/server/.env" "${backup_env}"
 
-log "Lade Update ${remote_sha:0:12}."
+log "Lade Update."
 curl -fL --retry 3 "${archive_url}" -o "${tmp}/netfreak2k.tar.gz"
 mkdir -p "${tmp}/src"
 tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
@@ -70,9 +56,9 @@ cd "${N2K_DIR}/server"
 docker compose up -d --build
 
 mkdir -p "${STATE_DIR}"
-printf '{"repo":"%s","ref":"%s","sha":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${remote_sha}" "$(date +%s)" > "${STATE_DIR}/version.json"
+printf '{"repo":"%s","ref":"%s","sha":"","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "$(date +%s)" > "${STATE_DIR}/version.json"
 
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
-log "Update abgeschlossen: ${remote_sha:0:12}"
+log "Update abgeschlossen."
 log "Home Assistant OS VM und Nutzerdaten wurden nicht verändert."
