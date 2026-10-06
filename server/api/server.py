@@ -2205,7 +2205,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, 400)
                 return
             app_id = str(data.get("app_id", ""))
-            result = vm_agent("app_install", {"app_id": app_id})
+            options = data.get("options") if isinstance(data.get("options"), dict) else {}
+            result = vm_agent("app_install", {"app_id": app_id, "options": options})
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
