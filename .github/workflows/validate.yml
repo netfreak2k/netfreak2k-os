@@ -103,9 +103,10 @@ jobs:
 
       - name: GitHub update sanity
         run: |
-          grep -q 'api.github.com/repos' scripts/check-updates.sh
-          grep -q 'update_available' scripts/check-updates.sh
-          grep -q 'version.json' scripts/update-server.sh
+          grep -q 'archive/refs/heads' scripts/check-updates.sh
+          grep -q 'sha256sum' scripts/check-updates.sh
+          grep -q 'installed_fingerprint' scripts/check-updates.sh
+          grep -q 'fingerprint' scripts/update-server.sh
           grep -q 'netfreak2k-update-check.timer' install.sh
 
       - name: Stop test stack
