@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-0935">
+  <link rel="stylesheet" href="styles.css?v=20261006-0955">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -61,7 +61,6 @@
         <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
         <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
         <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
-        <button class="nav-item" data-target="energy-panel"><span>◌</span>Energie</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
       </nav>
 
@@ -402,18 +401,44 @@
             </div>
           </article>
 
-          <article id="storage-panel" class="panel storage-panel section-anchor">
-            <div class="panel-head"><div><h2>Speicher</h2><p>System, Backups und Daten.</p></div><span class="panel-symbol">◉</span></div>
-            <div class="storage-row">
-              <span>System</span>
-              <strong id="storage-host-main">Host-Speicher wird geladen …</strong>
-              <small id="storage-host-detail">–</small>
-              <div class="storage-meter"><span id="storage-meter-fill"></span></div>
+          <article id="storage-panel" class="panel storage-panel storage-detail-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K STORAGE</p>
+                <h2>Speicher</h2>
+                <p>Kapazität, Belegung und virtuelle Datenträger auf einen Blick.</p>
+              </div>
+              <span class="panel-symbol">◉</span>
             </div>
-            <div class="storage-row">
-              <span>HAOS</span>
-              <strong id="storage-haos-main">VM-Disk wird geladen …</strong>
-              <small>virtuelle Systemdisk</small>
+            <div class="storage-hero-grid">
+              <div class="storage-donut-large" id="storage-detail-ring">
+                <div><strong id="storage-detail-percent">–</strong><span>belegt</span></div>
+              </div>
+              <div class="storage-capacity-copy">
+                <small>HOST-SPEICHER</small>
+                <strong id="storage-host-main">Host-Speicher wird geladen …</strong>
+                <span id="storage-host-detail">–</span>
+                <div class="storage-meter storage-meter-large"><span id="storage-meter-fill"></span></div>
+                <div class="storage-split">
+                  <div><span class="storage-key used"></span><small>Belegt</small><strong id="storage-used-value">–</strong></div>
+                  <div><span class="storage-key free"></span><small>Frei</small><strong id="storage-free-value">–</strong></div>
+                  <div><span class="storage-key total"></span><small>Gesamt</small><strong id="storage-total-value">–</strong></div>
+                </div>
+              </div>
+            </div>
+            <div class="storage-detail-grid">
+              <section class="storage-detail-card">
+                <div class="detail-card-head"><span>HA</span><div><small>HOME ASSISTANT OS</small><strong>Virtuelle Systemdisk</strong></div></div>
+                <div class="storage-bar-track"><span id="storage-haos-fill"></span></div>
+                <strong id="storage-haos-main">VM-Disk wird geladen …</strong>
+                <small id="storage-haos-share">Anteil am Host wird berechnet …</small>
+              </section>
+              <section class="storage-detail-card">
+                <div class="detail-card-head"><span>N2K</span><div><small>HOST-KAPAZITÄT</small><strong>Freier Arbeitsraum</strong></div></div>
+                <div class="storage-free-visual"><span id="storage-free-visual-fill"></span></div>
+                <strong id="storage-free-main">–</strong>
+                <small id="storage-health-text">Speicherstatus wird geprüft …</small>
+              </section>
             </div>
           </article>
 
@@ -428,10 +453,41 @@
             </div>
           </article>
 
-          <article id="network-panel" class="panel mini-panel section-anchor">
-            <h2>Netzwerk</h2>
-            <p>LAN aktiv · Browserzugriff bereit</p>
-            <span class="status-chip good">● Verbunden</span>
+          <article id="network-panel" class="panel network-detail-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K NETWORK</p>
+                <h2>Netzwerk</h2>
+                <p>Live-Durchsatz, Datenmenge und aktive Schnittstellen.</p>
+              </div>
+              <span id="network-detail-state" class="status-chip good">● Verbunden</span>
+            </div>
+            <div class="network-kpi-grid">
+              <section class="network-kpi">
+                <span class="network-arrow down">↓</span>
+                <div><small>DOWNLOAD LIVE</small><strong id="network-detail-down">0 B/s</strong><span id="network-detail-rx">Empfangen: –</span></div>
+              </section>
+              <section class="network-kpi">
+                <span class="network-arrow up">↑</span>
+                <div><small>UPLOAD LIVE</small><strong id="network-detail-up">0 B/s</strong><span id="network-detail-tx">Gesendet: –</span></div>
+              </section>
+              <section class="network-kpi">
+                <span class="network-arrow iface">⌁</span>
+                <div><small>SCHNITTSTELLEN</small><strong id="network-detail-interfaces">–</strong><span>aktive Host-Interfaces</span></div>
+              </section>
+            </div>
+            <section class="network-chart-card">
+              <div class="chart-card-head">
+                <div><small>LIVE-VERLAUF</small><strong>Datenrate der letzten Messpunkte</strong></div>
+                <div class="network-legend"><span class="down"></span>Download <span class="up"></span>Upload</div>
+              </div>
+              <canvas id="network-detail-chart" width="980" height="260" aria-label="Detaillierter Netzwerkverlauf"></canvas>
+              <div class="network-scale"><span id="network-detail-max">0 B/s Spitze</span><span>Live · 5-Sekunden-Takt</span></div>
+            </section>
+            <div class="network-volume-grid">
+              <section><small>EMPfangen gesamt</small><strong id="network-volume-rx">–</strong><div class="volume-bar"><span id="network-volume-rx-fill"></span></div></section>
+              <section><small>GESENDET gesamt</small><strong id="network-volume-tx">–</strong><div class="volume-bar"><span id="network-volume-tx-fill"></span></div></section>
+            </div>
           </article>
 
           <article id="ai-panel" class="panel mini-panel section-anchor">
@@ -440,16 +496,11 @@
             <button data-url="https://chatgpt.com" class="secondary compact">ChatGPT öffnen</button>
           </article>
 
-          <article id="energy-panel" class="panel mini-panel section-anchor">
-            <h2>Energie</h2>
-            <p>Solar, USV und Verbrauch.</p>
-            <span class="muted">Modul folgt</span>
-          </article>
         </section>
       </main>
     </section>
   </div>
 
-  <script src="app.js?v=20261006-0935"></script>
+  <script src="app.js?v=20261006-0955"></script>
 </body>
 </html>
