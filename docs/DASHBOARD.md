@@ -56,3 +56,26 @@ The overview endpoint aggregates local state only. It does not enable external t
 ## Visual language
 
 Overview widgets follow N2K Golden Glass and remain visually distinct from proprietary Apple assets or copied macOS widgets.
+
+
+## Detailed network and storage modules
+
+The dedicated Network and Storage views intentionally contain more visual telemetry than the compact overview.
+
+Storage now presents:
+
+- large host-capacity ring
+- used/free/total split
+- host utilization bar
+- HAOS virtual-disk share
+- free-capacity health indicator
+
+Network now presents:
+
+- live download/upload KPIs
+- cumulative received/sent traffic
+- active host interfaces
+- enlarged download/upload history chart
+- relative traffic-volume bars
+
+The Energy placeholder module has been removed from the product navigation until there is a concrete, hardware-backed energy feature set to ship.
