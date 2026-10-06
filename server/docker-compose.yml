@@ -7,10 +7,12 @@ services:
     restart: unless-stopped
     environment:
       N2K_VERSION: "0.1.0-dev"
+      N2K_DATA_DIR: "/data"
     volumes:
       - /proc:/host/proc:ro
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/hostname:/host/etc/hostname:ro
+      - netfreak2k-data:/data
     networks:
       - netfreak2k
 
@@ -30,3 +32,7 @@ services:
 networks:
   netfreak2k:
     name: netfreak2k
+
+volumes:
+  netfreak2k-data:
+    name: netfreak2k-data
