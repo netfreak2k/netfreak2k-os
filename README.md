@@ -135,3 +135,9 @@ Telemetry is disabled by default and may only be enabled after explicit user opt
 ## License
 
 A project license will be selected before the first public stable release.
+## Home Assistant
+
+Home Assistant is a mandatory first-class workload for Netfreak2k Server.
+
+The supported deployment target is **Home Assistant Core running in its official container form**. It must be installable and manageable from the Netfreak2k app platform without replacing the host OS.
+
