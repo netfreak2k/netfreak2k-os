@@ -308,6 +308,39 @@
             </div>
           </article>
 
+          <article id="sync-panel" class="panel sync-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K SYNC</p>
+                <h2>Synchronisation</h2>
+                <p>WebDAV für N2K Drive und CalDAV für Kalender – mit separaten App-Passwörtern.</p>
+              </div>
+              <button id="sync-create" class="primary compact">App-Passwort erstellen</button>
+            </div>
+            <div class="sync-endpoints">
+              <div>
+                <small>WEBDAV</small>
+                <code id="sync-webdav-url">–</code>
+                <button class="mini-action" data-copy-sync="webdav">URL kopieren</button>
+              </div>
+              <div>
+                <small>CALDAV</small>
+                <code id="sync-caldav-url">–</code>
+                <button class="mini-action" data-copy-sync="caldav">URL kopieren</button>
+              </div>
+            </div>
+            <div class="sync-note">
+              Verwende deinen Netfreak2k-Benutzernamen plus ein hier erzeugtes App-Passwort. Das normale Admin-Passwort wird nicht für DAV verwendet.
+            </div>
+            <div id="sync-secret-box" class="sync-secret-box hidden">
+              <strong>App-Passwort – nur jetzt sichtbar</strong>
+              <code id="sync-secret">–</code>
+              <button id="sync-copy-secret" class="secondary compact">Passwort kopieren</button>
+            </div>
+            <div class="subpanel-head"><h3>Aktive Sync-Zugänge</h3><button id="sync-refresh" class="secondary compact">Neu laden</button></div>
+            <div id="sync-credentials-list" class="cloud-list"><div class="app-empty">Sync-Zugänge werden geladen …</div></div>
+          </article>
+
           <article id="updates-panel" class="panel update-panel section-anchor">
             <div class="panel-head">
               <div><h2>Aktualisierungen</h2><p>Netfreak2k bezieht neue Stände direkt aus GitHub.</p></div>
