@@ -51,16 +51,16 @@
       </div>
 
       <nav class="side-nav">
-        <button class="nav-item active"><span>⌂</span>Dashboard</button>
-        <button class="nav-item"><span>◇</span>Home Assistant</button>
-        <button class="nav-item"><span>▦</span>Apps</button>
-        <button class="nav-item"><span>▣</span>VMs</button>
-        <button class="nav-item"><span>◉</span>Speicher</button>
-        <button class="nav-item"><span>↺</span>Backups</button>
-        <button class="nav-item"><span>⌁</span>Netzwerk</button>
-        <button class="nav-item"><span>✦</span>KI</button>
-        <button class="nav-item"><span>◌</span>Energie</button>
-        <button class="nav-item"><span>⚙</span>Einstellungen</button>
+        <button class="nav-item active" data-target="dashboard-top"><span>⌂</span>Dashboard</button>
+        <button class="nav-item" data-target="home-assistant-panel"><span>◇</span>Home Assistant</button>
+        <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
+        <button class="nav-item" data-target="vms-panel"><span>▣</span>VMs</button>
+        <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
+        <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
+        <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+        <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
+        <button class="nav-item" data-target="energy-panel"><span>◌</span>Energie</button>
+        <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -84,7 +84,7 @@
       </header>
 
       <main>
-        <section class="metrics">
+        <section id="dashboard-top" class="metrics section-anchor">
           <article class="metric-card">
             <span class="metric-icon">▣</span>
             <div><small>HOST</small><strong id="host-name">–</strong><span id="host-os-mini">Linux</span></div>
@@ -108,7 +108,7 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="panel ha-panel">
+          <article id="home-assistant-panel" class="panel ha-panel section-anchor">
             <div class="panel-head">
               <div class="panel-title-wrap">
                 <div class="app-icon ha-icon">HA</div>
@@ -131,7 +131,7 @@
             </div>
           </article>
 
-          <article class="panel update-panel">
+          <article id="updates-panel" class="panel update-panel section-anchor">
             <div class="panel-head">
               <div><h2>Aktualisierungen</h2><p>Netfreak2k bezieht neue Stände direkt aus GitHub.</p></div>
               <span class="panel-symbol">⇩</span>
@@ -146,7 +146,7 @@
             </div>
           </article>
 
-          <article class="panel apps-panel">
+          <article id="apps-panel" class="panel apps-panel section-anchor">
             <div class="panel-head">
               <div><h2>Apps</h2><p>Docker-Dienste auf diesem Host.</p></div>
               <button id="refresh-apps" class="secondary compact">Neu laden</button>
@@ -165,16 +165,17 @@
             </div>
           </article>
 
-          <article class="panel vm-panel">
+          <article id="vms-panel" class="panel vm-panel section-anchor">
             <div class="panel-head"><div><h2>Virtuelle Maschinen</h2><p>KVM-Workloads unter einem Dach.</p></div><span class="panel-symbol">▣</span></div>
-            <div class="vm-row">
-              <div class="app-icon ha-icon small">HA</div>
-              <div><strong>Home Assistant OS</strong><span id="vm-ha-state">Status wird geladen</span></div>
+            <div id="vm-list" class="vm-list">
+              <div class="vm-row">
+                <div class="app-icon ha-icon small">HA</div>
+                <div><strong>Home Assistant OS</strong><span id="vm-ha-state">Status wird geladen</span></div>
+              </div>
             </div>
-            <div class="vm-placeholder">Weitere VMs können später hier verwaltet werden.</div>
           </article>
 
-          <article class="panel storage-panel">
+          <article id="storage-panel" class="panel storage-panel section-anchor">
             <div class="panel-head"><div><h2>Speicher</h2><p>System, Backups und Daten.</p></div><span class="panel-symbol">◉</span></div>
             <div class="storage-row">
               <span>System</span>
@@ -189,19 +190,30 @@
             </div>
           </article>
 
-          <article class="panel mini-panel">
+          <article id="backups-panel" class="panel backup-panel section-anchor">
+            <div class="panel-head">
+              <div><h2>Backups</h2><p>Netfreak2k-Konfiguration, Admin-Datenbank und verwaltete App-Daten.</p></div>
+              <button id="create-backup" class="primary compact">Backup erstellen</button>
+            </div>
+            <div class="backup-note">Home Assistant OS nutzt weiterhin sein eigenes Backup-System.</div>
+            <div id="backup-list" class="backup-list">
+              <div class="app-empty">Backups werden geladen …</div>
+            </div>
+          </article>
+
+          <article id="network-panel" class="panel mini-panel section-anchor">
             <h2>Netzwerk</h2>
             <p>LAN aktiv · Browserzugriff bereit</p>
             <span class="status-chip good">● Verbunden</span>
           </article>
 
-          <article class="panel mini-panel">
+          <article id="ai-panel" class="panel mini-panel section-anchor">
             <h2>KI</h2>
             <p>Cloud- und lokale KI-Dienste.</p>
             <button data-url="https://chatgpt.com" class="secondary compact">ChatGPT öffnen</button>
           </article>
 
-          <article class="panel mini-panel">
+          <article id="energy-panel" class="panel mini-panel section-anchor">
             <h2>Energie</h2>
             <p>Solar, USV und Verbrauch.</p>
             <span class="muted">Modul folgt</span>
