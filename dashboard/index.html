@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
     <section class="auth-card glass">
+      <div class="brand-mark">N2K</div>
       <p class="eyebrow">Netfreak2k Server-OS</p>
       <h1 id="auth-title">Wird geladen …</h1>
       <p id="auth-copy">Die lokale Serverkonfiguration wird geprüft.</p>
@@ -37,70 +39,156 @@
       </form>
 
       <p id="auth-error" class="auth-error hidden"></p>
-      <small class="auth-note">Die Anmeldung wird lokal auf diesem Netfreak2k-Server gespeichert.</small>
+      <small class="auth-note">Lokale Anmeldung auf diesem Server.</small>
     </section>
   </div>
 
-  <div id="app-shell" class="hidden">
-    <header class="topbar">
-      <strong>Netfreak2k Server-OS</strong>
-      <nav><span>Dashboard</span><span>Apps</span><span>System</span></nav>
-      <div class="status">
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">N2K</div>
+        <div><strong>Netfreak2k</strong><span>Server-OS</span></div>
+      </div>
+
+      <nav class="side-nav">
+        <button class="nav-item active"><span>⌂</span>Dashboard</button>
+        <button class="nav-item"><span>◇</span>Home Assistant</button>
+        <button class="nav-item"><span>▦</span>Apps</button>
+        <button class="nav-item"><span>▣</span>VMs</button>
+        <button class="nav-item"><span>◉</span>Speicher</button>
+        <button class="nav-item"><span>↺</span>Backups</button>
+        <button class="nav-item"><span>⌁</span>Netzwerk</button>
+        <button class="nav-item"><span>✦</span>KI</button>
+        <button class="nav-item"><span>◌</span>Energie</button>
+        <button class="nav-item"><span>⚙</span>Einstellungen</button>
+      </nav>
+
+      <div class="sidebar-footer">
         <span id="server-dot" class="dot"></span>
         <span id="server-state">Verbinde …</span>
-        <span id="session-user"></span>
-        <button id="logout" class="button-quiet">Abmelden</button>
       </div>
-    </header>
+    </aside>
 
-    <main>
-      <section class="hero glass">
+    <section class="workspace">
+      <header class="topbar">
         <div>
-          <p class="eyebrow">N2K Server · 0.1.0-dev</p>
-          <h1>Dein Server. Eine Weboberfläche.</h1>
-          <p>Netfreak2k läuft im Hintergrund und verändert dein bestehendes Betriebssystem nicht.</p>
+          <p class="eyebrow">N2K CONTROL CENTER</p>
+          <h1>Netfreak2k Server-OS</h1>
+          <p class="subtitle">Dein Server. Eine Weboberfläche.</p>
         </div>
-        <button id="refresh-status">Status aktualisieren</button>
-      </section>
+        <div class="top-actions">
+          <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
+          <div class="online-pill"><span class="dot ok"></span>System läuft</div>
+          <div class="user-pill"><span id="session-user">admin</span><button id="logout">Abmelden</button></div>
+        </div>
+      </header>
 
-      <section class="system-overview glass">
-        <div><span class="metric-label">Host</span><strong id="host-name">–</strong></div>
-        <div><span class="metric-label">System</span><strong id="host-os">–</strong></div>
-        <div><span class="metric-label">Laufzeit</span><strong id="host-uptime">–</strong></div>
-        <div><span class="metric-label">RAM</span><strong id="host-memory">–</strong></div>
-        <div><span class="metric-label">Load</span><strong id="host-load">–</strong></div>
-      </section>
+      <main>
+        <section class="metrics">
+          <article class="metric-card">
+            <span class="metric-icon">▣</span>
+            <div><small>HOST</small><strong id="host-name">–</strong><span id="host-os-mini">Linux</span></div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">▤</span>
+            <div><small>RAM</small><strong id="host-memory-percent">–</strong><span id="host-memory">–</span></div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">◷</span>
+            <div><small>UPTIME</small><strong id="host-uptime">–</strong><span>seit letztem Start</span></div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">⌁</span>
+            <div><small>LOAD</small><strong id="host-load-primary">–</strong><span id="host-load">–</span></div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">◎</span>
+            <div><small>SYSTEM</small><strong id="host-os">–</strong><span>Linux Mint Host</span></div>
+          </article>
+        </section>
 
-      <section class="grid" id="dashboard">
-        <article class="card glass ha-card">
-          <div class="card-head">
-            <div><h2>Home Assistant OS</h2><p>Vollständiges HAOS mit Supervisor und Apps/Add-ons.</p></div>
-            <span id="ha-state" class="state-pill">lädt</span>
-          </div>
-          <p id="ha-detail" class="apps-summary">Prüfe virtuelle Maschine …</p>
-          <div class="ha-actions">
-            <button id="ha-open">Öffnen</button>
-            <button id="ha-start" class="button-quiet">Starten</button>
-            <button id="ha-restart" class="button-quiet">Neustart</button>
-            <button id="ha-shutdown" class="button-danger">Herunterfahren</button>
-          </div>
-        </article>
-        <article class="card glass app-card">
-  <div class="card-head"><div><h2>Apps</h2><p>Erkannte Docker-Container auf diesem Host.</p></div><button id="refresh-apps" class="button-quiet">Neu laden</button></div>
-  <div id="apps-summary" class="apps-summary">Lade Container …</div>
-  <div id="apps-list" class="apps-list"></div>
-</article>
-        <article class="card glass"><h2>Speicher</h2><p>Festplatten, SMART, Freigaben und Backups.</p><span class="badge">folgt</span></article>
-        <article class="card glass"><h2>KI</h2><p>Cloud- und lokale KI-Dienste an einem Ort.</p><button data-url="https://chatgpt.com">ChatGPT öffnen</button></article>
-        <article class="card glass"><h2>Netzwerk</h2><p>LAN, Tailscale und später netfreak2k.local.</p><span class="badge">folgt</span></article>
-        <article class="card glass"><h2>Automationen</h2><p>Wenn/Dann-Regeln für Dienste, Energie und Backups.</p><span class="badge">folgt</span></article>
-        <article class="card glass"><h2>Energie</h2><p>Solar, Batterie, USV und Verbrauch.</p><span class="badge">folgt</span></article>
-      </section>
-    </main>
+        <section class="dashboard-grid">
+          <article class="panel ha-panel">
+            <div class="panel-head">
+              <div class="panel-title-wrap">
+                <div class="app-icon ha-icon">HA</div>
+                <div>
+                  <div class="title-line"><h2>Home Assistant OS</h2><span id="ha-state" class="state-pill">lädt</span></div>
+                  <p>Vollständiges Home Assistant OS als VM mit Supervisor und Apps/Add-ons.</p>
+                </div>
+              </div>
+              <button class="dots">•••</button>
+            </div>
+            <div class="ha-status-row">
+              <span class="status-chip good">● Supervisor / Apps</span>
+              <span id="ha-detail" class="status-chip">Prüfe virtuelle Maschine …</span>
+            </div>
+            <div class="ha-actions">
+              <button id="ha-open" class="primary">↗ Öffnen</button>
+              <button id="ha-start" class="secondary">▶ Starten</button>
+              <button id="ha-restart" class="secondary">↻ Neustart</button>
+              <button id="ha-shutdown" class="danger">⏻ Herunterfahren</button>
+            </div>
+          </article>
 
-    <footer class="dock glass">
-      <span>Dashboard</span><span>Apps</span><span>Dateien</span><span>KI</span><span>Energie</span><span>Einstellungen</span>
-    </footer>
+          <article class="panel update-panel">
+            <div class="panel-head">
+              <div><h2>Aktualisierungen</h2><p>Netfreak2k bezieht neue Stände direkt aus GitHub.</p></div>
+              <span class="panel-symbol">⇩</span>
+            </div>
+            <div id="update-box" class="update-box">
+              <strong id="update-title">Prüfe GitHub …</strong>
+              <span id="update-detail">Update-Status wird geladen.</span>
+            </div>
+            <div class="panel-actions">
+              <button id="refresh-updates" class="secondary">Neu prüfen</button>
+            </div>
+          </article>
+
+          <article class="panel apps-panel">
+            <div class="panel-head">
+              <div><h2>Apps</h2><p>Docker-Dienste auf diesem Host.</p></div>
+              <button id="refresh-apps" class="secondary compact">Neu laden</button>
+            </div>
+            <div id="apps-summary" class="section-summary">Lade Container …</div>
+            <div id="apps-list" class="apps-list"></div>
+          </article>
+
+          <article class="panel vm-panel">
+            <div class="panel-head"><div><h2>Virtuelle Maschinen</h2><p>KVM-Workloads unter einem Dach.</p></div><span class="panel-symbol">▣</span></div>
+            <div class="vm-row">
+              <div class="app-icon ha-icon small">HA</div>
+              <div><strong>Home Assistant OS</strong><span id="vm-ha-state">Status wird geladen</span></div>
+            </div>
+            <div class="vm-placeholder">Weitere VMs können später hier verwaltet werden.</div>
+          </article>
+
+          <article class="panel storage-panel">
+            <div class="panel-head"><div><h2>Speicher</h2><p>System, Backups und Daten.</p></div><span class="panel-symbol">◉</span></div>
+            <div class="storage-row"><span>System</span><strong>Host-Speicher</strong><small>Detailansicht folgt</small></div>
+            <div class="storage-row"><span>HAOS</span><strong>64 GB VM-Disk</strong><small>virtuelle Systemdisk</small></div>
+          </article>
+
+          <article class="panel mini-panel">
+            <h2>Netzwerk</h2>
+            <p>LAN aktiv · Browserzugriff bereit</p>
+            <span class="status-chip good">● Verbunden</span>
+          </article>
+
+          <article class="panel mini-panel">
+            <h2>KI</h2>
+            <p>Cloud- und lokale KI-Dienste.</p>
+            <button data-url="https://chatgpt.com" class="secondary compact">ChatGPT öffnen</button>
+          </article>
+
+          <article class="panel mini-panel">
+            <h2>Energie</h2>
+            <p>Solar, USV und Verbrauch.</p>
+            <span class="muted">Modul folgt</span>
+          </article>
+        </section>
+      </main>
+    </section>
   </div>
 
   <script src="app.js"></script>
