@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1125">
+  <link rel="stylesheet" href="styles.css?v=20261006-1140">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -718,6 +718,29 @@
               </section>
             </div>
 
+            <section class="tor-browser-shell">
+              <div class="tor-browser-toolbar">
+                <div>
+                  <small>ISOLIERTER BROWSER</small>
+                  <strong>Tor Browser</strong>
+                  <span id="tor-browser-state">Nicht installiert</span>
+                </div>
+                <div class="tor-browser-actions">
+                  <button id="tor-browser-install" class="primary compact">Tor Browser installieren</button>
+                  <button id="tor-browser-open" class="secondary compact">Groß öffnen</button>
+                </div>
+              </div>
+              <div id="tor-browser-frame-wrap" class="tor-browser-frame-wrap">
+                <div class="tor-browser-placeholder">
+                  <strong>Tor Browser noch nicht aktiv</strong>
+                  <span>Nach der optionalen Installation erscheint hier die browserbasierte Tor-Sitzung.</span>
+                </div>
+              </div>
+              <div class="tor-browser-note">
+                Kasm Tor Browser läuft isoliert im Docker-Container. Beim ersten Öffnen kann der Browser wegen seines lokalen HTTPS-Zertifikats eine Bestätigung verlangen.
+              </div>
+            </section>
+
             <div class="privacy-status-grid">
               <section><small>SERVER-PROXY</small><strong>Deaktiviert</strong><span>Kein offener SOCKS/HTTP-Proxy</span></section>
               <section><small>ONION-LAUNCHER</small><strong>Browser-seitig</strong><span>Nur URL-Übergabe, kein Server-Relay</span></section>
@@ -745,6 +768,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1125"></script>
+  <script src="app.js?v=20261006-1140"></script>
 </body>
 </html>
