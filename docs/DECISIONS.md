@@ -20,44 +20,29 @@ Release builds may later pin an exact Debian codename for reproducibility.
 
 ## ADR-002 — XFCE for the first prototype
 
-**Status:** Accepted for prototype
+**Status:** Accepted for later desktop prototype
 
-XFCE is the initial lightweight desktop substrate.
+XFCE remains the initial lightweight desktop substrate for a future dedicated desktop image.
 
-It is not the final Netfreak2k visual identity. N2K Glass theming, Control Center and custom user-facing components sit above it.
-
-Reasons:
-
-- lightweight enough for lower-end hardware
-- mature
-- widely packaged
-- suitable for early VM and Raspberry Pi testing
-
-This decision can be revisited after performance measurements.
+It is not required for the server-first release.
 
 ## ADR-003 — amd64 VM first
 
-**Status:** Accepted
+**Status:** Superseded for immediate priority
 
-The first bootable prototype is amd64 and must pass a VM smoke test before Raspberry Pi-specific image engineering becomes a gating concern.
-
-This reduces simultaneous variables during early development.
+The earlier bootable-image-first milestone is no longer the immediate delivery target. Server-first web deployment now comes first.
 
 ## ADR-004 — Debian live-build for initial ISO
 
-**Status:** Accepted
+**Status:** Deferred
 
-The first x86-64 live/installer image is generated using Debian live-build.
-
-ARM64/Raspberry Pi images may require a different image-building path while keeping the same product configuration and package/profile definitions.
+Debian live-build remains the intended initial x86-64 dedicated-image path, but bootable image work is deferred until the server platform is mature enough.
 
 ## ADR-005 — Google Chrome is a real requirement
 
-**Status:** Accepted
+**Status:** Accepted for desktop edition
 
-Google Chrome is treated as a first-class required browser, not merely a placeholder for Chromium.
-
-Its external package/repository integration must be tested and documented separately from the Debian-only bootstrap image.
+Google Chrome remains a first-class browser requirement for a later desktop edition. Server-first releases are accessed from the user's existing browser.
 
 ## ADR-006 — User confirmation before risky operations
 
@@ -66,3 +51,25 @@ Its external package/repository integration must be tested and documented separa
 Critical automation actions and destructive/recovery-sensitive operations keep explicit user confirmation where specified by PRODUCT_SPEC.md.
 
 Safety prompts for critical automation actions are not user-disableable.
+
+## ADR-007 — Server-first before dedicated OS
+
+**Status:** Accepted
+
+The first usable Netfreak2k product is a browser-managed server platform installed alongside an existing Linux host environment.
+
+The existing host OS must remain intact. Netfreak2k must not automatically repartition disks, replace the bootloader, replace the desktop, or convert the machine into a dedicated appliance during the initial server phase.
+
+The initial deployment model is a self-contained Docker Compose stack accessed through the host IP address.
+
+Dedicated bootable Netfreak2k OS images, desktop environments and installer work remain valid future targets but are no longer the first delivery milestone.
+
+## ADR-008 — Minimal and reversible host integration
+
+**Status:** Accepted
+
+The initial bootstrap must not silently install Docker, change host networking, alter firewall rules, or install unrelated system packages.
+
+If prerequisites are missing, the installer stops and tells the operator what is required.
+
+Every future host-management capability must be explicit, permission-scoped and documented.
