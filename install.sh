@@ -78,7 +78,8 @@ log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
 tmp="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap "rm -rf '${tmp}'" EXIT
-curl -fL --retry 3 "${ARCHIVE_URL}" -o "${tmp}/netfreak2k.tar.gz"
+curl -fL --connect-timeout 8 --max-time 120 --retry 3 "${ARCHIVE_URL}" -o "${tmp}/netfreak2k.tar.gz"
+archive_fingerprint="$(sha256sum "${tmp}/netfreak2k.tar.gz" | awk '{print $1}')"
 mkdir -p "${tmp}/src"
 tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
 [[ -f "${tmp}/src/server/docker-compose.yml" ]] || die "Ungültiges Netfreak2k-Archiv."
@@ -126,7 +127,7 @@ done
 curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
 
 mkdir -p /var/lib/netfreak2k
-printf '{"repo":"%s","ref":"%s","sha":"","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
