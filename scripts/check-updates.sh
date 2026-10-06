@@ -15,13 +15,16 @@ if [[ -f "${VERSION_FILE}" ]]; then
   installed_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("sha",""))' "${VERSION_FILE}")"
 fi
 
-remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+remote_sha=""
+if remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}" 2>/dev/null)"; then
+  remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha",""))' 2>/dev/null || true)"
+fi
 
-[[ -n "${remote_sha}" ]] || {
-  printf '{"ok":false,"error":"remote_sha_unavailable"}\n' > "${STATUS_FILE}"
-  exit 1
-}
+if [[ -z "${remote_sha}" ]]; then
+  checked_at="$(date +%s)"
+  printf '{"ok":true,"repo":"%s","ref":"%s","installed_sha":"%s","remote_sha":"","update_available":false,"checked_at":%s,"note":"github_api_unavailable"}\n'     "${N2K_REPO}" "${N2K_REF}" "${installed_sha}" "${checked_at}" > "${STATUS_FILE}"
+  exit 0
+fi
 
 available=false
 if [[ -n "${installed_sha}" && "${installed_sha}" != "${remote_sha}" ]]; then
