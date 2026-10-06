@@ -78,6 +78,8 @@ function enterApp(username) {
   loadApps();
   loadHomeAssistant();
   loadUpdates();
+  loadCatalog();
+  loadStorage();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -285,6 +287,113 @@ async function appAction(name, action) {
   }
 }
 
+async function loadCatalog() {
+  const list = document.getElementById("catalog-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/catalog", {headers: {}});
+    const apps = Array.isArray(data.apps) ? data.apps : [];
+    list.innerHTML = "";
+    for (const app of apps) {
+      const card = document.createElement("div");
+      card.className = "catalog-card";
+      card.innerHTML = `
+        <div class="catalog-icon"></div>
+        <div class="catalog-copy">
+          <strong></strong>
+          <span class="catalog-desc"></span>
+          <small class="catalog-port"></small>
+        </div>
+        <div class="catalog-action"></div>`;
+      card.querySelector(".catalog-icon").textContent =
+        (app.name || "A").split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase();
+      card.querySelector("strong").textContent = app.name || app.id;
+      card.querySelector(".catalog-desc").textContent = app.description || "";
+      card.querySelector(".catalog-port").textContent =
+        app.host_port ? `Port ${app.host_port}` : "";
+      const action = card.querySelector(".catalog-action");
+      if (app.installed) {
+        const badge = document.createElement("span");
+        badge.className = "status-chip good";
+        badge.textContent = app.state === "running" ? "● Installiert" : "Installiert";
+        action.appendChild(badge);
+        if (app.host_port) {
+          const open = document.createElement("button");
+          open.className = "mini-action";
+          open.textContent = "Öffnen";
+          open.addEventListener("click", () => {
+            window.open(`${window.location.protocol}//${window.location.hostname}:${app.host_port}/`, "_blank", "noopener");
+          });
+          action.appendChild(open);
+        }
+      } else {
+        const install = document.createElement("button");
+        install.className = "primary compact";
+        install.textContent = "Installieren";
+        install.addEventListener("click", () => installCatalogApp(app.id, app.name));
+        action.appendChild(install);
+      }
+      list.appendChild(card);
+    }
+    if (!apps.length) {
+      list.innerHTML = '<div class="app-empty">Noch keine Katalog-Apps verfügbar.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">App-Katalog konnte nicht geladen werden.</div>';
+  }
+}
+
+async function installCatalogApp(appId, name) {
+  if (!confirm(`${name} jetzt als verwaltete Netfreak2k-App installieren?`)) return;
+  try {
+    await request("/api/catalog/install", {
+      method: "POST",
+      body: JSON.stringify({app_id: appId}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    setTimeout(() => {
+      loadCatalog();
+      loadApps();
+    }, 1200);
+  } catch (error) {
+    console.error(error);
+    if (error.code === "app_port_in_use") {
+      alert("Installation nicht möglich: Der benötigte Port ist bereits belegt.");
+    } else {
+      alert("App konnte nicht installiert werden.");
+    }
+  }
+}
+
+async function loadStorage() {
+  const main = document.getElementById("storage-host-main");
+  const detail = document.getElementById("storage-host-detail");
+  const meter = document.getElementById("storage-meter-fill");
+  const haos = document.getElementById("storage-haos-main");
+  if (!main || !detail || !meter || !haos) return;
+  try {
+    const data = await request("/api/storage", {headers: {}});
+    const host = data.host || {};
+    main.textContent = host.used_percent == null
+      ? "Host-Speicher"
+      : `${host.used_percent}% belegt`;
+    detail.textContent = host.total_bytes
+      ? `${formatBytes(host.used_bytes)} von ${formatBytes(host.total_bytes)} · ${formatBytes(host.free_bytes)} frei`
+      : "Speicherdaten nicht verfügbar";
+    meter.style.width = host.used_percent == null ? "0%" : `${Math.min(100, host.used_percent)}%`;
+    haos.textContent = data.haos_disk_bytes
+      ? `${formatBytes(data.haos_disk_bytes)} HAOS-Disk`
+      : "HAOS-Disk nicht gefunden";
+  } catch (error) {
+    console.error(error);
+    main.textContent = "Speicherstatus nicht erreichbar";
+    detail.textContent = "–";
+    meter.style.width = "0%";
+    haos.textContent = "–";
+  }
+}
+
 async function loadHomeAssistant() {
   const state = document.getElementById("ha-state");
   const detail = document.getElementById("ha-detail");
@@ -363,6 +472,7 @@ async function loadUpdates() {
 
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
+document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
 document.getElementById("refresh-updates")?.addEventListener("click", loadUpdates);
 document.getElementById("install-update")?.addEventListener("click", async () => {
   const button = document.getElementById("install-update");
@@ -402,3 +512,5 @@ setInterval(loadStatus, 30000);
 setInterval(loadApps, 30000);
 setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
+setInterval(loadCatalog, 60000);
+setInterval(loadStorage, 30000);
