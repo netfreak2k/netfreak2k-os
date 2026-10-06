@@ -359,6 +359,13 @@ function updateNetworkDetail(network) {
     "network-detail-interfaces",
     Array.isArray(network.interfaces) && network.interfaces.length ? network.interfaces.join(" · ") : "–"
   );
+  setText("network-detail-provider", network.provider || "nicht erkannt");
+  setText("network-detail-asn", network.asn ? `ASN ${network.asn}` : "Providerdaten nicht verfügbar");
+  setText("network-detail-ping", Number.isFinite(network.ping_ms) ? `${network.ping_ms} ms` : "–");
+  setText("network-detail-wan", network.public_ip || "–");
+  setText("network-detail-country", network.country || "–");
+  setText("network-detail-gateway", network.gateway || "–");
+  setText("network-detail-dns", Array.isArray(network.dns) && network.dns.length ? `DNS: ${network.dns.join(" · ")}` : "DNS: –");
 
   const rxFill = document.getElementById("network-volume-rx-fill");
   const txFill = document.getElementById("network-volume-tx-fill");
