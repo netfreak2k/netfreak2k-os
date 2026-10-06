@@ -29,5 +29,35 @@ jobs:
 
       - name: Check package-list duplicates
         run: |
-          cat config/packages/*.list             | sed -E '/^[[:space:]]*(#|$)/d'             | sort             | uniq -d             | tee /tmp/duplicates.txt
+          cat config/packages/*.list \
+            | sed -E '/^[[:space:]]*(#|$)/d' \
+            | sort \
+            | uniq -d \
+            | tee /tmp/duplicates.txt
           test ! -s /tmp/duplicates.txt
+
+      - name: Validate server compose
+        run: docker compose -f server/docker-compose.yml config
+
+      - name: Build server container
+        run: docker compose -f server/docker-compose.yml build
+
+      - name: Server smoke test
+        env:
+          N2K_HTTP_PORT: "18080"
+        run: |
+          docker compose -f server/docker-compose.yml up -d
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:18080/healthz; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker compose -f server/docker-compose.yml logs
+          exit 1
+
+      - name: Stop test stack
+        if: always()
+        env:
+          N2K_HTTP_PORT: "18080"
+        run: docker compose -f server/docker-compose.yml down --remove-orphans
