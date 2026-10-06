@@ -38,6 +38,16 @@ Later, mDNS may add:
 http://netfreak2k.local/
 ```
 
+## Installation
+
+Auf Debian/Ubuntu kann Netfreak2k mit einem Befehl installiert werden:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/netfreak2k/netfreak2k-os/main/install.sh | sudo bash
+```
+
+Der Installer ersetzt weder Betriebssystem, Partitionen noch Bootloader. Details: [Installation](docs/INSTALL.md).
+
 ## Current architecture
 
 ```text
