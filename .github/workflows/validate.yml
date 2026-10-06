@@ -69,7 +69,15 @@ jobs:
             exit 1
           fi
 
+          set +e
           SETUP_RESPONSE="$(curl --retry 8 --retry-delay 1 --retry-all-errors -fsS -c /tmp/n2k-cookies.txt -H 'Content-Type: application/json' -d '{"username":"ciadmin","password":"ci-test-password-123"}' http://127.0.0.1:18080/api/setup)"
+          setup_rc=$?
+          set -e
+          if [[ "$setup_rc" -ne 0 ]]; then
+            docker logs netfreak2k-web || true
+            docker logs netfreak2k-api || true
+            exit "$setup_rc"
+          fi
           printf '%s\n' "$SETUP_RESPONSE" | grep -q '"authenticated":true'
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
