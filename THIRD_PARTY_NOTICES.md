@@ -101,13 +101,21 @@ Upstream source and license:
 
 The Community Edition is resource-intensive relative to the Netfreak2k core. Netfreak2k therefore treats it as optional rather than a mandatory runtime dependency.
 
-## UseNeXT interoperability
 
-Netfreak2k includes an optional UseNeXT-branded interoperability widget that links to the official UseNeXT member area and official newsreader information.
+## Kasm Tor Browser
 
-No UseNeXT credentials are collected or stored by Netfreak2k. The widget does not proxy, scrape or redistribute the UseNeXT service.
+Optional catalog application: `kasmweb/tor-browser:1.18.0`
 
-The displayed NNTP connection examples (`high.usenext.de`, `flat.usenext.de`, SSL port `563`) are taken from public UseNeXT support documentation and are shown only to help the user configure a compatible newsreader.
+Publisher: Kasm Technologies.
 
-UseNeXT is a third-party trademark/service of its respective owner. Netfreak2k Server-OS is not affiliated with or endorsed by UseNeXT.
+Purpose: run an isolated Tor Browser session that can be viewed from the Netfreak2k web UI through KasmVNC.
 
+The image is not installed by default. Installation requires explicit user confirmation and a user-chosen access password.
+
+Kasm publishes its Workspaces images and KasmVNC source publicly. KasmVNC is distributed under GPL-family terms; Tor Browser itself is built from upstream Tor/Mozilla components with their respective open-source licenses. Netfreak2k does not modify the Tor Browser branding or claim affiliation with Kasm Technologies or the Tor Project.
+
+Upstream references:
+- https://hub.docker.com/r/kasmweb/tor-browser
+- https://github.com/kasmtech/workspaces-core-images
+- https://github.com/kasmtech/KasmVNC
+- https://www.torproject.org/
