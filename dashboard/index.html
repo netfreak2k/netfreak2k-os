@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1115">
+  <link rel="stylesheet" href="styles.css?v=20261006-1125">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -199,19 +199,19 @@
               </div>
             </div>
 
-            <button class="widget usenext-widget" data-target-view="privacy-panel">
-              <div class="widget-head"><div><small>USENEXT</small><h3>Usenet Zugang</h3></div><span>›</span></div>
-              <div class="usenext-widget-body">
-                <span class="usenext-mark">U</span>
+            <button class="widget onion-explorer-widget" data-target-view="privacy-panel">
+              <div class="widget-head"><div><small>N2K ONION EXPLORER</small><h3>Darkweb entdecken</h3></div><span>›</span></div>
+              <div class="onion-widget-body">
+                <span class="onion-mark">◈</span>
                 <div>
-                  <strong>UseNeXT</strong>
-                  <span>Newsserver · SSL · Member Area</span>
+                  <strong>Tor / Onion</strong>
+                  <span>Adressen · Favoriten · Verlauf</span>
                 </div>
               </div>
               <div class="widget-detail-lines">
-                <span><b>SSL</b><strong>Port 563</strong></span>
-                <span><b>Highspeed</b><strong>high.usenext.de</strong></span>
-                <span><b>Flat</b><strong>flat.usenext.de</strong></span>
+                <span><b>Modus</b><strong>Tor Browser</strong></span>
+                <span><b>Proxy</b><strong>nicht serverseitig</strong></span>
+                <span><b>Status</b><strong>bereit</strong></span>
               </div>
             </button>
 
@@ -673,20 +673,21 @@
             </div>
 
             <div class="privacy-grid">
-              <section class="privacy-card usenet-card usenext-panel">
-                <div class="privacy-icon">U</div>
-                <div class="usenext-panel-body">
-                  <small>USENEXT</small>
-                  <strong>UseNeXT Zugang</strong>
-                  <p>Separates N2K-Fenster für Mitgliederbereich und Newsserver-Daten. Deine Zugangsdaten bleiben bei UseNeXT bzw. im gewählten Newsreader.</p>
-                  <div class="usenext-server-grid">
-                    <span><b>Highspeed</b><strong>high.usenext.de</strong></span>
-                    <span><b>Flatrate</b><strong>flat.usenext.de</strong></span>
-                    <span><b>SSL</b><strong>Port 563</strong></span>
+              <section class="privacy-card onion-explorer-card">
+                <div class="privacy-icon">◈</div>
+                <div class="onion-explorer-body">
+                  <small>N2K ONION EXPLORER</small>
+                  <strong>Darkweb-Startseite</strong>
+                  <p>UseNeXT-artige Oberfläche für Tor: Onion-Adresse eingeben, Favoriten verwalten und zuletzt verwendete Ziele wiederfinden.</p>
+                  <div class="onion-explorer-search">
+                    <input id="onion-explorer-url" type="text" placeholder="http://example.onion/">
+                    <button id="onion-explorer-open" class="primary compact">Öffnen</button>
+                    <button id="onion-explorer-save" class="secondary compact">Favorit</button>
                   </div>
-                  <div class="usenext-actions">
-                    <button id="usenext-login" class="primary compact">UseNeXT öffnen</button>
-                    <button id="usenext-help" class="secondary compact">Newsreader-Infos</button>
+                  <div class="onion-explorer-toolbar">
+                    <button id="onion-copy" class="mini-action">Adresse kopieren</button>
+                    <button id="tor-download" class="mini-action">Tor Browser</button>
+                    <button id="onion-clear-history" class="mini-action">Verlauf löschen</button>
                   </div>
                 </div>
               </section>
@@ -705,6 +706,17 @@
                 </div>
               </section>
             </div>
+
+            <div class="onion-explorer-dashboard">
+              <section>
+                <div class="subpanel-head"><h3>Favoriten</h3><span>lokal im Browser</span></div>
+                <div id="onion-favorites" class="onion-list"><div class="app-empty">Noch keine Favoriten.</div></div>
+              </section>
+              <section>
+                <div class="subpanel-head"><h3>Verlauf</h3><span>lokal im Browser</span></div>
+                <div id="onion-history" class="onion-list"><div class="app-empty">Noch kein Verlauf.</div></div>
+              </section>
+            
 
             <div class="privacy-status-grid">
               <section><small>SERVER-PROXY</small><strong>Deaktiviert</strong><span>Kein offener SOCKS/HTTP-Proxy</span></section>
@@ -733,6 +745,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1115"></script>
+  <script src="app.js?v=20261006-1125"></script>
 </body>
 </html>
