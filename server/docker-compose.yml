@@ -1,10 +1,27 @@
 services:
+  netfreak2k-api:
+    build:
+      context: ..
+      dockerfile: server/api/Dockerfile
+    container_name: netfreak2k-api
+    restart: unless-stopped
+    environment:
+      N2K_VERSION: "0.1.0-dev"
+    volumes:
+      - /proc:/host/proc:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/hostname:/host/etc/hostname:ro
+    networks:
+      - netfreak2k
+
   netfreak2k-web:
     build:
       context: ..
       dockerfile: server/Dockerfile
     container_name: netfreak2k-web
     restart: unless-stopped
+    depends_on:
+      - netfreak2k-api
     ports:
       - "${N2K_HTTP_PORT:-80}:80"
     networks:
