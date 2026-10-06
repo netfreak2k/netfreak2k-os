@@ -50,7 +50,7 @@ jobs:
           docker compose -f server/docker-compose.yml up -d
 
           for i in {1..25}; do
-            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then
+            if curl -fsS http://127.0.0.1:18080/api/setup | grep -q '"configured":false'; then
               break
             fi
             sleep 1
@@ -60,7 +60,7 @@ jobs:
 
           SETUP_RESPONSE="$(curl -fsS             -c /tmp/n2k-cookies.txt             -H 'Content-Type: application/json'             -d '{"username":"ciadmin","password":"ci-test-password-123"}'             http://127.0.0.1:18080/api/setup)"
 
-          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status             | grep -q '"product":"Netfreak2k Server"'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status             | grep -q '"product":"Netfreak2k Server-OS"'
 
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant             | grep -q '"available":false'
 
