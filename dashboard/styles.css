@@ -1130,3 +1130,39 @@ body::after{
 .usenext-actions{display:flex;gap:7px;flex-wrap:wrap}
 @media(max-width:900px){.usenext-server-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.usenext-widget{grid-column:span 12}}
+
+
+/* Embedded Tor Browser workspace */
+.tor-browser-shell{
+  margin-top:14px;border-radius:16px;overflow:hidden;
+  background:rgba(3,8,6,.72);border:1px solid rgba(99,255,148,.10)
+}
+.tor-browser-toolbar{
+  min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 14px;background:rgba(5,13,8,.86);border-bottom:1px solid rgba(99,255,148,.07)
+}
+.tor-browser-toolbar small,.tor-browser-toolbar strong,.tor-browser-toolbar span{display:block}
+.tor-browser-toolbar small{font-size:7px;letter-spacing:.11em;color:#76ac84}
+.tor-browser-toolbar strong{font-size:12px;margin-top:2px;color:#e4ffe9}
+.tor-browser-toolbar span{font-size:8px;margin-top:2px;color:#7f9185}
+.tor-browser-toolbar span.running{color:#6fe69a}
+.tor-browser-actions{display:flex;gap:7px;flex-wrap:wrap}
+.tor-browser-frame-wrap{
+  min-height:520px;background:#010302;position:relative
+}
+.tor-browser-frame{width:100%;height:620px;border:0;display:block;background:#000}
+.tor-browser-placeholder{
+  min-height:520px;display:grid;place-items:center;align-content:center;text-align:center;padding:24px
+}
+.tor-browser-placeholder strong,.tor-browser-placeholder span{display:block}
+.tor-browser-placeholder strong{font-size:14px;color:#c9f8d5}
+.tor-browser-placeholder span{font-size:9px;color:#708078;margin-top:6px;max-width:520px}
+.tor-browser-note{
+  padding:9px 12px;font-size:8px;color:#728079;background:rgba(5,13,8,.72);
+  border-top:1px solid rgba(99,255,148,.06)
+}
+@media(max-width:760px){
+  .tor-browser-toolbar{align-items:flex-start;flex-direction:column}
+  .tor-browser-frame-wrap{min-height:420px}
+  .tor-browser-frame{height:480px}
+}
