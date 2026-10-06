@@ -62,3 +62,14 @@ The WebDAV and CalDAV server paths are implemented directly in Netfreak2k-owned 
 No new third-party DAV server, calendar server, font, icon set or binary dependency is introduced by this feature.
 
 WebDAV and CalDAV are open interoperability standards/protocol families; implementing those protocols does not add a software dependency license to this repository.
+
+
+## N2K wallpaper collection
+
+The ten wallpapers under `dashboard/assets/wallpapers/` are original AI-generated visual assets created specifically for Netfreak2k Server-OS in this project workflow.
+
+They are not sourced from Apple, Microsoft, Linux Mint, commercial wallpaper packs, stock-photo libraries or other third-party operating-system artwork.
+
+No third-party logo, proprietary operating-system wallpaper, proprietary font or copied UI asset is intentionally included in this collection.
+
+The collection is treated as Netfreak2k project artwork rather than a third-party runtime dependency. The repository-wide public license is still to be selected separately before a stable public release.
