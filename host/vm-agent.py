@@ -16,7 +16,7 @@ VM_NAME = "netfreak2k-homeassistant"
 HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
     "backup_list", "backup_create", "backup_restore", "vm_list"
@@ -111,6 +111,22 @@ def payload():
         "installed": state != "missing",
         "reachable": ha_reachable() if state == "running" else False,
     }
+
+
+def check_updates_now():
+    checker = Path("/usr/local/lib/netfreak2k/check-updates.sh")
+    if not checker.is_file():
+        checker = Path("/opt/netfreak2k/scripts/check-updates.sh")
+    if not checker.is_file():
+        raise RuntimeError("update_checker_missing")
+    result = run(str(checker), check=False, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "update_check_failed")
+    status_file = Path("/var/lib/netfreak2k/update-status.json")
+    try:
+        return json.loads(status_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"ok": False, "note": "update_status_unavailable"}
 
 
 def trigger_update():
@@ -381,6 +397,9 @@ def execute(action, request):
 
     if action == "update_netfreak2k":
         return trigger_update()
+
+    if action == "check_updates":
+        return check_updates_now()
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
