@@ -6,6 +6,7 @@ import re
 import secrets
 import socket
 import subprocess
+import shutil
 import time
 from pathlib import Path
 
@@ -16,9 +17,33 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k",
-    "app_start", "app_stop", "app_restart"
+    "app_start", "app_stop", "app_restart",
+    "app_catalog", "app_install", "storage_status"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
+APP_CATALOG = {
+    "uptime-kuma": {
+        "name": "Uptime Kuma",
+        "description": "Lokales Monitoring für Dienste, Webseiten und Geräte.",
+        "image": "louislam/uptime-kuma:1",
+        "container": "netfreak2k-app-uptime-kuma",
+        "host_port": 3001,
+        "container_port": 3001,
+        "volume": "netfreak2k-app-uptime-kuma-data",
+        "mount": "/app/data",
+    },
+    "file-browser": {
+        "name": "File Browser",
+        "description": "Einfacher Dateimanager im Browser mit eigenem Netfreak2k-Datenbereich.",
+        "image": "filebrowser/filebrowser:v2",
+        "container": "netfreak2k-app-file-browser",
+        "host_port": 8081,
+        "container_port": 80,
+        "volume": "netfreak2k-app-file-browser-data",
+        "mount": "/srv",
+    },
+}
 
 
 def read_token():
@@ -141,6 +166,88 @@ def app_action(action, name):
     return {"name": name, "state": managed_container_state(name)}
 
 
+def container_state(name):
+    result = run("docker", "inspect", "--format", "{{.State.Status}}", name)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def catalog_payload():
+    apps = []
+    for app_id, spec in APP_CATALOG.items():
+        state = container_state(spec["container"])
+        apps.append({
+            "id": app_id,
+            "name": spec["name"],
+            "description": spec["description"],
+            "image": spec["image"],
+            "host_port": spec["host_port"],
+            "installed": state is not None,
+            "state": state or "not_installed",
+            "url_path": "/",
+        })
+    return {"apps": apps}
+
+
+def port_available(port):
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind(("0.0.0.0", int(port)))
+        return True
+    except OSError:
+        return False
+    finally:
+        probe.close()
+
+
+def install_catalog_app(app_id):
+    spec = APP_CATALOG.get(app_id)
+    if not spec:
+        raise RuntimeError("unknown_catalog_app")
+    if container_state(spec["container"]) is not None:
+        return {"installed": True, "name": spec["container"], "already_installed": True}
+    if not port_available(spec["host_port"]):
+        raise RuntimeError("app_port_in_use")
+
+    run("docker", "pull", spec["image"], check=True, timeout=300)
+    run("docker", "volume", "create", spec["volume"], check=True)
+    run(
+        "docker", "run", "-d",
+        "--name", spec["container"],
+        "--restart", "unless-stopped",
+        "--label", "netfreak2k.managed=true",
+        "--label", f"netfreak2k.app={app_id}",
+        "-p", f'{spec["host_port"]}:{spec["container_port"]}',
+        "-v", f'{spec["volume"]}:{spec["mount"]}',
+        spec["image"],
+        check=True,
+        timeout=120,
+    )
+    return {
+        "installed": True,
+        "name": spec["container"],
+        "state": container_state(spec["container"]) or "unknown",
+        "host_port": spec["host_port"],
+    }
+
+
+def storage_payload():
+    usage = shutil.disk_usage("/")
+    used = usage.total - usage.free
+    percent = round((used / usage.total) * 100, 1) if usage.total else None
+    haos_disk = Path("/var/lib/netfreak2k/haos/haos.qcow2")
+    haos_size = haos_disk.stat().st_size if haos_disk.exists() else None
+    return {
+        "host": {
+            "total_bytes": usage.total,
+            "used_bytes": used,
+            "free_bytes": usage.free,
+            "used_percent": percent,
+        },
+        "haos_disk_bytes": haos_size,
+    }
+
+
 def execute(action, request):
     if action == "status":
         return payload()
@@ -150,6 +257,15 @@ def execute(action, request):
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
+
+    if action == "app_catalog":
+        return catalog_payload()
+
+    if action == "app_install":
+        return install_catalog_app(str(request.get("app_id", "")))
+
+    if action == "storage_status":
+        return storage_payload()
 
     state = vm_state()
     if state == "missing":
