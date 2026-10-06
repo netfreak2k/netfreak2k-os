@@ -2,7 +2,7 @@
 
 **Offgrid · Mesh · Local Intelligence**
 
-Netfreak2k OS is currently being developed **server-first**: the first usable release runs in the background on an existing Linux machine and is controlled entirely through a browser, similar in operating model to CasaOS or Umbrel.
+Netfreak2k OS is now being developed as a **browser-managed virtualization appliance** on a Proxmox VE base. The user-facing experience remains CasaOS/Umbrel-like, while Proxmox provides the VM/container/storage layer underneath.
 
 > **KEIN NETZ. KEIN PROBLEM.**
 
@@ -40,13 +40,11 @@ http://netfreak2k.local/
 
 ## Installation
 
-Auf Debian/Ubuntu kann Netfreak2k mit einem Befehl installiert werden:
+The previous Debian/Ubuntu one-command installer is now **legacy** and is not the recommended path.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/netfreak2k/netfreak2k-os/main/install.sh | sudo bash
-```
+The target installation method is a dedicated **Netfreak2k Appliance image/installer based on Proxmox VE**. If an existing Linux installation must remain untouched, Netfreak2k must be installed on a separate disk, separate machine, or an already-existing hypervisor.
 
-Der Installer ersetzt weder Betriebssystem, Partitionen noch Bootloader. Details: [Installation](docs/INSTALL.md).
+See [Appliance Architecture](docs/APPLIANCE_ARCHITECTURE.md).
 
 ## Current architecture
 
@@ -137,7 +135,14 @@ Telemetry is disabled by default and may only be enabled after explicit user opt
 A project license will be selected before the first public stable release.
 ## Home Assistant
 
-Home Assistant is a mandatory first-class workload for Netfreak2k Server.
+Home Assistant is mandatory and runs as **Home Assistant OS in a dedicated KVM VM**.
 
-The supported deployment target is **Home Assistant Core running in its official container form**. It must be installable and manageable from the Netfreak2k app platform without replacing the host OS.
+This provides:
 
+- Home Assistant Core
+- Supervisor
+- Apps/Add-ons
+- HAOS updates
+- backups
+
+Home Assistant Container is not sufficient for the Netfreak2k target experience.
