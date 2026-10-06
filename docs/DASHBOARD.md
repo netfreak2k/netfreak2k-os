@@ -92,3 +92,12 @@ Home Assistant controls live only in the VMs module. The overview keeps only a h
 The AI module is a four-pane workspace. Each pane keeps a small local browser-side context/notebook and can launch a dedicated ChatGPT window.
 
 ChatGPT's web application cannot be reliably embedded in an iframe because the service controls its own anti-framing security headers. The pane architecture is therefore provider-neutral: cloud providers can open in dedicated browser windows today, while a future local inference endpoint can render directly inside the same four pane slots.
+
+## N2K Office
+
+The sidebar includes an Office module. It is intentionally lightweight until the user opts into an editor engine.
+
+The first supported editor engine is ONLYOFFICE Docs Community Edition. It is installed as a managed Docker application only after explicit confirmation. The Office module exposes document, spreadsheet and presentation entry points and keeps the architecture ready for direct N2K Drive document editing.
+
+The global search stays centered in the topbar. Greeting, user actions, clock and date are grouped on the right, with the clock occupying the far-right visual position.
+
