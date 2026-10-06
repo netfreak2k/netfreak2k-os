@@ -71,7 +71,7 @@ fi
 
 log "Ermittle aktuellen Netfreak2k-Stand auf GitHub."
 remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | sed -n 's/.*"sha":"\([0-9a-f]\{40\}\)".*/\1/p' | head -n1)"
+remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
 [[ -n "${remote_sha}" ]] || die "Aktueller GitHub-Commit konnte nicht ermittelt werden."
 ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/${remote_sha}.tar.gz"
 
