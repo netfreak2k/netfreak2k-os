@@ -37,7 +37,10 @@ python3 -m py_compile "${tmp}/src/server/api/server.py" "${tmp}/src/host/vm-agen
 log "Aktualisiere Netfreak2k-Programmdateien."
 find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -a "${tmp}/src/." "${N2K_DIR}/"
+chmod 0755 "${N2K_DIR}/scripts/"*.sh
 cp "${backup_env}" "${N2K_DIR}/server/.env"
+install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
+install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
 
 install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent.py
 install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
