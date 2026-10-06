@@ -32,6 +32,9 @@ jobs:
           python3 -m py_compile server/collector/collector.py
           python3 -m py_compile host/vm-agent.py
 
+      - name: JavaScript syntax
+        run: node --check dashboard/app.js
+
       - name: Repository preflight
         run: bash scripts/preflight.sh
 
