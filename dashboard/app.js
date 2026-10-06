@@ -76,6 +76,7 @@ function enterApp(username) {
   document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
   loadStatus();
   loadApps();
+  loadHomeAssistant();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -241,6 +242,51 @@ async function loadApps() {
   }
 }
 
+async function loadHomeAssistant() {
+  const state = document.getElementById("ha-state");
+  const detail = document.getElementById("ha-detail");
+  try {
+    const data = await request("/api/homeassistant", {headers: {}});
+    state.textContent = data.state || "unbekannt";
+    state.classList.toggle("running", data.state === "running");
+    if (!data.available) {
+      detail.textContent = "VM-Agent nicht erreichbar.";
+    } else if (!data.installed) {
+      detail.textContent = "Home Assistant OS ist noch nicht installiert.";
+    } else if (data.reachable) {
+      detail.textContent = "Supervisor/Apps bereit · Home Assistant erreichbar.";
+    } else if (data.state === "running") {
+      detail.textContent = "VM läuft · Home Assistant startet noch.";
+    } else {
+      detail.textContent = "VM ist gestoppt.";
+    }
+  } catch (error) {
+    console.error(error);
+    detail.textContent = "Home-Assistant-Status konnte nicht geladen werden.";
+  }
+}
+
+async function homeAssistantAction(action) {
+  try {
+    await request("/api/homeassistant/action", {
+      method: "POST",
+      body: JSON.stringify({action}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadHomeAssistant();
+  } catch (error) {
+    console.error(error);
+    alert("Home Assistant Aktion konnte nicht ausgeführt werden.");
+  }
+}
+
+document.getElementById("ha-open")?.addEventListener("click", () => {
+  window.open(`${window.location.protocol}//${window.location.hostname}:8123/`, "_blank", "noopener");
+});
+document.getElementById("ha-start")?.addEventListener("click", () => homeAssistantAction("start"));
+document.getElementById("ha-restart")?.addEventListener("click", () => homeAssistantAction("restart"));
+document.getElementById("ha-shutdown")?.addEventListener("click", () => homeAssistantAction("shutdown"));
+
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.querySelectorAll("[data-url]").forEach(btn => {
@@ -256,3 +302,4 @@ bootstrapAuth().catch(error => {
 
 setInterval(loadStatus, 30000);
 setInterval(loadApps, 30000);
+setInterval(loadHomeAssistant, 15000);
