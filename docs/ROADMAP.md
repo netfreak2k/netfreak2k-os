@@ -118,3 +118,14 @@ Only after the server platform is mature:
 - recovery environment
 - Secure Boot work
 - optional daily-driver desktop edition
+### Mandatory Home Assistant support
+
+- Home Assistant Core in container form is a required first-class app
+- persistent Home Assistant config storage
+- LAN device discovery support where technically required
+- clear port/network conflict checks
+- backup integration for Home Assistant config
+- safe update/restart path
+- Home Assistant status surfaced in Netfreak2k
+- future links between Home Assistant entities and Netfreak2k automation/energy modules
+
