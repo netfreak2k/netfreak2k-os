@@ -37,6 +37,20 @@ APP_CATALOG = {
         "volume": "netfreak2k-app-uptime-kuma-data",
         "mount": "/app/data",
     },
+    "tor-browser": {
+        "name": "Tor Browser",
+        "description": "Isolierter Tor Browser mit browserbasierter KasmVNC-Oberfläche.",
+        "image": "kasmweb/tor-browser:1.18.0",
+        "container": "netfreak2k-app-tor-browser",
+        "host_port": 6901,
+        "container_port": 6901,
+        "volume": null,
+        "mount": null,
+        "shm_size": "512m",
+        "requirements": "Optionaler isolierter Browser · ca. 1 GB Image",
+        "license": "Kasm/Tor Browser upstream licenses",
+        "requires_password": True,
+    },
     "onlyoffice-docs": {
         "name": "ONLYOFFICE Docs Community",
         "description": "Browserbasierte Office-Engine für Dokumente, Tabellen und Präsentationen.",
@@ -249,6 +263,7 @@ def catalog_payload():
             "url_path": "/",
             "requirements": spec.get("requirements"),
             "license": spec.get("license"),
+            "requires_password": bool(spec.get("requires_password")),
         })
     return {"apps": apps}
 
@@ -265,8 +280,9 @@ def port_available(port):
         probe.close()
 
 
-def install_catalog_app(app_id):
+def install_catalog_app(app_id, options=None):
     spec = APP_CATALOG.get(app_id)
+    options = options or {}
     if not spec:
         raise RuntimeError("unknown_catalog_app")
     if container_state(spec["container"]) is not None:
@@ -275,7 +291,8 @@ def install_catalog_app(app_id):
         raise RuntimeError("app_port_in_use")
 
     run("docker", "pull", spec["image"], check=True, timeout=300)
-    run("docker", "volume", "create", spec["volume"], check=True)
+    if spec.get("volume"):
+        run("docker", "volume", "create", spec["volume"], check=True)
     docker_args = [
         "docker", "run", "-d",
         "--name", spec["container"],
@@ -283,10 +300,16 @@ def install_catalog_app(app_id):
         "--label", "netfreak2k.managed=true",
         "--label", f"netfreak2k.app={app_id}",
         "-p", f'{spec["host_port"]}:{spec["container_port"]}',
-        "-v", f'{spec["volume"]}:{spec["mount"]}',
     ]
+    if spec.get("volume") and spec.get("mount"):
+        docker_args.extend(["-v", f'{spec["volume"]}:{spec["mount"]}'])
     if spec.get("shm_size"):
         docker_args.extend(["--shm-size", str(spec["shm_size"])])
+    if spec.get("requires_password"):
+        password = str(options.get("password", ""))
+        if len(password) < 10 or len(password) > 64:
+            raise RuntimeError("invalid_app_password")
+        docker_args.extend(["-e", f"VNC_PW={password}"])
     docker_args.append(spec["image"])
     run(*docker_args, check=True, timeout=600)
     return {
@@ -455,7 +478,7 @@ def execute(action, request):
         return catalog_payload()
 
     if action == "app_install":
-        return install_catalog_app(str(request.get("app_id", "")))
+        return install_catalog_app(str(request.get("app_id", "")), request.get("options") or {})
 
     if action == "storage_status":
         return storage_payload()
