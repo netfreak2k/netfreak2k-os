@@ -128,3 +128,5 @@ The module explicitly distinguishes Usenet from Tor/Onion services. Netfreak2k d
 
 The Usenet area is provider-neutral and is reserved for a future newsreader/NZB integration rather than hard-wiring one commercial provider.
 
+The overview also includes a dedicated UseNeXT status/launcher widget. It shows the public NNTP endpoints and SSL port and routes login/newsreader actions to the official UseNeXT pages. Credentials are never stored by Netfreak2k.
+
