@@ -2173,6 +2173,9 @@ const terminalCommands = {
     "  apps      Verwaltete Apps",
     "  vms       Virtuelle Maschinen",
     "  uptime    Laufzeit",
+    "  update-check  Nach Updates suchen",
+    "  update-status Update-Status anzeigen",
+    "  update    Netfreak2k aktualisieren",
     "  clear     Terminal leeren"
   ],
   status: async () => {
@@ -2232,6 +2235,44 @@ const terminalCommands = {
   uptime: async () => {
     const data = await request("/api/status", {headers:{}});
     return [`Uptime: ${formatUptime(data.host?.uptime_seconds)}`];
+  },
+  "update-check": async () => {
+    const data = await request("/api/updates/check", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    return [
+      "Update-Prüfung abgeschlossen.",
+      data.update_available ? "Neues Update verfügbar." : "Kein neues Update erkannt.",
+      data.remote_fingerprint ? `Remote: ${data.remote_fingerprint}` : "",
+      data.installed_fingerprint ? `Installiert: ${data.installed_fingerprint}` : ""
+    ].filter(Boolean);
+  },
+  "update-status": async () => {
+    const data = await request("/api/updates", {headers:{}});
+    const progress = data.progress || {};
+    return [
+      `Status: ${progress.status || data.status || "unbekannt"}`,
+      `Phase: ${progress.stage || "–"}`,
+      `Fortschritt: ${Number.isFinite(progress.percent) ? progress.percent + "%" : "–"}`,
+      progress.message ? `Meldung: ${progress.message}` : ""
+    ].filter(Boolean);
+  },
+  update: async () => {
+    if (!confirm("Netfreak2k jetzt aktualisieren? Die Weboberfläche kann während des Updates kurz neu starten.")) {
+      return ["Update abgebrochen."];
+    }
+    const data = await request("/api/updates/install", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    return [
+      data.already_running ? "Update läuft bereits." : "Update wurde gestartet.",
+      "Der Server lädt den aktuellen Stand von GitHub und baut die Webplattform neu.",
+      "Mit 'update-status' kannst du den Fortschritt prüfen."
+    ];
   }
 };
 
@@ -2269,7 +2310,8 @@ async function runTerminalCommand(raw) {
     terminalPrint(await handler());
   } catch (error) {
     console.error(error);
-    terminalPrint(["Fehler: Status konnte nicht geladen werden."], "terminal-error");
+    const detail = error?.code || error?.message || "unbekannter_fehler";
+    terminalPrint([`Fehler: ${detail}`], "terminal-error");
   }
 }
 
