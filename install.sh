@@ -59,13 +59,22 @@ virsh --connect qemu:///system list >/dev/null || die "libvirt ist nicht funktio
 
 if [[ -z "${N2K_HTTP_PORT}" ]]; then
   N2K_HTTP_PORT=80
+  if [[ -z "${N2K_HTTP_PORT}" ]]; then
+  N2K_HTTP_PORT=80
   if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)80$'; then
     N2K_HTTP_PORT=8080
     log "Port 80 ist bereits belegt; Netfreak2k nutzt Port 8080."
   fi
 fi
 
-if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123
+if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123$'; then
+  if systemctl is-active --quiet netfreak2k-ha-proxy.service 2>/dev/null; then
+    log "Port 8123 wird bereits vom Netfreak2k Home-Assistant-Proxy verwendet; wird weiterverwendet."
+  else
+    listener="$(ss -H -ltnp 'sport = :8123' 2>/dev/null | head -n1 || true)"
+    die "Port 8123 ist durch einen anderen Dienst belegt. Bitte erst prüfen: ${listener:-unbekannter Prozess}"
+  fi
+fi
 
 log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
 tmp="$(mktemp -d)"
