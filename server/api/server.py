@@ -208,7 +208,7 @@ def apps_payload():
         }
 
 
-def vm_agent(action):
+def vm_agent(action, extra=None):
     try:
         token = AGENT_TOKEN_FILE.read_text(encoding="utf-8").strip()
         if not token:
@@ -216,7 +216,10 @@ def vm_agent(action):
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         client.settimeout(3)
         client.connect(VM_AGENT_SOCKET)
-        client.sendall((json.dumps({"action": action, "token": token}) + "\n").encode("utf-8"))
+        request = {"action": action, "token": token}
+        if extra:
+            request.update(extra)
+        client.sendall((json.dumps(request) + "\n").encode("utf-8"))
         raw = b""
         while b"\n" not in raw and len(raw) < 65536:
             chunk = client.recv(65536)
@@ -435,6 +438,34 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_action"}, 400)
                 return
             result = vm_agent(action)
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
+        if self.path == "/apps/action":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            action = str(data.get("action", ""))
+            name = str(data.get("name", ""))
+            mapping = {
+                "start": "app_start",
+                "stop": "app_stop",
+                "restart": "app_restart",
+            }
+            if action not in mapping or not name:
+                self.send_json({"error": "invalid_app_action"}, 400)
+                return
+            result = vm_agent(mapping[action], {"name": name})
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
