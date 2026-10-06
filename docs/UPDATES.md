@@ -71,3 +71,29 @@ Long-term channels remain:
 - developer
 
 During active development, `main` is the source used by the developer channel.
+
+## Live progress reporting
+
+The updater writes its current installation state to:
+
+```
+/var/lib/netfreak2k/update-progress.json
+```
+
+The file is updated atomically as the updater advances through:
+
+- prepare
+- download
+- extract
+- validate
+- install
+- services
+- containers
+- restart
+- verify
+- completed / failed
+
+The browser Update Center reads this host-side status through the authenticated Netfreak2k API and displays the real updater percentage, current phase, installed and remote fingerprints, last check time, installation time and GitHub source.
+
+The progress indicator is not a synthetic animation: it reflects explicit milestones emitted by `scripts/update-server.sh`.
+
