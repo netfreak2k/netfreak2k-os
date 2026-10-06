@@ -94,13 +94,50 @@ def ha_reachable():
         return False
 
 
+def network_state():
+    result = run("virsh", "--connect", "qemu:///system", "net-info", "default")
+    if result.returncode != 0:
+        return {"defined": False, "active": False, "autostart": False}
+    text = result.stdout.lower()
+    return {
+        "defined": True,
+        "active": "active:           yes" in text or "active: yes" in text,
+        "autostart": "autostart:        yes" in text or "autostart: yes" in text,
+    }
+
+
+def ensure_default_network():
+    info = network_state()
+    if not info["defined"]:
+        xml = Path("/usr/share/libvirt/networks/default.xml")
+        if not xml.is_file():
+            raise RuntimeError("libvirt_default_network_missing")
+        run("virsh", "--connect", "qemu:///system", "net-define", str(xml), check=True)
+        info = network_state()
+    if not info["autostart"]:
+        run("virsh", "--connect", "qemu:///system", "net-autostart", "default", check=True)
+    if not info["active"]:
+        result = run("virsh", "--connect", "qemu:///system", "net-start", "default")
+        if result.returncode != 0 and "already active" not in result.stderr.lower():
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "libvirt_network_start_failed")
+    return network_state()
+
+
 def payload():
     state = vm_state()
+    net = network_state()
+    autostart = False
+    if state != "missing":
+        result = run("virsh", "--connect", "qemu:///system", "dominfo", VM_NAME)
+        autostart = "autostart:      enable" in result.stdout.lower() or "autostart:      yes" in result.stdout.lower()
     return {
         "name": VM_NAME,
         "state": state,
         "installed": state != "missing",
         "reachable": ha_reachable() if state == "running" else False,
+        "autostart": autostart,
+        "network": net,
+        "kvm": Path("/dev/kvm").exists(),
     }
 
 
@@ -423,11 +460,15 @@ def execute(action, request):
 
     if action == "start":
         if state != "running":
+            ensure_default_network()
+            run("virsh", "--connect", "qemu:///system", "autostart", VM_NAME, check=True)
             run("virsh", "--connect", "qemu:///system", "start", VM_NAME, check=True)
     elif action == "shutdown":
         if state == "running":
             run("virsh", "--connect", "qemu:///system", "shutdown", VM_NAME, check=True)
     elif action == "restart":
+        ensure_default_network()
+        run("virsh", "--connect", "qemu:///system", "autostart", VM_NAME, check=True)
         if state == "running":
             run("virsh", "--connect", "qemu:///system", "reboot", VM_NAME, check=True)
         else:
