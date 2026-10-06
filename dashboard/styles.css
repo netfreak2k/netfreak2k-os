@@ -862,3 +862,59 @@ body::after{
   .drive-widget,.network-widget,.calendar-widget,.recent-widget,.ha-widget,.activity-widget,.quick-widget{grid-column:span 12}
   .network-meta-grid{grid-template-columns:1fr}
 }
+
+
+/* Update Center */
+.update-center{grid-column:1/-1}
+.update-progress-card{
+  margin-top:14px;padding:16px;border-radius:16px;
+  background:rgba(7,14,22,.5);border:1px solid rgba(255,229,168,.08)
+}
+.update-progress-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.update-progress-head small,.update-progress-head strong,.update-progress-head span{display:block}
+.update-progress-head small{font-size:7px;letter-spacing:.12em;color:#8d8165}
+.update-progress-head>div>strong{font-size:14px;margin-top:4px}
+.update-progress-head>div>span{font-size:9px;color:#8d97a1;margin-top:4px}
+#update-progress-percent{font-size:22px;color:#f2d888;font-variant-numeric:tabular-nums}
+.update-progress-track{
+  height:12px;margin-top:16px;border-radius:999px;overflow:hidden;
+  background:rgba(255,255,255,.055);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)
+}
+.update-progress-track span{
+  display:block;height:100%;width:0;border-radius:inherit;
+  background:linear-gradient(90deg,#9e732c,#ddb850,#ffe29a);
+  box-shadow:0 0 20px rgba(222,184,80,.2);transition:width .35s ease
+}
+.update-step-line{display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:#7e8994;font-size:8px}
+.update-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.update-info-grid section{
+  min-width:0;padding:12px 13px;border-radius:13px;background:rgba(9,17,27,.48);
+  border:1px solid rgba(255,229,168,.06)
+}
+.update-info-grid small,.update-info-grid strong,.update-info-grid span{display:block}
+.update-info-grid small{font-size:7px;color:#8d8165;letter-spacing:.1em}
+.update-info-grid strong{font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.update-info-grid span{font-size:8px;color:#7f8a95;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.update-stage-list{
+  display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:12px
+}
+.update-stage-list span{
+  text-align:center;padding:7px 4px;border-radius:999px;font-size:7px;
+  color:#727d88;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.04)
+}
+.update-stage-list span.active{
+  color:#f4dda0;background:rgba(215,178,78,.1);border-color:rgba(236,202,110,.18);
+  box-shadow:0 0 0 2px rgba(216,180,90,.035)
+}
+.update-stage-list span.done{color:#76d2a5;background:rgba(70,166,117,.08);border-color:rgba(101,210,154,.12)}
+.update-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:14px}
+.state-pill.warning{color:#f1c56f;background:rgba(197,136,37,.1);border-color:rgba(230,177,80,.18)}
+@media(max-width:980px){
+  .update-info-grid{grid-template-columns:1fr 1fr}
+  .update-stage-list{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:560px){
+  .update-info-grid{grid-template-columns:1fr}
+  .update-stage-list{grid-template-columns:repeat(2,1fr)}
+  .update-progress-head{flex-direction:column}
+}
