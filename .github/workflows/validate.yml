@@ -50,7 +50,10 @@ jobs:
           docker compose -f server/docker-compose.yml down -v --remove-orphans || true
           docker compose -f server/docker-compose.yml up -d
 
-          for i in {1..25}; do
+          docker exec netfreak2k-api sh -c 'id && ls -ld /workspace /workspace/users /workspace/shared'
+          docker exec netfreak2k-api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/setup').read().decode())"
+
+          for i in {1..40}; do
             if curl -fsS http://127.0.0.1:18080/api/setup | grep -q '"configured":false'; then
               break
             fi
@@ -59,11 +62,13 @@ jobs:
 
           curl -fsS http://127.0.0.1:18080/api/setup | grep -q '"configured":false'
 
-          SETUP_RESPONSE="$(curl -fsS             -c /tmp/n2k-cookies.txt             -H 'Content-Type: application/json'             -d '{"username":"ciadmin","password":"ci-test-password-123"}'             http://127.0.0.1:18080/api/setup)"
+          SETUP_RESPONSE="$(curl -fsS -c /tmp/n2k-cookies.txt -H 'Content-Type: application/json' -d '{"username":"ciadmin","password":"ci-test-password-123"}' http://127.0.0.1:18080/api/setup)"
+          printf '%s\n' "$SETUP_RESPONSE" | grep -q '"authenticated":true'
 
-          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status             | grep -q '"product":"Netfreak2k Server-OS"'
-
-          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant             | grep -q '"available":false'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
+          curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace?area=documents' | grep -q '"area":"documents"'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/calendar | grep -q '"events":'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant | grep -q '"available":false'
 
       - name: HAOS provisioning sanity
         run: |
