@@ -561,7 +561,19 @@ async function loadWorkspace() {
         <div class="file-icon"></div>
         <div class="file-copy"><strong></strong><small></small></div>
         <div class="file-actions"></div>`;
-      row.querySelector(".file-icon").textContent = item.type === "folder" ? "▤" : "·";
+      const icon = row.querySelector(".file-icon");
+      const isImage = item.type === "file" && /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(item.name);
+      if (workspaceArea === "media" && isImage) {
+        const image = document.createElement("img");
+        image.className = "file-thumb";
+        image.loading = "lazy";
+        image.alt = "";
+        image.src = `/api/workspace/file?${workspaceQuery({name: item.name})}`;
+        icon.appendChild(image);
+        row.classList.add("media-row");
+      } else {
+        icon.textContent = item.type === "folder" ? "▤" : "·";
+      }
       row.querySelector("strong").textContent = item.name;
       row.querySelector("small").textContent = item.type === "folder"
         ? "Ordner"
