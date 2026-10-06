@@ -1,11 +1,12 @@
 # Roadmap
 
-This roadmap reflects the current **server-first** direction.
+This roadmap reflects the current **Proxmox-based appliance** direction.
 
-## Phase 0 — Web server bootstrap / 0.1.x
+## Phase 0 — Appliance foundation / 0.1.x
 
-- existing Linux host remains intact
-- Docker Compose deployment
+- Proxmox VE virtualization base
+- dedicated Netfreak2k management guest
+- existing Linux host is not modified
 - N2K Glass web interface
 - access through `http://SERVER-IP/`
 - health endpoint
@@ -120,7 +121,7 @@ Only after the server platform is mature:
 - optional daily-driver desktop edition
 ### Mandatory Home Assistant support
 
-- Home Assistant Core in container form is a required first-class app
+- Home Assistant OS in a KVM VM is a required first-class workload
 - persistent Home Assistant config storage
 - LAN device discovery support where technically required
 - clear port/network conflict checks
