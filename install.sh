@@ -86,6 +86,9 @@ tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
 mkdir -p "${N2K_DIR}"
 find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -a "${tmp}/src/." "${N2K_DIR}/"
+chmod 0755 "${N2K_DIR}/scripts/"*.sh
+install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
+install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
 printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
 
 log "Installiere eingeschränkten Netfreak2k VM-Agenten."
