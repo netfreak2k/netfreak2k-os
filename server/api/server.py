@@ -1858,7 +1858,18 @@ class Handler(BaseHTTPRequestHandler):
                 data = self.read_json()
                 username = str(data.get("username", "")).strip()
                 password = str(data.get("password", ""))
+                device_name = str(data.get("device_name", "n2k-server")).strip()[:48] or "n2k-server"
+                profile = str(data.get("profile", "home-server")).strip()
+                ai_provider = str(data.get("ai_provider", "chatgpt")).strip()
+                if profile not in {"home-server", "ai-workspace", "custom"}:
+                    raise ValueError("invalid_profile")
+                if ai_provider not in {"chatgpt", "local", "none"}:
+                    raise ValueError("invalid_ai_provider")
                 create_admin(username, password)
+                set_preference(username, "device_name", device_name)
+                set_preference(username, "usage_profile", profile)
+                set_preference(username, "ai_provider", ai_provider)
+                set_preference(username, "update_channel", "developer")
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
                 return
