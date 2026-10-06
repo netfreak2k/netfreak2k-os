@@ -1358,7 +1358,7 @@ def overview_payload(username):
             "level": "warning",
             "title": "Home Assistant prüfen",
             "detail": "HAOS ist nicht vollständig erreichbar.",
-            "target": "home-assistant-panel",
+            "target": "vms-panel",
         })
     if updates.get("available") and updates.get("update_available"):
         warnings.append({
