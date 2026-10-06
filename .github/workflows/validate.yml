@@ -124,7 +124,16 @@ jobs:
 
           printf '%s\r\n' 'BEGIN:VCALENDAR' 'VERSION:2.0' 'PRODID:-//Netfreak2k CI//DE' 'BEGIN:VEVENT' 'UID:ci-sync-test@netfreak2k' 'DTSTAMP:20261006T070000Z' 'DTSTART:20261007T120000Z' 'DTEND:20261007T123000Z' 'SUMMARY:CI Sync Termin' 'DESCRIPTION:CalDAV smoke test' 'END:VEVENT' 'END:VCALENDAR' > /tmp/n2k-caldav.ics
           curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X PUT -H 'Content-Type: text/calendar' --data-binary @/tmp/n2k-caldav.ics http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics
-          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X REPORT -H 'Depth: 1' -H 'Content-Type: application/xml' --data '<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:d="DAV:"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"/></c:filter></c:calendar-query>' http://127.0.0.1:18080/dav/calendars/ciadmin/default/ | grep -q 'CI Sync Termin'
+          set +e
+          REPORT_RESPONSE="$(curl -sS -u "ciadmin:$SYNC_PASSWORD" -X REPORT -H 'Depth: 1' -H 'Content-Type: application/xml' --data '<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:d="DAV:"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"/></c:filter></c:calendar-query>' http://127.0.0.1:18080/dav/calendars/ciadmin/default/)"
+          report_rc=$?
+          set -e
+          if [[ "$report_rc" -ne 0 ]] || ! printf '%s' "$REPORT_RESPONSE" | grep -q 'CI Sync Termin'; then
+            printf '%s\n' "$REPORT_RESPONSE"
+            docker logs netfreak2k-api || true
+            docker logs netfreak2k-web || true
+            exit 1
+          fi
           curl -fsS -u "ciadmin:$SYNC_PASSWORD" http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics | grep -q 'CI Sync Termin'
           curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X DELETE http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics
 
