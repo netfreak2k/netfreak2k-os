@@ -31,6 +31,8 @@ APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
 VM_AGENT_SOCKET = os.environ.get("N2K_VM_AGENT_SOCKET", "/run/netfreak2k/vm-agent.sock")
 AGENT_TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/host/netfreak2k/agent.token"))
 UPDATE_FILE = Path(os.environ.get("N2K_UPDATE_FILE", "/host/netfreak2k/update-status.json"))
+UPDATE_PROGRESS_FILE = Path(os.environ.get("N2K_UPDATE_PROGRESS_FILE", "/host/netfreak2k/update-progress.json"))
+VERSION_FILE = Path(os.environ.get("N2K_VERSION_FILE", "/host/netfreak2k/version.json"))
 WORKSPACE_ROOT = Path(os.environ.get("N2K_WORKSPACE_ROOT", "/workspace"))
 WORKSPACE_AREAS = {
     "documents": "Dokumente",
@@ -1273,20 +1275,40 @@ def vm_agent(action, extra=None):
         return {"available": False, "installed": False, "state": "unavailable", "reachable": False}
 
 
-def update_payload():
+def read_json_file(path):
     try:
-        payload = json.loads(UPDATE_FILE.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
-            raise ValueError("invalid_update_status")
-        payload["available"] = True
-        return payload
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
-        return {
-            "available": False,
+        return {}
+
+
+def update_payload():
+    status = read_json_file(UPDATE_FILE)
+    version = read_json_file(VERSION_FILE)
+    progress = read_json_file(UPDATE_PROGRESS_FILE)
+
+    if not status:
+        status = {
             "ok": False,
             "update_available": False,
             "note": "update_status_unavailable",
         }
+
+    status["available"] = bool(status)
+    status["installed"] = {
+        "repo": version.get("repo"),
+        "ref": version.get("ref"),
+        "fingerprint": version.get("fingerprint") or status.get("installed_fingerprint"),
+        "installed_at": version.get("installed_at"),
+    }
+    status["progress"] = progress or {
+        "state": "idle",
+        "progress": 0,
+        "step": "idle",
+        "message": "Kein Update-Vorgang aktiv.",
+    }
+    return status
 
 
 def recent_workspace_items(username, limit=6):
