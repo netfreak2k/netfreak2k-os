@@ -214,7 +214,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(360 if action == "app_install" else 5)
+        client.settimeout(360 if action in {"app_install", "backup_create"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -406,6 +406,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if self.path == "/vms":
+            if not self.require_auth():
+                return
+            result = vm_agent("vm_list")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
+        if self.path == "/backups":
+            if not self.require_auth():
+                return
+            result = vm_agent("backup_list")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self):
@@ -462,6 +482,38 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if self.path == "/backups/create":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("backup_create")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result, 201)
+            return
+
+        if self.path == "/backups/restore":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            backup_id = str(data.get("backup_id", ""))
+            result = vm_agent("backup_restore", {"backup_id": backup_id})
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result, 202)
             return
 
         if self.path == "/catalog/install":
