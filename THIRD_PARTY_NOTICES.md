@@ -73,3 +73,12 @@ They are not sourced from Apple, Microsoft, Linux Mint, commercial wallpaper pac
 No third-party logo, proprietary operating-system wallpaper, proprietary font or copied UI asset is intentionally included in this collection.
 
 The collection is treated as Netfreak2k project artwork rather than a third-party runtime dependency. The repository-wide public license is still to be selected separately before a stable public release.
+
+
+## ipwho.is network metadata
+
+Netfreak2k may query the public ipwho.is HTTPS service to display the server's public IP, ISP/provider, ASN and country in the Network module.
+
+No ipwho.is software is redistributed or bundled. The request necessarily exposes the server's public source IP to that service. Results are cached for 15 minutes to limit requests.
+
+This lookup exists only for WAN identity/status display. Netfreak2k does not send workspace content, credentials, calendar data or other user content in the request.
