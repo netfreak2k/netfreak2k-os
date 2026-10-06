@@ -112,6 +112,34 @@ jobs:
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shares | grep -q "$SHARE_TOKEN"
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"token\":\"$SHARE_TOKEN\"}" http://127.0.0.1:18080/api/shares/revoke | grep -q '"revoked":true'
 
+          SYNC_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"label":"CI Sync"}' http://127.0.0.1:18080/api/sync/credentials/create)"
+          SYNC_PASSWORD="$(printf '%s' "$SYNC_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')"
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/sync/credentials | grep -q '"label":"CI Sync"'
+
+          printf 'hello webdav\n' >/tmp/n2k-webdav.txt
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X PUT --data-binary @/tmp/n2k-webdav.txt http://127.0.0.1:18080/dav/files/Dokumente/webdav-test.txt
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X PROPFIND -H 'Depth: 1' http://127.0.0.1:18080/dav/files/Dokumente/ | grep -q 'webdav-test.txt'
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" http://127.0.0.1:18080/dav/files/Dokumente/webdav-test.txt | grep -q 'hello webdav'
+
+          cat >/tmp/n2k-caldav.ics <<'EOF'
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Netfreak2k CI//DE
+BEGIN:VEVENT
+UID:ci-sync-test@netfreak2k
+DTSTAMP:20261006T070000Z
+DTSTART:20261007T120000Z
+DTEND:20261007T123000Z
+SUMMARY:CI Sync Termin
+DESCRIPTION:CalDAV smoke test
+END:VEVENT
+END:VCALENDAR
+EOF
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X PUT -H 'Content-Type: text/calendar' --data-binary @/tmp/n2k-caldav.ics http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X REPORT -H 'Depth: 1' -H 'Content-Type: application/xml' --data '<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:d="DAV:"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"/></c:filter></c:calendar-query>' http://127.0.0.1:18080/dav/calendars/ciadmin/default/ | grep -q 'CI Sync Termin'
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics | grep -q 'CI Sync Termin'
+          curl -fsS -u "ciadmin:$SYNC_PASSWORD" -X DELETE http://127.0.0.1:18080/dav/calendars/ciadmin/default/ci-sync-test@netfreak2k.ics
+
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/calendar | grep -q '"events":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant | grep -q '"available":false'
 
