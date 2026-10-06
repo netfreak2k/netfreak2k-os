@@ -96,6 +96,8 @@ function enterApp(username) {
   show(document.getElementById("auth-shell"), false);
   show(document.getElementById("app-shell"), true);
   document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
+  const welcome = document.getElementById("top-welcome");
+  if (welcome) welcome.textContent = username ? `Willkommen, ${username}` : "Willkommen";
   loadStatus();
   loadApps();
   loadHomeAssistant();
@@ -480,6 +482,12 @@ async function loadOverview() {
         : "Netzwerk";
     pushNetworkHistory(network.down_bps, network.up_bps);
     updateNetworkDetail(network);
+    const provider = document.getElementById("network-provider");
+    const ping = document.getElementById("network-ping");
+    const wan = document.getElementById("network-wan-ip");
+    if (provider) provider.textContent = network.provider || "nicht erkannt";
+    if (ping) ping.textContent = Number.isFinite(network.ping_ms) ? `${network.ping_ms} ms` : "–";
+    if (wan) wan.textContent = network.public_ip || "–";
 
     renderOverviewList("overview-calendar", data.upcoming || [], eventItemNode, "Keine kommenden Termine.");
     renderOverviewList("overview-recent", data.recent || [], recentItemNode, "Noch keine Dateien.");
@@ -1709,8 +1717,12 @@ async function loadHomeAssistant() {
     const data = await request("/api/homeassistant", {headers: {}});
     state.textContent = data.state || "unbekannt";
     state.classList.toggle("running", data.state === "running");
-    const vmState = document.getElementById("vm-ha-state");
-    if (vmState) vmState.textContent = data.state || "unbekannt";
+    const vmNetwork = document.getElementById("vm-ha-network");
+    if (vmNetwork) {
+      const networkActive = data.network?.active !== false;
+      vmNetwork.textContent = networkActive ? "● libvirt-Netz aktiv" : "● libvirt-Netz prüfen";
+      vmNetwork.classList.toggle("good", networkActive);
+    }
     if (!data.available) {
       detail.textContent = "VM-Agent nicht erreichbar.";
     } else if (data.kvm === false) {
@@ -1771,26 +1783,42 @@ async function loadUpdates() {
   if (!title || !detail) return;
   try {
     const data = await request("/api/updates", {headers: {}});
+    const top = document.getElementById("top-update-status");
+    const topDot = top?.querySelector(".health-dot");
+    const topText = top?.querySelector("strong");
     if (!data.available) {
       title.textContent = "Update-Status noch nicht verfügbar";
       detail.textContent = "Die nächste automatische GitHub-Prüfung aktualisiert diesen Bereich.";
+      if (topText) topText.textContent = "Update unbekannt";
+      if (topDot) topDot.className = "health-dot";
       return;
     }
     if (data.update_available) {
       title.textContent = "Neue Version verfügbar";
+      if (topText) topText.textContent = "Update verfügbar";
+      if (topDot) topDot.className = "health-dot info";
       const fingerprint = data.remote_fingerprint ? data.remote_fingerprint.slice(0, 12) : "GitHub";
       detail.textContent = `Neuer Stand ${fingerprint} erkannt. Installation erfolgt erst nach deiner Bestätigung.`;
     } else if (data.note === "github_archive_unavailable") {
       title.textContent = "GitHub momentan nicht erreichbar";
+      if (topText) topText.textContent = "Update-Prüfung offline";
+      if (topDot) topDot.className = "health-dot warn";
       detail.textContent = "Netfreak2k läuft weiter; die nächste Prüfung erfolgt automatisch.";
     } else {
       title.textContent = "Netfreak2k ist aktuell";
       detail.textContent = "Kein neuer GitHub-Stand erkannt.";
+      if (topText) topText.textContent = "System aktuell";
+      if (topDot) topDot.className = "health-dot ok";
     }
   } catch (error) {
     console.error(error);
     title.textContent = "Update-Status nicht erreichbar";
     detail.textContent = "Die Weboberfläche bleibt uneingeschränkt nutzbar.";
+    const top = document.getElementById("top-update-status");
+    const topText = top?.querySelector("strong");
+    const topDot = top?.querySelector(".health-dot");
+    if (topText) topText.textContent = "Update-Prüfung fehlgeschlagen";
+    if (topDot) topDot.className = "health-dot warn";
   }
 }
 
@@ -1932,7 +1960,6 @@ document.addEventListener("keydown", event => {
 const viewGroups = {
   "workspace-panel": ["workspace-panel", "drive-management-panel"],
   "calendar-panel": ["calendar-panel"],
-  "home-assistant-panel": ["home-assistant-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
@@ -1987,6 +2014,71 @@ document.querySelectorAll("[data-view]").forEach(btn => {
 
 document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
+});
+
+
+function aiStorageKey(pane) {
+  return `n2k_ai_pane_${pane}`;
+}
+
+function renderAiPane(pane) {
+  const history = document.getElementById(`ai-history-${pane}`);
+  if (!history) return;
+  let items = [];
+  try {
+    items = JSON.parse(localStorage.getItem(aiStorageKey(pane)) || "[]");
+  } catch (_) {
+    items = [];
+  }
+  history.innerHTML = "";
+  if (!Array.isArray(items) || !items.length) {
+    history.innerHTML = '<div class="ai-empty">Noch keine lokale Notiz.</div>';
+    return;
+  }
+  items.slice(-4).forEach(item => {
+    const row = document.createElement("div");
+    row.className = "ai-note-row";
+    const strong = document.createElement("strong");
+    strong.textContent = item.text;
+    const small = document.createElement("small");
+    small.textContent = new Date(item.at).toLocaleString("de-DE", {dateStyle:"short", timeStyle:"short"});
+    row.append(strong, small);
+    history.appendChild(row);
+  });
+}
+
+function saveAiPaneNote(pane) {
+  const input = document.getElementById(`ai-input-${pane}`);
+  const text = input?.value.trim();
+  if (!text) return;
+  let items = [];
+  try {
+    items = JSON.parse(localStorage.getItem(aiStorageKey(pane)) || "[]");
+  } catch (_) {}
+  if (!Array.isArray(items)) items = [];
+  items.push({text, at: Date.now()});
+  localStorage.setItem(aiStorageKey(pane), JSON.stringify(items.slice(-12)));
+  renderAiPane(pane);
+}
+
+async function openAiPaneInChatGPT(pane) {
+  const input = document.getElementById(`ai-input-${pane}`);
+  const text = input?.value.trim() || "";
+  if (text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (_) {}
+    saveAiPaneNote(pane);
+  }
+  window.open("https://chatgpt.com/", `n2k-chatgpt-${pane}`, "noopener");
+}
+
+for (let pane = 1; pane <= 4; pane += 1) renderAiPane(pane);
+document.querySelectorAll(".ai-save-note").forEach(button => {
+  button.addEventListener("click", () => saveAiPaneNote(button.dataset.pane));
+});
+document.querySelectorAll(".ai-copy-open").forEach(button => {
+  button.addEventListener("click", () => openAiPaneInChatGPT(button.dataset.pane));
 });
 
 bootstrapAuth().catch(error => {
