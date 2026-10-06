@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import base64
+import calendar
 import hashlib
 import hmac
 import json
@@ -12,6 +13,8 @@ import sqlite3
 import socket
 import shutil
 import threading
+import email.utils
+import xml.sax.saxutils
 import time
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -114,6 +117,28 @@ def db_connect():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sync_credentials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            label TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            last_used_at INTEGER,
+            revoked_at INTEGER
+        )
+        """
+    )
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)").fetchall()}
+    if "uid" not in columns:
+        conn.execute("ALTER TABLE calendar_events ADD COLUMN uid TEXT")
+    if "updated_at" not in columns:
+        conn.execute("ALTER TABLE calendar_events ADD COLUMN updated_at INTEGER")
+    if "raw_ics" not in columns:
+        conn.execute("ALTER TABLE calendar_events ADD COLUMN raw_ics TEXT")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_uid ON calendar_events(username, uid)")
     conn.commit()
     return conn
 
@@ -334,6 +359,231 @@ def parse_network_rate():
         "tx_bytes": tx,
         "interfaces": interfaces,
     }
+
+
+def create_sync_credential(username, label):
+    label = str(label or "").strip()[:80] or "Sync"
+    password = secrets.token_urlsafe(24)
+    salt = secrets.token_bytes(16)
+    digest = hash_password(password, salt)
+    with db_connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO sync_credentials (username,label,password_hash,salt,created_at) VALUES (?,?,?,?,?)",
+            (
+                username,
+                label,
+                base64.b64encode(digest).decode("ascii"),
+                base64.b64encode(salt).decode("ascii"),
+                int(time.time()),
+            ),
+        )
+        conn.commit()
+        credential_id = cur.lastrowid
+    return {"id": credential_id, "label": label, "username": username, "password": password}
+
+
+def sync_credentials_payload(username):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,label,created_at,last_used_at FROM sync_credentials WHERE username=? AND revoked_at IS NULL ORDER BY created_at DESC",
+            (username,),
+        ).fetchall()
+    return {
+        "credentials": [
+            {"id": row[0], "label": row[1], "created_at": row[2], "last_used_at": row[3]}
+            for row in rows
+        ]
+    }
+
+
+def revoke_sync_credential(username, credential_id):
+    try:
+        credential_id = int(credential_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid_credential")
+    with db_connect() as conn:
+        cur = conn.execute(
+            "UPDATE sync_credentials SET revoked_at=? WHERE id=? AND username=? AND revoked_at IS NULL",
+            (int(time.time()), credential_id, username),
+        )
+        conn.commit()
+    if cur.rowcount != 1:
+        raise ValueError("credential_not_found")
+    return {"revoked": True}
+
+
+def verify_sync_login(username, password):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,password_hash,salt FROM sync_credentials WHERE username=? AND revoked_at IS NULL",
+            (username,),
+        ).fetchall()
+        for row in rows:
+            try:
+                stored = base64.b64decode(row[1])
+                salt = base64.b64decode(row[2])
+            except Exception:
+                continue
+            supplied = hash_password(password, salt)
+            if hmac.compare_digest(stored, supplied):
+                conn.execute("UPDATE sync_credentials SET last_used_at=? WHERE id=?", (int(time.time()), row[0]))
+                conn.commit()
+                return True
+    return False
+
+
+def dav_virtual_root(username):
+    ensure_workspace(username)
+    return {
+        "Dokumente": ensure_workspace(username) / WORKSPACE_AREAS["documents"],
+        "Bilder & Videos": ensure_workspace(username) / WORKSPACE_AREAS["media"],
+        "Audio": ensure_workspace(username) / WORKSPACE_AREAS["audio"],
+        "Downloads": ensure_workspace(username) / WORKSPACE_AREAS["downloads"],
+        "Persönlich": ensure_workspace(username) / WORKSPACE_AREAS["personal"],
+        "Papierkorb": ensure_workspace(username) / WORKSPACE_AREAS["trash"],
+        "Shared": WORKSPACE_ROOT / "shared",
+    }
+
+
+def dav_resolve(username, relative):
+    relative = unquote(str(relative or "")).strip("/")
+    roots = dav_virtual_root(username)
+    if not relative:
+        return None, None, roots
+    parts = [part for part in relative.split("/") if part]
+    root = roots.get(parts[0])
+    if root is None:
+        raise ValueError("dav_not_found")
+    target = root.joinpath(*parts[1:]).resolve()
+    resolved_root = root.resolve()
+    if target != resolved_root and resolved_root not in target.parents:
+        raise ValueError("invalid_path")
+    return parts[0], target, roots
+
+
+def dav_href(path):
+    return "/dav/files/" + quote(path, safe="/") if path else "/dav/files/"
+
+
+def dav_prop_response(href, path=None, collection=False, display_name=""):
+    esc = xml.sax.saxutils.escape
+    if collection:
+        resource = "<d:collection/>"
+        length = ""
+    else:
+        resource = ""
+        size = path.stat().st_size if path and path.exists() else 0
+        length = f"<d:getcontentlength>{size}</d:getcontentlength>"
+    modified = ""
+    etag = ""
+    if path and path.exists():
+        stat = path.stat()
+        modified = f"<d:getlastmodified>{email.utils.formatdate(stat.st_mtime, usegmt=True)}</d:getlastmodified>"
+        etag = f'<d:getetag>"{stat.st_mtime_ns:x}-{stat.st_size:x}"</d:getetag>'
+    return (
+        "<d:response>"
+        f"<d:href>{esc(href)}</d:href>"
+        "<d:propstat><d:prop>"
+        f"<d:displayname>{esc(display_name)}</d:displayname>"
+        f"<d:resourcetype>{resource}</d:resourcetype>"
+        f"{length}{modified}{etag}"
+        "</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>"
+        "</d:response>"
+    )
+
+
+def format_ics_datetime(epoch):
+    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(int(epoch)))
+
+
+def build_ics_event(uid, title, start_at, end_at=None, notes=""):
+    def esc(value):
+        return str(value or "").replace("\\", "\\\\").replace("\n", "\\n").replace(",", "\\,").replace(";", "\\;")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Netfreak2k//N2K Calendar//DE",
+        "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{format_ics_datetime(int(time.time()))}",
+        f"DTSTART:{format_ics_datetime(start_at)}",
+    ]
+    if end_at:
+        lines.append(f"DTEND:{format_ics_datetime(end_at)}")
+    lines.extend([
+        f"SUMMARY:{esc(title)}",
+        f"DESCRIPTION:{esc(notes)}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+        "",
+    ])
+    return "\r\n".join(lines)
+
+
+def parse_ics_datetime(value):
+    value = value.strip()
+    for fmt in ("%Y%m%dT%H%M%SZ", "%Y%m%dT%H%M%S", "%Y%m%d"):
+        try:
+            dt = time.strptime(value, fmt)
+            return int(calendar.timegm(dt)) if value.endswith("Z") else int(time.mktime(dt))
+        except ValueError:
+            continue
+    raise ValueError("invalid_ics_time")
+
+
+def unfold_ics(text):
+    return re.sub(r"\r?\n[ \t]", "", text)
+
+
+def parse_ics_event(text):
+    text = unfold_ics(text)
+    values = {}
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.split(";", 1)[0].upper()
+        if key in {"UID", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION"}:
+            values[key] = value
+    uid = values.get("UID") or f"{secrets.token_hex(12)}@netfreak2k"
+    title = values.get("SUMMARY", "Termin").replace("\\n", "\n").replace("\\,", ",").replace("\\;", ";")
+    notes = values.get("DESCRIPTION", "").replace("\\n", "\n").replace("\\,", ",").replace("\\;", ";")
+    start_at = parse_ics_datetime(values["DTSTART"])
+    end_at = parse_ics_datetime(values["DTEND"]) if values.get("DTEND") else None
+    return uid, title, start_at, end_at, notes
+
+
+def calendar_event_by_uid(username, uid):
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT id,title,start_at,end_at,notes,uid,raw_ics,updated_at FROM calendar_events WHERE username=? AND uid=?",
+            (username, uid),
+        ).fetchone()
+    return row
+
+
+def upsert_caldav_event(username, uid, ics):
+    parsed_uid, title, start_at, end_at, notes = parse_ics_event(ics)
+    uid = parsed_uid or uid
+    now = int(time.time())
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM calendar_events WHERE username=? AND uid=?",
+            (username, uid),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE calendar_events SET title=?,start_at=?,end_at=?,notes=?,raw_ics=?,updated_at=? WHERE id=?",
+                (title, start_at, end_at, notes, ics, now, row[0]),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO calendar_events (username,title,start_at,end_at,notes,created_at,uid,updated_at,raw_ics) VALUES (?,?,?,?,?,?,?,?,?)",
+                (username, title, start_at, end_at, notes, now, uid, now, ics),
+            )
+        conn.commit()
+    return uid
 
 
 def ensure_workspace(username):
@@ -797,13 +1047,16 @@ def calendar_create(username, title, start_at, end_at=None, notes=""):
         raise ValueError("invalid_time")
     notes = str(notes)[:2000]
     with db_connect() as conn:
+        now = int(time.time())
+        uid = f"{secrets.token_hex(12)}@netfreak2k"
+        raw_ics = build_ics_event(uid, title, start_at, end_at, notes)
         cur = conn.execute(
-            "INSERT INTO calendar_events (username,title,start_at,end_at,notes,created_at) VALUES (?,?,?,?,?,?)",
-            (username, title, start_at, end_at, notes, int(time.time())),
+            "INSERT INTO calendar_events (username,title,start_at,end_at,notes,created_at,uid,updated_at,raw_ics) VALUES (?,?,?,?,?,?,?,?,?)",
+            (username, title, start_at, end_at, notes, now, uid, now, raw_ics),
         )
         conn.commit()
         event_id = cur.lastrowid
-    return {"created": True, "id": event_id}
+    return {"created": True, "id": event_id, "uid": uid}
 
 
 def calendar_delete(username, event_id):
