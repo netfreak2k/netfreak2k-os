@@ -87,9 +87,26 @@ jobs:
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/octet-stream' --data-binary @/tmp/n2k-drive-test.txt 'http://127.0.0.1:18080/api/workspace/upload?area=documents&path=&name=drive-test.txt' | grep -q '"uploaded":true'
           curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/search?q=drive-test' | grep -q '"name":"drive-test.txt"'
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","old_name":"drive-test.txt","new_name":"drive-renamed.txt"}' http://127.0.0.1:18080/api/workspace/rename | grep -q '"renamed":true'
+
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","name":"drive-renamed.txt"}' http://127.0.0.1:18080/api/favorites/toggle | grep -q '"favorite":true'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/favorites | grep -q '"name":"drive-renamed.txt"'
+
+          printf 'hello n2k v2\n' >/tmp/n2k-drive-test-v2.txt
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/octet-stream' --data-binary @/tmp/n2k-drive-test-v2.txt 'http://127.0.0.1:18080/api/workspace/upload?area=documents&path=&name=drive-renamed.txt&replace=1' | grep -q '"replaced":true'
+          VERSION_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace/versions?area=documents&path=&name=drive-renamed.txt')"
+          VERSION_ID="$(printf '%s' "$VERSION_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["versions"][0]["id"])')"
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"id\":$VERSION_ID}" http://127.0.0.1:18080/api/workspace/version/restore | grep -q '"restored":true'
+          curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace/file?area=documents&path=&name=drive-renamed.txt' | grep -q 'hello n2k'
+
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"mode":"copy","source_area":"documents","source_path":"","name":"drive-renamed.txt","target_area":"personal","target_path":""}' http://127.0.0.1:18080/api/workspace/transfer | grep -q '"transferred":true'
+          curl -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace?area=personal' | grep -q '"name":"drive-renamed.txt"'
+
           SHARE_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","name":"drive-renamed.txt","hours":1}' http://127.0.0.1:18080/api/workspace/share)"
           SHARE_TOKEN="$(printf '%s' "$SHARE_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
           curl -fsS "http://127.0.0.1:18080/api/share?token=$SHARE_TOKEN" | grep -q 'hello n2k'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shares | grep -q "$SHARE_TOKEN"
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"token\":\"$SHARE_TOKEN\"}" http://127.0.0.1:18080/api/shares/revoke | grep -q '"revoked":true'
+
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/calendar | grep -q '"events":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant | grep -q '"available":false'
 
