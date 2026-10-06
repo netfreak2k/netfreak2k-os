@@ -72,7 +72,11 @@
       </section>
 
       <section class="grid" id="dashboard">
-        <article class="card glass"><h2>Apps</h2><p>Container und Dienste zentral verwalten.</p><span class="badge">folgt</span></article>
+        <article class="card glass app-card">
+  <div class="card-head"><div><h2>Apps</h2><p>Erkannte Docker-Container auf diesem Host.</p></div><button id="refresh-apps" class="button-quiet">Neu laden</button></div>
+  <div id="apps-summary" class="apps-summary">Lade Container …</div>
+  <div id="apps-list" class="apps-list"></div>
+</article>
         <article class="card glass"><h2>Speicher</h2><p>Festplatten, SMART, Freigaben und Backups.</p><span class="badge">folgt</span></article>
         <article class="card glass"><h2>KI</h2><p>Cloud- und lokale KI-Dienste an einem Ort.</p><button data-url="https://chatgpt.com">ChatGPT öffnen</button></article>
         <article class="card glass"><h2>Netzwerk</h2><p>LAN, Tailscale und später netfreak2k.local.</p><span class="badge">folgt</span></article>
