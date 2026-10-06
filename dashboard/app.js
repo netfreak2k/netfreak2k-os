@@ -93,6 +93,7 @@ function enterApp(username) {
   loadFavorites();
   loadShares();
   loadCalendar();
+  loadSyncCredentials();
   updateDesktopClock();
   loadOverview();
   switchView("dashboard-top");
@@ -1427,6 +1428,80 @@ async function deleteCalendarEvent(id, title) {
   }
 }
 
+async function loadSyncCredentials() {
+  const list = document.getElementById("sync-credentials-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/sync/credentials", {headers: {}});
+    const webdav = document.getElementById("sync-webdav-url");
+    const caldav = document.getElementById("sync-caldav-url");
+    const absolute = path => `${window.location.origin}${path}`;
+    if (webdav) webdav.textContent = absolute(data.webdav_url || "/dav/files/");
+    if (caldav) caldav.textContent = absolute(data.caldav_url || "/dav/calendars/");
+    list.innerHTML = "";
+    const credentials = Array.isArray(data.credentials) ? data.credentials : [];
+    for (const credential of credentials) {
+      const row = document.createElement("div");
+      row.className = "cloud-row";
+      row.innerHTML = '<div><strong></strong><small></small></div><button class="mini-action danger-mini">Widerrufen</button>';
+      row.querySelector("strong").textContent = credential.label;
+      row.querySelector("small").textContent =
+        `erstellt ${formatDateTime(credential.created_at)}${credential.last_used_at ? " · zuletzt " + formatDateTime(credential.last_used_at) : ""}`;
+      row.querySelector("button").addEventListener("click", () => revokeSyncCredential(credential.id, credential.label));
+      list.appendChild(row);
+    }
+    if (!credentials.length) {
+      list.innerHTML = '<div class="app-empty">Noch kein Sync-Zugang eingerichtet.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">Sync-Zugänge konnten nicht geladen werden.</div>';
+  }
+}
+
+async function createSyncCredential() {
+  const label = prompt("Name für diesen Sync-Zugang:", "Mein Gerät");
+  if (!label) return;
+  try {
+    const data = await request("/api/sync/credentials/create", {
+      method: "POST",
+      body: JSON.stringify({label}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    const box = document.getElementById("sync-secret-box");
+    const secret = document.getElementById("sync-secret");
+    if (secret) secret.textContent = data.password || "";
+    show(box, true);
+    await loadSyncCredentials();
+  } catch (error) {
+    console.error(error);
+    alert("Sync-Zugang konnte nicht erstellt werden.");
+  }
+}
+
+async function revokeSyncCredential(id, label) {
+  if (!confirm(`Sync-Zugang „${label}“ widerrufen?`)) return;
+  try {
+    await request("/api/sync/credentials/revoke", {
+      method: "POST",
+      body: JSON.stringify({id}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadSyncCredentials();
+  } catch (error) {
+    console.error(error);
+    alert("Sync-Zugang konnte nicht widerrufen werden.");
+  }
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    prompt("Kopieren:", text);
+  }
+}
+
 async function loadHomeAssistant() {
   const state = document.getElementById("ha-state");
   const detail = document.getElementById("ha-detail");
@@ -1562,6 +1637,20 @@ document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalo
 document.getElementById("create-backup")?.addEventListener("click", createBackup);
 document.getElementById("refresh-favorites")?.addEventListener("click", loadFavorites);
 document.getElementById("refresh-shares")?.addEventListener("click", loadShares);
+document.getElementById("sync-create")?.addEventListener("click", createSyncCredential);
+document.getElementById("sync-refresh")?.addEventListener("click", loadSyncCredentials);
+document.getElementById("sync-copy-secret")?.addEventListener("click", () => {
+  const value = document.getElementById("sync-secret")?.textContent || "";
+  if (value) copyText(value);
+});
+document.querySelectorAll("[data-copy-sync]").forEach(button => {
+  button.addEventListener("click", () => {
+    const id = button.dataset.copySync === "caldav" ? "sync-caldav-url" : "sync-webdav-url";
+    const value = document.getElementById(id)?.textContent || "";
+    if (value && value !== "–") copyText(value);
+  });
+});
+
 document.getElementById("refresh-updates")?.addEventListener("click", async () => {
   const button = document.getElementById("refresh-updates");
   const original = button.textContent;
@@ -1651,7 +1740,7 @@ const viewGroups = {
   "network-panel": ["network-panel"],
   "ai-panel": ["ai-panel"],
   "energy-panel": ["energy-panel"],
-  "updates-panel": ["updates-panel"]
+  "updates-panel": ["sync-panel", "updates-panel"]
 };
 
 function switchView(targetId) {
@@ -1722,3 +1811,4 @@ setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
 setInterval(loadCalendar, 60000);
+setInterval(loadSyncCredentials, 60000);
