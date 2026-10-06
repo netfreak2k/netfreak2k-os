@@ -124,3 +124,16 @@ Netfreak2k must not expose unrestricted libvirt or root access to the browser.
 State-changing VM operations require authentication and explicit permissions.
 
 Destructive storage operations require explicit confirmation.
+
+## Home Assistant host access port
+
+Netfreak2k keeps the stable user-facing Home Assistant URL on the Mint host at:
+
+```
+http://<mint-ip>:8123/
+```
+
+Internally, current HAOS/Supervisor releases may use port 80 as the canonical HTTP port and keep 8123 only as a legacy redirect. Netfreak2k therefore proxies host port 8123 to HAOS port 80, while health checks prefer port 80 and retain port 8123 as a compatibility fallback.
+
+This avoids exposing Home Assistant directly on Mint port 80 and keeps the external Netfreak2k access URL stable across HAOS HTTP-port changes.
+
