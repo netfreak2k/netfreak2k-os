@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1015">
+  <link rel="stylesheet" href="styles.css?v=20261006-1030">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -342,16 +342,69 @@
             <div id="sync-credentials-list" class="cloud-list"><div class="app-empty">Sync-Zugänge werden geladen …</div></div>
           </article>
 
-          <article id="updates-panel" class="panel update-panel section-anchor">
+          <article id="updates-panel" class="panel update-panel update-center section-anchor">
             <div class="panel-head">
-              <div><h2>Aktualisierungen</h2><p>Netfreak2k bezieht neue Stände direkt aus GitHub.</p></div>
-              <span class="panel-symbol">⇩</span>
+              <div>
+                <p class="eyebrow">N2K UPDATE CENTER</p>
+                <h2>Systemaktualisierung</h2>
+                <p>GitHub-Stand prüfen, Update-Fortschritt verfolgen und installierten Stand vergleichen.</p>
+              </div>
+              <span id="update-state-pill" class="state-pill">Prüfe …</span>
             </div>
-            <div id="update-box" class="update-box">
-              <strong id="update-title">Prüfe GitHub …</strong>
-              <span id="update-detail">Update-Status wird geladen.</span>
+
+            <div class="update-progress-card">
+              <div class="update-progress-head">
+                <div>
+                  <small>AKTUELLER STATUS</small>
+                  <strong id="update-title">Prüfe GitHub …</strong>
+                  <span id="update-detail">Update-Status wird geladen.</span>
+                </div>
+                <strong id="update-progress-percent">0%</strong>
+              </div>
+              <div class="update-progress-track">
+                <span id="update-progress-fill"></span>
+              </div>
+              <div class="update-step-line">
+                <span id="update-step">Bereit</span>
+                <span id="update-progress-time">–</span>
+              </div>
             </div>
-            <div class="panel-actions">
+
+            <div class="update-info-grid">
+              <section>
+                <small>INSTALLIERTER STAND</small>
+                <strong id="update-installed-ref">–</strong>
+                <span id="update-installed-fingerprint">–</span>
+              </section>
+              <section>
+                <small>VERFÜGBARER STAND</small>
+                <strong id="update-remote-ref">–</strong>
+                <span id="update-remote-fingerprint">–</span>
+              </section>
+              <section>
+                <small>LETZTE PRÜFUNG</small>
+                <strong id="update-last-check">–</strong>
+                <span id="update-source">Quelle: GitHub</span>
+              </section>
+              <section>
+                <small>INSTALLIERT AM</small>
+                <strong id="update-installed-at">–</strong>
+                <span id="update-runtime-state">Kein Update aktiv</span>
+              </section>
+            </div>
+
+            <div class="update-stage-list">
+              <span data-update-stage="prepare">Vorbereiten</span>
+              <span data-update-stage="download">Download</span>
+              <span data-update-stage="extract">Entpacken</span>
+              <span data-update-stage="validate">Prüfen</span>
+              <span data-update-stage="install">Installieren</span>
+              <span data-update-stage="services">Dienste</span>
+              <span data-update-stage="containers">Container</span>
+              <span data-update-stage="verify">Abschluss</span>
+            </div>
+
+            <div class="panel-actions update-actions">
               <button id="refresh-updates" class="secondary">Neu prüfen</button>
               <button id="install-update" class="primary">Jetzt aktualisieren</button>
             </div>
@@ -519,6 +572,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1015"></script>
+  <script src="app.js?v=20261006-1030"></script>
 </body>
 </html>
