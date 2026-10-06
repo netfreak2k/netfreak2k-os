@@ -72,6 +72,19 @@ def db_connect():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS share_links (
+            token TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            area TEXT NOT NULL,
+            rel_path TEXT NOT NULL,
+            name TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+        """
+    )
     conn.commit()
     return conn
 
@@ -315,6 +328,129 @@ def workspace_delete(username, area, rel, name):
     return {"deleted": True, "permanent": False}
 
 
+def workspace_rename(username, area, rel, old_name, new_name):
+    if (
+        not old_name or not new_name
+        or old_name in {".", ".."} or new_name in {".", ".."}
+        or "/" in old_name or "\\" in old_name
+        or "/" in new_name or "\\" in new_name
+    ):
+        raise ValueError("invalid_name")
+    _, parent = workspace_target(username, area, rel)
+    source = (parent / old_name).resolve()
+    target = (parent / new_name).resolve()
+    base = workspace_base(username, area).resolve()
+    if base not in source.parents or base not in target.parents:
+        raise ValueError("invalid_path")
+    if not source.exists():
+        raise ValueError("not_found")
+    if target.exists():
+        raise ValueError("already_exists")
+    source.rename(target)
+    return {"renamed": True, "name": new_name}
+
+
+def workspace_restore(username, name):
+    if not name or "/" in name or "\\" in name:
+        raise ValueError("invalid_name")
+    trash = ensure_workspace(username) / WORKSPACE_AREAS["trash"]
+    source = (trash / name).resolve()
+    if trash.resolve() not in source.parents or not source.exists():
+        raise ValueError("not_found")
+    restored_name = re.sub(r"^[0-9]+-", "", source.name, count=1) or source.name
+    destination_root = ensure_workspace(username) / WORKSPACE_AREAS["documents"]
+    destination = destination_root / restored_name
+    if destination.exists():
+        stem = destination.stem
+        suffix = destination.suffix
+        restored_name = f"{stem}-wiederhergestellt-{int(time.time())}{suffix}"
+        destination = destination_root / restored_name
+    shutil.move(str(source), str(destination))
+    return {"restored": True, "area": "documents", "name": restored_name}
+
+
+def workspace_search(username, query):
+    query = str(query or "").strip().lower()
+    if len(query) < 2:
+        return {"results": []}
+    results = []
+    roots = [(area, workspace_base(username, area)) for area in WORKSPACE_AREAS if area != "trash"]
+    roots.append(("shared", workspace_base(username, "shared")))
+    for area, root in roots:
+        if not root.exists():
+            continue
+        for item in root.rglob("*"):
+            if len(results) >= 80:
+                break
+            try:
+                rel = item.relative_to(root)
+            except ValueError:
+                continue
+            if any(part.startswith(".") for part in rel.parts):
+                continue
+            if query in item.name.lower():
+                results.append({
+                    "kind": "folder" if item.is_dir() else "file",
+                    "area": area,
+                    "path": str(rel.parent) if str(rel.parent) != "." else "",
+                    "name": item.name,
+                })
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,title,start_at FROM calendar_events WHERE username=? AND lower(title) LIKE ? ORDER BY start_at ASC LIMIT 30",
+            (username, f"%{query}%"),
+        ).fetchall()
+    for row in rows:
+        results.append({"kind": "calendar", "id": row[0], "title": row[1], "start_at": row[2]})
+    return {"results": results[:100]}
+
+
+def share_create(username, area, rel, name, hours):
+    try:
+        hours = max(1, min(int(hours), 24 * 30))
+    except (TypeError, ValueError):
+        raise ValueError("invalid_expiry")
+    if not name or "/" in name or "\\" in name:
+        raise ValueError("invalid_name")
+    _, parent = workspace_target(username, area, rel)
+    target = (parent / name).resolve()
+    base = workspace_base(username, area).resolve()
+    if base not in target.parents or not target.is_file():
+        raise ValueError("not_found")
+    token = secrets.token_urlsafe(32)
+    now = int(time.time())
+    with db_connect() as conn:
+        conn.execute(
+            "INSERT INTO share_links (token,username,area,rel_path,name,expires_at,created_at) VALUES (?,?,?,?,?,?,?)",
+            (token, username, area, str(safe_relative(rel)), name, now + hours * 3600, now),
+        )
+        conn.commit()
+    return {"token": token, "expires_at": now + hours * 3600}
+
+
+def share_resolve(token):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,80}", str(token or "")):
+        raise ValueError("invalid_share")
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT username,area,rel_path,name,expires_at FROM share_links WHERE token=?",
+            (token,),
+        ).fetchone()
+        if not row:
+            raise ValueError("share_not_found")
+        if row[4] <= int(time.time()):
+            conn.execute("DELETE FROM share_links WHERE token=?", (token,))
+            conn.commit()
+            raise ValueError("share_expired")
+    username, area, rel, name, expires_at = row
+    _, parent = workspace_target(username, area, rel)
+    target = (parent / name).resolve()
+    base = workspace_base(username, area).resolve()
+    if base not in target.parents or not target.is_file():
+        raise ValueError("share_not_found")
+    return target, expires_at
+
+
 def calendar_payload(username):
     with db_connect() as conn:
         rows = conn.execute(
@@ -548,6 +684,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"status": "ok"})
             return
 
+        if path == "/share":
+            try:
+                token = (query.get("token") or [""])[0]
+                target, _ = share_resolve(token)
+                self.send_file(target, download=True)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 404)
+            return
+
         if path == "/setup":
             self.send_json({"configured": is_configured()})
             return
@@ -661,6 +806,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_file(target, download=download)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/search":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(workspace_search(session["username"], (query.get("q") or [""])[0]))
             return
 
         if path == "/calendar":
@@ -802,6 +954,57 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self.read_json()
                 self.send_json(calendar_delete(session["username"], data.get("id")))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/rename":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(workspace_rename(
+                    session["username"],
+                    str(data.get("area", "documents")),
+                    str(data.get("path", "")),
+                    str(data.get("old_name", "")).strip(),
+                    str(data.get("new_name", "")).strip(),
+                ))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/restore":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(workspace_restore(session["username"], str(data.get("name", "")).strip()))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/share":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(share_create(
+                    session["username"],
+                    str(data.get("area", "documents")),
+                    str(data.get("path", "")),
+                    str(data.get("name", "")).strip(),
+                    data.get("hours", 24),
+                ), 201)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
