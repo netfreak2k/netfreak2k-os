@@ -51,6 +51,7 @@ _telemetry_lock = threading.Lock()
 _cpu_sample = None
 _net_sample = None
 _network_enrichment = {"at": 0.0, "data": {}}
+_ping_cache = {"at": 0.0, "value": None}
 
 
 def db_connect():
@@ -361,15 +362,21 @@ def host_dns_servers():
 
 
 def internet_latency_ms():
+    global _ping_cache
+    now = time.monotonic()
+    if now - _ping_cache.get("at", 0) < 15:
+        return _ping_cache.get("value")
     samples = []
     for host, port in (("1.1.1.1", 443), ("8.8.8.8", 443)):
         started = time.monotonic()
         try:
-            with socket.create_connection((host, port), timeout=1.5):
+            with socket.create_connection((host, port), timeout=0.8):
                 samples.append((time.monotonic() - started) * 1000)
         except OSError:
             continue
-    return round(min(samples), 1) if samples else None
+    value = round(min(samples), 1) if samples else None
+    _ping_cache = {"at": now, "value": value}
+    return value
 
 
 def public_network_identity():
