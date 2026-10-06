@@ -3,17 +3,20 @@ import base64
 import hashlib
 import hmac
 import json
+import mimetypes
 import os
 import platform
 import re
 import secrets
 import sqlite3
 import socket
+import shutil
 import threading
 import time
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
@@ -24,6 +27,16 @@ APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
 VM_AGENT_SOCKET = os.environ.get("N2K_VM_AGENT_SOCKET", "/run/netfreak2k/vm-agent.sock")
 AGENT_TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/host/netfreak2k/agent.token"))
 UPDATE_FILE = Path(os.environ.get("N2K_UPDATE_FILE", "/host/netfreak2k/update-status.json"))
+WORKSPACE_ROOT = Path(os.environ.get("N2K_WORKSPACE_ROOT", "/workspace"))
+WORKSPACE_AREAS = {
+    "documents": "Dokumente",
+    "media": "Bilder & Videos",
+    "audio": "Audio",
+    "downloads": "Downloads",
+    "personal": "Persönlich",
+    "trash": "Papierkorb",
+}
+MAX_UPLOAD = 250 * 1024 * 1024
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -42,6 +55,19 @@ def db_connect():
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             salt TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS calendar_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            title TEXT NOT NULL,
+            start_at INTEGER NOT NULL,
+            end_at INTEGER,
+            notes TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL
         )
         """
@@ -191,6 +217,151 @@ def parse_load():
         return {"1m": float(parts[0]), "5m": float(parts[1]), "15m": float(parts[2])}
     except ValueError:
         return {"1m": None, "5m": None, "15m": None}
+
+
+def ensure_workspace(username):
+    base = WORKSPACE_ROOT / "users" / username
+    base.mkdir(parents=True, exist_ok=True)
+    for folder in WORKSPACE_AREAS.values():
+        (base / folder).mkdir(exist_ok=True)
+    (WORKSPACE_ROOT / "shared").mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def safe_relative(value):
+    raw = unquote(str(value or "")).strip().replace("\\", "/")
+    if raw.startswith("/") or "\x00" in raw:
+        raise ValueError("invalid_path")
+    parts = [part for part in raw.split("/") if part not in ("", ".")]
+    if any(part == ".." for part in parts):
+        raise ValueError("invalid_path")
+    return Path(*parts) if parts else Path()
+
+
+def workspace_base(username, area):
+    if area == "shared":
+        ensure_workspace(username)
+        return WORKSPACE_ROOT / "shared"
+    folder = WORKSPACE_AREAS.get(area)
+    if not folder:
+        raise ValueError("invalid_area")
+    return ensure_workspace(username) / folder
+
+
+def workspace_target(username, area, rel=""):
+    base = workspace_base(username, area)
+    relative = safe_relative(rel)
+    target = (base / relative).resolve()
+    resolved_base = base.resolve()
+    if target != resolved_base and resolved_base not in target.parents:
+        raise ValueError("invalid_path")
+    return base, target
+
+
+def workspace_list(username, area, rel=""):
+    _, target = workspace_target(username, area, rel)
+    if not target.exists() or not target.is_dir():
+        raise ValueError("folder_not_found")
+    items = []
+    for entry in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+        if entry.name.startswith("."):
+            continue
+        try:
+            stat = entry.stat()
+        except OSError:
+            continue
+        items.append({
+            "name": entry.name,
+            "type": "folder" if entry.is_dir() else "file",
+            "size_bytes": None if entry.is_dir() else stat.st_size,
+            "modified_at": int(stat.st_mtime),
+        })
+    return {"area": area, "path": str(safe_relative(rel)), "items": items}
+
+
+def workspace_mkdir(username, area, rel, name):
+    if not name or name in {".", ".."} or "/" in name or "\\" in name:
+        raise ValueError("invalid_name")
+    _, parent = workspace_target(username, area, rel)
+    if not parent.is_dir():
+        raise ValueError("folder_not_found")
+    target = parent / name
+    target.mkdir(exist_ok=False)
+    return {"created": True, "name": name}
+
+
+def workspace_delete(username, area, rel, name):
+    if not name or "/" in name or "\\" in name:
+        raise ValueError("invalid_name")
+    _, parent = workspace_target(username, area, rel)
+    target = (parent / name).resolve()
+    base = workspace_base(username, area).resolve()
+    if base not in target.parents:
+        raise ValueError("invalid_path")
+    if not target.exists():
+        raise ValueError("not_found")
+
+    if area == "trash":
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+        return {"deleted": True, "permanent": True}
+
+    trash = ensure_workspace(username) / WORKSPACE_AREAS["trash"]
+    stamp = int(time.time())
+    destination = trash / f"{stamp}-{target.name}"
+    shutil.move(str(target), str(destination))
+    return {"deleted": True, "permanent": False}
+
+
+def calendar_payload(username):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,title,start_at,end_at,notes FROM calendar_events WHERE username=? ORDER BY start_at ASC",
+            (username,),
+        ).fetchall()
+    return {
+        "events": [
+            {"id": row[0], "title": row[1], "start_at": row[2], "end_at": row[3], "notes": row[4]}
+            for row in rows
+        ]
+    }
+
+
+def calendar_create(username, title, start_at, end_at=None, notes=""):
+    title = str(title).strip()
+    if not title or len(title) > 160:
+        raise ValueError("invalid_title")
+    try:
+        start_at = int(start_at)
+        end_at = int(end_at) if end_at not in (None, "") else None
+    except (TypeError, ValueError):
+        raise ValueError("invalid_time")
+    if end_at is not None and end_at < start_at:
+        raise ValueError("invalid_time")
+    notes = str(notes)[:2000]
+    with db_connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO calendar_events (username,title,start_at,end_at,notes,created_at) VALUES (?,?,?,?,?,?)",
+            (username, title, start_at, end_at, notes, int(time.time())),
+        )
+        conn.commit()
+        event_id = cur.lastrowid
+    return {"created": True, "id": event_id}
+
+
+def calendar_delete(username, event_id):
+    try:
+        event_id = int(event_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid_event")
+    with db_connect() as conn:
+        cur = conn.execute("DELETE FROM calendar_events WHERE id=? AND username=?", (event_id, username))
+        conn.commit()
+    if cur.rowcount != 1:
+        raise ValueError("event_not_found")
+    return {"deleted": True}
 
 
 def apps_payload():
