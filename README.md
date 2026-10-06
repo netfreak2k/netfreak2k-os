@@ -65,7 +65,7 @@ Existing Linux host
                     └── Energy / Offgrid
 ```
 
-The first bootstrap serves the existing N2K Glass dashboard through HTTP.
+The current web platform uses the **N2K Golden Glass** interface and includes the server dashboard, N2K Drive workspace, local calendar, app management, Home Assistant VM controls, storage, backups and update controls.
 
 ## Host protection
 
@@ -113,12 +113,16 @@ The dedicated bootable OS is now a later target, not the first milestone.
 - [Architecture Decisions](docs/DECISIONS.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Update Model](docs/UPDATES.md)
+- [N2K Drive / Private Cloud](docs/CLOUD_WORKSPACE.md)
+- [N2K Calendar](docs/CALENDAR.md)
+- [Design, Branding and Copyright Policy](docs/DESIGN_AND_BRANDING.md)
+- [Third-Party Notices / License Register](THIRD_PARTY_NOTICES.md)
 
 ## Design
 
-Netfreak2k uses the **N2K Glass** visual language: translucent surfaces, soft depth, rounded geometry and restrained animation.
+Netfreak2k uses the original **N2K Golden Glass** visual language: translucent surfaces, warm gold light, soft depth, rounded geometry and restrained animation.
 
-The project must not copy Apple trademarks, proprietary fonts, icons, wallpapers or interface assets.
+The project may use general modern desktop design principles, but must not copy Apple trademarks, proprietary fonts, icons, wallpapers, SF Symbols, sounds or interface assets. See [Design, Branding and Copyright Policy](docs/DESIGN_AND_BRANDING.md).
 
 ## Status
 
@@ -130,9 +134,11 @@ Credentials, Wi-Fi secrets, Tailscale auth keys, API keys and private user data 
 
 Telemetry is disabled by default and may only be enabled after explicit user opt-in.
 
-## License
+## License and third-party notices
 
-A project license will be selected before the first public stable release.
+A final project-wide Netfreak2k source license will be selected before the first public stable release. Until that license is explicitly committed, do not assume a general redistribution license for Netfreak2k-owned code.
+
+Runtime dependencies and optional apps retain their own upstream licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 ## Home Assistant
 
 Home Assistant is mandatory and runs as **Home Assistant OS in a dedicated KVM/QEMU VM managed by Netfreak2k**.
