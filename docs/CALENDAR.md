@@ -19,9 +19,9 @@ Current capabilities:
 
 Calendar data remains local to the server.
 
-## Planned synchronization layer
+## Synchronization layer
 
-The next interoperability layer is CalDAV.
+A first-party CalDAV baseline is now implemented.
 
 Target behavior:
 
@@ -31,4 +31,4 @@ Target behavior:
 - preserve local-first operation
 - avoid requiring a third-party cloud account
 
-CalDAV must be implemented with a maintained, license-compatible component or a standards-compliant first-party service after security review.
+CalDAV is implemented as a standards-based first-party service in the existing Netfreak2k API. It uses dedicated app passwords and the existing local calendar database. CI covers PUT/REPORT/GET/DELETE; broader real-client compatibility remains iterative. See `docs/SYNC.md`.
