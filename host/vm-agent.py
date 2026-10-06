@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import socket
 import subprocess
 import time
@@ -22,7 +23,19 @@ CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 def read_token():
     try:
-        return TOKEN_FILE.read_text(encoding="utf-8").strip()
+        token = TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if token:
+            return token
+    except OSError:
+        pass
+
+    try:
+        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        token = secrets.token_urlsafe(48)
+        TOKEN_FILE.write_text(token + "\n", encoding="utf-8")
+        os.chown(TOKEN_FILE, 0, 65534)
+        os.chmod(TOKEN_FILE, 0o640)
+        return token
     except OSError:
         return ""
 
