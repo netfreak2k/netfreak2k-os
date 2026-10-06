@@ -1166,3 +1166,27 @@ body::after{
   .tor-browser-frame-wrap{min-height:420px}
   .tor-browser-frame{height:480px}
 }
+
+
+/* Tor Browser live controls */
+.onion-explorer-widget{cursor:pointer}
+.tor-status-line{display:flex!important;align-items:center;gap:6px}
+.tor-status-dot{
+  width:7px;height:7px;display:inline-block;flex:0 0 7px;border-radius:50%;
+  background:#69727c;box-shadow:0 0 0 2px rgba(105,114,124,.08)
+}
+.tor-status-dot.running{background:#55e391;box-shadow:0 0 10px rgba(85,227,145,.65)}
+.tor-status-dot.stopped{background:#efb94f;box-shadow:0 0 10px rgba(239,185,79,.45)}
+.tor-status-dot.missing{background:#e66767;box-shadow:0 0 10px rgba(230,103,103,.38)}
+.tor-status-dot.error{background:#ff4f66;box-shadow:0 0 12px rgba(255,79,102,.55)}
+.tor-widget-controls{display:flex;gap:5px;margin-top:8px;position:relative;z-index:2}
+.tor-control{
+  min-height:25px;padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);color:#aeb8c1;font-size:7px;cursor:pointer
+}
+.tor-control:hover:not(:disabled){background:rgba(255,255,255,.07);color:#fff}
+.tor-control.start:not(:disabled){border-color:rgba(85,227,145,.18);color:#8ff0b3}
+.tor-control.stop:not(:disabled){border-color:rgba(230,103,103,.16);color:#ef9b9b}
+.tor-control.restart:not(:disabled){border-color:rgba(239,185,79,.16);color:#e8ca82}
+.tor-control:disabled{opacity:.34;cursor:not-allowed}
+.tor-browser-actions button:disabled{opacity:.4;cursor:not-allowed}
