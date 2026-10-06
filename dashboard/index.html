@@ -25,6 +25,23 @@
         <label>Passwort wiederholen
           <input id="setup-password-repeat" type="password" autocomplete="new-password" minlength="10" required>
         </label>
+        <label>Gerätename
+          <input id="setup-device-name" value="n2k-server" maxlength="48">
+        </label>
+        <label>Nutzungsprofil
+          <select id="setup-profile">
+            <option value="home-server">Home Server</option>
+            <option value="ai-workspace">AI Workspace</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label>KI-Startanbieter
+          <select id="setup-ai-provider">
+            <option value="chatgpt">ChatGPT</option>
+            <option value="local">Local AI</option>
+            <option value="none">Später auswählen</option>
+          </select>
+        </label>
         <button type="submit">Netfreak2k einrichten</button>
       </form>
 
