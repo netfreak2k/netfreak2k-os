@@ -82,3 +82,22 @@ Netfreak2k may query the public ipwho.is HTTPS service to display the server's p
 No ipwho.is software is redistributed or bundled. The request necessarily exposes the server's public source IP to that service. Results are cached for 15 minutes to limit requests.
 
 This lookup exists only for WAN identity/status display. Netfreak2k does not send workspace content, credentials, calendar data or other user content in the request.
+
+## ONLYOFFICE Docs Community
+
+Optional catalog application: `onlyoffice/documentserver:9.4.0.1`
+
+Upstream: ONLYOFFICE DocumentServer / Ascensio System SIA.
+
+License: GNU Affero General Public License v3.0 (AGPL-3.0) with the upstream additional terms and notice requirements.
+
+Netfreak2k does not modify or rebrand the ONLYOFFICE editor engine and does not claim ownership of ONLYOFFICE trademarks. The product name is used only to identify the optional interoperable editor engine.
+
+The app is not installed by default. Installation is initiated explicitly by the user from the N2K Office/App catalog. The upstream editor UI and its legal notices remain intact.
+
+Upstream source and license:
+- https://github.com/ONLYOFFICE/DocumentServer
+- https://github.com/ONLYOFFICE/DocumentServer/blob/master/LICENSE
+
+The Community Edition is resource-intensive relative to the Netfreak2k core. Netfreak2k therefore treats it as optional rather than a mandatory runtime dependency.
+
