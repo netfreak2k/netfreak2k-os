@@ -72,6 +72,13 @@ jobs:
           grep -q 'qemu-kvm' install.sh
           grep -q 'libvirt-daemon-system' install.sh
 
+      - name: GitHub update sanity
+        run: |
+          grep -q 'api.github.com/repos' scripts/check-updates.sh
+          grep -q 'update_available' scripts/check-updates.sh
+          grep -q 'version.json' scripts/update-server.sh
+          grep -q 'netfreak2k-update-check.timer' install.sh
+
       - name: Stop test stack
         if: always()
         env:
