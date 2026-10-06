@@ -1,3 +1,134 @@
+let csrfToken = "";
+
+function show(element, visible = true) {
+  element.classList.toggle("hidden", !visible);
+}
+
+function authError(message = "") {
+  const el = document.getElementById("auth-error");
+  el.textContent = message;
+  show(el, Boolean(message));
+}
+
+function apiErrorMessage(code) {
+  const messages = {
+    invalid_username: "Benutzername: 3–32 Zeichen, nur Buchstaben, Zahlen, Punkt, Bindestrich oder Unterstrich.",
+    password_too_short: "Das Passwort muss mindestens 10 Zeichen lang sein.",
+    invalid_credentials: "Benutzername oder Passwort ist falsch.",
+    already_configured: "Der Server wurde bereits eingerichtet.",
+    setup_required: "Der Server muss zuerst eingerichtet werden."
+  };
+  return messages[code] || "Die Anfrage konnte nicht verarbeitet werden.";
+}
+
+async function request(path, options = {}) {
+  const headers = {"Content-Type": "application/json", ...(options.headers || {})};
+  const response = await fetch(path, {...options, headers, cache: "no-store"});
+  let data = {};
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok) {
+    const error = new Error(data.error || `HTTP ${response.status}`);
+    error.code = data.error;
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+async function bootstrapAuth() {
+  const authShell = document.getElementById("auth-shell");
+  const appShell = document.getElementById("app-shell");
+  show(authShell, true);
+  show(appShell, false);
+  authError();
+
+  const session = await request("/api/session");
+  if (session.authenticated) {
+    csrfToken = session.csrf || "";
+    enterApp(session.username);
+    return;
+  }
+
+  const setup = await request("/api/setup");
+  const setupForm = document.getElementById("setup-form");
+  const loginForm = document.getElementById("login-form");
+
+  if (!setup.configured) {
+    document.getElementById("auth-title").textContent = "Erste Einrichtung";
+    document.getElementById("auth-copy").textContent =
+      "Lege den ersten lokalen Administrator für diesen Netfreak2k-Server an.";
+    show(setupForm, true);
+    show(loginForm, false);
+    document.getElementById("setup-username").focus();
+  } else {
+    document.getElementById("auth-title").textContent = "Anmelden";
+    document.getElementById("auth-copy").textContent =
+      "Melde dich an, um die Netfreak2k-Weboberfläche zu öffnen.";
+    show(setupForm, false);
+    show(loginForm, true);
+    document.getElementById("login-username").focus();
+  }
+}
+
+function enterApp(username) {
+  show(document.getElementById("auth-shell"), false);
+  show(document.getElementById("app-shell"), true);
+  document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
+  loadStatus();
+}
+
+document.getElementById("setup-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  authError();
+  const username = document.getElementById("setup-username").value.trim();
+  const password = document.getElementById("setup-password").value;
+  const repeat = document.getElementById("setup-password-repeat").value;
+  if (password !== repeat) {
+    authError("Die beiden Passwörter stimmen nicht überein.");
+    return;
+  }
+  try {
+    const data = await request("/api/setup", {
+      method: "POST",
+      body: JSON.stringify({username, password})
+    });
+    csrfToken = data.csrf || "";
+    enterApp(data.username);
+  } catch (error) {
+    authError(apiErrorMessage(error.code));
+  }
+});
+
+document.getElementById("login-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  authError();
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value;
+  try {
+    const data = await request("/api/login", {
+      method: "POST",
+      body: JSON.stringify({username, password})
+    });
+    csrfToken = data.csrf || "";
+    enterApp(data.username);
+  } catch (error) {
+    authError(apiErrorMessage(error.code));
+  }
+});
+
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await request("/api/logout", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+  } finally {
+    csrfToken = "";
+    await bootstrapAuth();
+  }
+});
+
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "–";
   const units = ["B","KB","MB","GB","TB"];
@@ -28,11 +159,10 @@ function setConnection(ok, text) {
 }
 
 async function loadStatus() {
+  if (document.getElementById("app-shell").classList.contains("hidden")) return;
   setConnection(false, "Verbinde …");
   try {
-    const response = await fetch("/api/status", {cache: "no-store"});
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const data = await request("/api/status", {headers: {}});
     const host = data.host || {};
     const memory = host.memory || {};
     const load = host.load || {};
@@ -49,6 +179,11 @@ async function loadStatus() {
 
     setConnection(true, "Server online");
   } catch (error) {
+    if (error.status === 401) {
+      csrfToken = "";
+      await bootstrapAuth();
+      return;
+    }
     console.error(error);
     setConnection(false, "Serverstatus nicht erreichbar");
   }
@@ -59,5 +194,11 @@ document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
 
-loadStatus();
+bootstrapAuth().catch(error => {
+  console.error(error);
+  document.getElementById("auth-title").textContent = "Server nicht erreichbar";
+  document.getElementById("auth-copy").textContent =
+    "Die Netfreak2k-API konnte nicht geladen werden.";
+});
+
 setInterval(loadStatus, 30000);
