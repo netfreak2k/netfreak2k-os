@@ -209,3 +209,13 @@ The AI module uses four independent workspace panes. Cloud AI web applications t
 
 The topbar carries greeting, time/date and update state so the overview can remain smaller and more wallpaper-forward.
 
+## ADR-021: Browser terminal stays allowlisted; Underground does not become an open proxy
+
+**Status:** Accepted
+
+The Netfreak2k browser terminal is a diagnostic shell abstraction, not an unrestricted system shell. Commands are explicitly allowlisted and are implemented using existing authenticated status APIs.
+
+The Underground/Privacy module may provide UI for Usenet and Tor-aware workflows, but the Netfreak2k server must not silently become a general-purpose SOCKS/HTTP proxy or expose unrestricted arbitrary-destination fetch capability.
+
+Onion URLs may be handed to a Tor-capable client/browser without routing them through the Netfreak2k API.
+
