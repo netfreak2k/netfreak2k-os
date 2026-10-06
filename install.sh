@@ -5,7 +5,7 @@ N2K_REPO="netfreak2k/netfreak2k-os"
 N2K_REF="${N2K_REF:-main}"
 N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 N2K_HTTP_PORT="${N2K_HTTP_PORT:-}"
-API_URL="https://api.github.com/repos/${N2K_REPO}/commits/${N2K_REF}"
+ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
 
 log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
 die(){ printf '\n[Netfreak2k] FEHLER: %s\n' "$*" >&2; exit 1; }
@@ -69,13 +69,7 @@ if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^
   die "Port 8123 ist bereits belegt. Home Assistant benötigt diesen Port auf dem Mint-Host."
 fi
 
-log "Ermittle aktuellen Netfreak2k-Stand auf GitHub."
-remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
-[[ -n "${remote_sha}" ]] || die "Aktueller GitHub-Commit konnte nicht ermittelt werden."
-ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/${remote_sha}.tar.gz"
-
-log "Lade Netfreak2k ${remote_sha:0:12}."
+log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
 tmp="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap "rm -rf '${tmp}'" EXIT
@@ -118,7 +112,7 @@ done
 curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
 
 mkdir -p /var/lib/netfreak2k
-printf '{"repo":"%s","ref":"%s","sha":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${remote_sha}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+printf '{"repo":"%s","ref":"%s","sha":"","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "$(date +%s)" > /var/lib/netfreak2k/version.json
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
