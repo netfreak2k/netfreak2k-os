@@ -150,3 +150,15 @@ Any new runtime dependency, optional app, redistributed binary, font, icon set, 
 The same change that introduces a dependency must update `THIRD_PARTY_NOTICES.md`.
 
 Unknown-license assets are not permitted.
+
+## ADR-016: N2K Drive versions stay inside the workspace boundary
+
+**Status:** Accepted
+
+File-version payloads are stored below the authenticated user's hidden N2K Drive version store rather than in arbitrary host paths.
+
+Replacing or restoring a file snapshots the displaced version first. Version metadata is held in the local Netfreak2k database.
+
+Rename and move operations update associated metadata so favorites and versions continue to follow the logical file.
+
+This keeps versioning local-first, reversible and within the same `/srv/netfreak2k` security boundary as the normal workspace.
