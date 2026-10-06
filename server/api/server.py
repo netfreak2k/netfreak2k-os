@@ -20,6 +20,7 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.request import Request, urlopen
 
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
@@ -49,6 +50,7 @@ _sessions_lock = threading.Lock()
 _telemetry_lock = threading.Lock()
 _cpu_sample = None
 _net_sample = None
+_network_enrichment = {"at": 0.0, "data": {}}
 
 
 def db_connect():
@@ -329,6 +331,87 @@ def parse_cpu_percent():
         return None
     busy = max(total_delta - idle_delta, 0)
     return round((busy / total_delta) * 100, 1)
+
+
+def parse_default_gateway():
+    raw = read_text(HOST_PROC / "net/route")
+    for line in raw.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 4 or parts[1] != "00000000":
+            continue
+        try:
+            value = int(parts[2], 16)
+            gateway = socket.inet_ntoa(value.to_bytes(4, byteorder="little"))
+        except (ValueError, OSError):
+            continue
+        return {"interface": parts[0], "gateway": gateway}
+    return {"interface": None, "gateway": None}
+
+
+def host_dns_servers():
+    raw = read_text(HOST_ETC / "resolv.conf")
+    servers = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if line.startswith("nameserver "):
+            server = line.split(None, 1)[1].strip()
+            if server and server not in servers:
+                servers.append(server)
+    return servers[:3]
+
+
+def internet_latency_ms():
+    samples = []
+    for host, port in (("1.1.1.1", 443), ("8.8.8.8", 443)):
+        started = time.monotonic()
+        try:
+            with socket.create_connection((host, port), timeout=1.5):
+                samples.append((time.monotonic() - started) * 1000)
+        except OSError:
+            continue
+    return round(min(samples), 1) if samples else None
+
+
+def public_network_identity():
+    global _network_enrichment
+    now = time.monotonic()
+    cached = _network_enrichment
+    if now - cached.get("at", 0) < 900 and cached.get("data"):
+        return cached["data"]
+    data = {}
+    try:
+        request = Request(
+            "https://ipwho.is/",
+            headers={"User-Agent": "Netfreak2k-Server-OS/1"},
+        )
+        with urlopen(request, timeout=2.5) as response:
+            payload = json.loads(response.read(64 * 1024).decode("utf-8"))
+        if payload.get("success", True):
+            connection = payload.get("connection") or {}
+            data = {
+                "public_ip": payload.get("ip"),
+                "provider": connection.get("isp") or connection.get("org"),
+                "asn": connection.get("asn"),
+                "country": payload.get("country"),
+            }
+    except Exception:
+        data = {}
+    _network_enrichment = {"at": now, "data": data}
+    return data
+
+
+def network_details():
+    base = parse_network_rate()
+    route = parse_default_gateway()
+    public = public_network_identity()
+    return {
+        **base,
+        "gateway": route.get("gateway"),
+        "default_interface": route.get("interface"),
+        "dns": host_dns_servers(),
+        "ping_ms": internet_latency_ms(),
+        **public,
+    }
 
 
 def parse_network_rate():
@@ -1242,7 +1325,7 @@ def upcoming_events_payload(username, limit=4):
 
 def overview_payload(username):
     memory = parse_meminfo()
-    network = parse_network_rate()
+    network = network_details()
     apps = apps_payload()
     containers = apps.get("containers", []) if isinstance(apps, dict) else []
     running_apps = sum(1 for app in containers if app.get("state") == "running")
@@ -1327,7 +1410,7 @@ def status_payload():
             "memory": parse_meminfo(),
             "load": parse_load(),
             "cpu_percent": parse_cpu_percent(),
-            "network": parse_network_rate(),
+            "network": network_details(),
         },
     }
 
