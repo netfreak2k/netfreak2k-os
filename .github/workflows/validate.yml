@@ -87,6 +87,11 @@ jobs:
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/overview | grep -q '"network":'
           curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K DESKTOP'
+          curl -fsS -o /tmp/n2k-wallpaper.webp http://127.0.0.1:18080/assets/wallpapers/01-night-bay.webp
+          test -s /tmp/n2k-wallpaper.webp
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/preferences | grep -q '"wallpaper":"01-night-bay"'
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"key":"wallpaper","value":"09-cyber-city"}' http://127.0.0.1:18080/api/preferences | grep -q '"wallpaper":"09-cyber-city"'
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/preferences | grep -q '"wallpaper":"09-cyber-city"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt 'http://127.0.0.1:18080/api/workspace?area=documents' | grep -q '"area":"documents"'
           printf 'hello n2k\n' >/tmp/n2k-drive-test.txt
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/octet-stream' --data-binary @/tmp/n2k-drive-test.txt 'http://127.0.0.1:18080/api/workspace/upload?area=documents&path=&name=drive-test.txt' | grep -q '"uploaded":true'
@@ -146,6 +151,13 @@ jobs:
           grep -q 'netfreak2k-homeassistant' scripts/provision-haos.sh
           grep -q 'qemu-kvm' install.sh
           grep -q 'libvirt-daemon-system' install.sh
+
+      - name: Wallpaper asset sanity
+        run: |
+          test "$(find dashboard/assets/wallpapers -maxdepth 1 -type f -name '*.webp' | wc -l)" -eq 10
+          grep -q 'N2K PERSONALISIERUNG' dashboard/index.html
+          grep -q '09-cyber-city' dashboard/app.js
+          grep -q 'N2K wallpaper collection' THIRD_PARTY_NOTICES.md
 
       - name: GitHub update sanity
         run: |
