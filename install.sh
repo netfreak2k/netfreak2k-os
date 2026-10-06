@@ -13,6 +13,13 @@ die(){ printf '\n[Netfreak2k] FEHLER: %s\n' "$*" >&2; exit 1; }
 [[ "$(uname -s)" == "Linux" ]] || die "Dieser Installer unterstützt aktuell nur Linux."
 [[ "${EUID}" -eq 0 ]] || die "Bitte mit sudo/root ausführen."
 
+case "${N2K_DIR}" in
+  /|/bin|/boot|/dev|/etc|/home|/lib|/lib64|/media|/mnt|/opt|/proc|/root|/run|/sbin|/srv|/sys|/tmp|/usr|/var)
+    die "Unsicherer Installationspfad abgelehnt: ${N2K_DIR}"
+    ;;
+esac
+[[ "${N2K_DIR}" == /* ]] || die "N2K_DIR muss ein absoluter Pfad sein."
+
 if [[ ! -r /etc/os-release ]]; then
   die "/etc/os-release fehlt; Distribution kann nicht sicher erkannt werden."
 fi
