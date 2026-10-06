@@ -2,66 +2,119 @@
 
 **Offgrid · Mesh · Local Intelligence**
 
-Netfreak2k OS is a lightweight, general-purpose Linux desktop operating system focused on strong hardware auto-detection, a modern N2K Glass desktop, local-first privacy, AI integration, resilient recovery, automation, multi-device workflows and optional off-grid/energy capabilities.
+Netfreak2k OS is currently being developed **server-first**: the first usable release runs in the background on an existing Linux machine and is controlled entirely through a browser, similar in operating model to CasaOS or Umbrel.
 
 > **KEIN NETZ. KEIN PROBLEM.**
 
-## Product direction
+## Current target
 
-Netfreak2k OS is intended to be a real daily-driver system, not only a Raspberry Pi experiment.
+The first target is a ThinkPad or other Linux host that keeps its existing operating system.
 
-Target platforms include:
+Netfreak2k must not:
 
-- x86-64 desktops and notebooks
-- Raspberry Pi systems
-- virtual machines / Proxmox
-- other compatible Linux-capable hardware where practical
+- replace the existing OS
+- repartition disks
+- install a bootloader
+- replace the desktop environment
+- take over the local login/session
 
-The maintainer's private **N2K Workspace** remains separate from the public OS.
+Instead, the first version runs as an isolated Docker stack.
 
-## Core goals
+Access is intended to be as simple as:
 
-- Install and use without terminal knowledge for normal tasks
-- Automatic hardware detection
-- Wi-Fi and Bluetooth in the base system
-- Modern N2K Glass desktop with dock, top bar and Control Center
-- Google Chrome as a first-class browser
-- LibreOffice and complete everyday desktop tooling
-- Software center and Flatpak
-- Stable / Beta / Developer update channels
-- Backup, snapshots, recovery and rollback
-- Local-first password management
-- Strong app/AI permission controls
-- Multi-provider and local AI dashboard
-- Local/cloud AI routing rules
-- Multi-device sync and remote access
-- No-code automation editor
-- Solar/off-grid/UPS integration framework
-- Emergency and offline modes
-- Optional Reticulum, LXMF, MeshCore and Home Assistant integration
+```text
+http://SERVER-IP/
+```
+
+Example:
+
+```text
+http://192.168.178.50/
+```
+
+Later, mDNS may add:
+
+```text
+http://netfreak2k.local/
+```
+
+## Current architecture
+
+```text
+Existing Linux host
+        │
+        └── Docker
+             │
+             └── Netfreak2k Server
+                    │
+                    ├── Web UI
+                    ├── Apps
+                    ├── System
+                    ├── Storage
+                    ├── Backups
+                    ├── AI
+                    ├── Automation
+                    └── Energy / Offgrid
+```
+
+The first bootstrap serves the existing N2K Glass dashboard through HTTP.
+
+## Host protection
+
+Host changes must remain minimal, explicit and reversible.
+
+The bootstrap scripts deliberately do **not** install Docker or reconfigure the operating system automatically. If Docker/Compose is missing, installation stops without modifying the host.
+
+## Start
+
+After cloning the repository on a Linux host with Docker + Docker Compose v2:
+
+```bash
+./scripts/server-install.sh
+```
+
+Then open the server IP in a browser.
+
+To stop/remove the Netfreak2k stack:
+
+```bash
+./scripts/server-uninstall.sh
+```
+
+## Long-term direction
+
+The broader Netfreak2k vision remains:
+
+- browser-managed server platform
+- Docker app management
+- storage and backups
+- Tailscale / remote access
+- local and cloud AI integration
+- automation
+- solar/off-grid/UPS features
+- multi-device services
+- later optional dedicated OS/Desktop images
+
+The dedicated bootable OS is now a later target, not the first milestone.
 
 ## Documentation
 
+- [Server-first architecture](docs/SERVER_FIRST.md)
 - [Product Specification](docs/PRODUCT_SPEC.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decisions](docs/DECISIONS.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Build Guide](docs/BUILD.md)
-- [Hardware / VM Test Checklist](docs/HARDWARE_TEST.md)
-- [Computer Checkpoint](docs/COMPUTER_CHECKPOINT.md)
 - [Update Model](docs/UPDATES.md)
 
 ## Design
 
-Netfreak2k OS uses the **N2K Glass** visual language: translucent surfaces, soft depth, rounded geometry and restrained animation.
+Netfreak2k uses the **N2K Glass** visual language: translucent surfaces, soft depth, rounded geometry and restrained animation.
 
 The project must not copy Apple trademarks, proprietary fonts, icons, wallpapers or interface assets.
 
 ## Status
 
-Early development / architecture phase.
-
-The full product specification is now defined; implementation should proceed in phases rather than attempting every feature in the first image.
+Early development. Current version: **0.1.0-dev**.
 
 ## Security
 
