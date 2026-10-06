@@ -59,8 +59,6 @@ virsh --connect qemu:///system list >/dev/null || die "libvirt ist nicht funktio
 
 if [[ -z "${N2K_HTTP_PORT}" ]]; then
   N2K_HTTP_PORT=80
-  if [[ -z "${N2K_HTTP_PORT}" ]]; then
-  N2K_HTTP_PORT=80
   if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)80$'; then
     N2K_HTTP_PORT=8080
     log "Port 80 ist bereits belegt; Netfreak2k nutzt Port 8080."
