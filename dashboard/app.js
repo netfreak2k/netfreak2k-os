@@ -126,6 +126,9 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
   const username = document.getElementById("setup-username").value.trim();
   const password = document.getElementById("setup-password").value;
   const repeat = document.getElementById("setup-password-repeat").value;
+  const device_name = document.getElementById("setup-device-name")?.value.trim() || "n2k-server";
+  const profile = document.getElementById("setup-profile")?.value || "home-server";
+  const ai_provider = document.getElementById("setup-ai-provider")?.value || "chatgpt";
   if (password !== repeat) {
     authError("Die beiden Passwörter stimmen nicht überein.");
     return;
@@ -133,7 +136,7 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
   try {
     const data = await request("/api/setup", {
       method: "POST",
-      body: JSON.stringify({username, password})
+      body: JSON.stringify({username, password, device_name, profile, ai_provider})
     });
     csrfToken = data.csrf || "";
     enterApp(data.username);
