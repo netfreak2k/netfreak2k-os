@@ -49,20 +49,24 @@ Implemented foundation:
 - file preview/open
 - file download
 - move-to-trash behavior
+- restore from Trash back to Documents
 - explicit confirmation for permanent deletion from Trash
+- rename files and folders
+- expiring high-entropy file share links
+- global search across workspace filenames and calendar titles
+- image thumbnails in the media area
 - path traversal protection
 - per-user logical separation
 
 ## Planned next layers
 
-- file rename/move/copy
+- file move/copy
 - favorites
-- restore from Trash
 - file version history
 - quota support
-- thumbnails/gallery
+- richer gallery/timeline
 - media indexing
-- share links with expiry/password
+- optional share-link passwords
 - WebDAV
 - SMB/NFS integration
 - external backup targets
@@ -77,3 +81,20 @@ The browser never receives shell access.
 ## N2K Drive
 
 The product name for this built-in cloud workspace is **N2K Drive**. It is a Netfreak2k-owned UI and API layer, not a repackaged File Browser or Nextcloud UI.
+
+
+## Share-link model
+
+Share links are random URL-safe tokens stored in the local Netfreak2k database. They reference one file, expire automatically and do not expose the underlying host path. The initial implementation supports expirations from 1 hour to 30 days.
+
+Share links are intentionally file-only in this stage; recursive public folder exposure is deferred until a separate permission model is implemented.
+
+## Global search
+
+The first global search layer covers:
+
+- file and folder names in the authenticated user's workspace
+- Shared
+- calendar event titles
+
+The search deliberately does not index file contents yet. Content indexing will require explicit resource limits and file-type parsers before it is enabled.
