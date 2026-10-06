@@ -94,30 +94,105 @@
       </header>
 
       <main>
-        <section id="dashboard-top" class="metrics section-anchor">
-          <article class="metric-card">
-            <span class="metric-icon">▣</span>
-            <div><small>HOST</small><strong id="host-name">–</strong><span id="host-os-mini">Linux</span></div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-icon">▤</span>
-            <div><small>RAM</small><strong id="host-memory-percent">–</strong><span id="host-memory">–</span></div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-icon">◷</span>
-            <div><small>UPTIME</small><strong id="host-uptime">–</strong><span>seit letztem Start</span></div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-icon">⌁</span>
-            <div><small>LOAD</small><strong id="host-load-primary">–</strong><span id="host-load">–</span></div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-icon">◎</span>
-            <div><small>SYSTEM</small><strong id="host-os">–</strong><span>Linux Mint Host</span></div>
-          </article>
+        <section id="dashboard-top" class="overview-screen section-anchor">
+          <div id="overview-warning" class="overview-warning hidden"></div>
+
+          <div class="overview-hero">
+            <div class="overview-greeting">
+              <p class="eyebrow">N2K DESKTOP</p>
+              <h2 id="overview-greeting">Willkommen</h2>
+              <p id="overview-health-copy">Systemstatus wird geprüft …</p>
+            </div>
+            <div class="clock-widget">
+              <strong id="desktop-clock">--:--</strong>
+              <span id="desktop-date">–</span>
+            </div>
+          </div>
+
+          <div class="mini-metrics">
+            <button class="mini-metric" data-view="system">
+              <div class="metric-ring" id="cpu-ring"><span id="overview-cpu">–</span></div>
+              <div><small>CPU</small><strong id="overview-cpu-label">wird gemessen</strong></div>
+            </button>
+            <button class="mini-metric" data-view="system">
+              <div class="metric-ring" id="ram-ring"><span id="overview-ram">–</span></div>
+              <div><small>RAM</small><strong id="overview-ram-label">–</strong></div>
+            </button>
+            <button class="mini-metric" data-target-view="storage-panel">
+              <div class="metric-ring" id="storage-ring"><span id="overview-storage">–</span></div>
+              <div><small>SPEICHER</small><strong id="overview-storage-label">–</strong></div>
+            </button>
+            <button class="mini-metric" data-view="system">
+              <span class="mini-icon">◷</span>
+              <div><small>UPTIME</small><strong id="overview-uptime">–</strong></div>
+            </button>
+          </div>
+
+          <div class="widget-grid">
+            <button class="widget drive-widget" data-target-view="workspace-panel">
+              <div class="widget-head"><div><small>N2K DRIVE</small><h3>Arbeitsplatz</h3></div><span>›</span></div>
+              <div class="drive-widget-body">
+                <div class="drive-donut" id="drive-storage-ring"><span id="drive-storage-percent">–</span></div>
+                <div class="widget-stat-copy">
+                  <strong id="drive-storage-copy">Speicher wird geladen</strong>
+                  <span id="drive-meta">–</span>
+                </div>
+              </div>
+            </button>
+
+            <button class="widget network-widget" data-target-view="network-panel">
+              <div class="widget-head"><div><small>NETZWERK</small><h3>Live-Datenrate</h3></div><span>›</span></div>
+              <div class="network-values">
+                <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
+                <div><span>↑ Upload</span><strong id="network-up">0 B/s</strong></div>
+              </div>
+              <canvas id="network-chart" width="420" height="86" aria-label="Netzwerkverlauf"></canvas>
+              <small id="network-interface">LAN</small>
+            </button>
+
+            <button class="widget calendar-widget" data-target-view="calendar-panel">
+              <div class="widget-head"><div><small>KALENDER</small><h3>Nächste Termine</h3></div><span>›</span></div>
+              <div id="overview-calendar" class="overview-list"><div class="widget-empty">Keine Termine geladen.</div></div>
+            </button>
+
+            <button class="widget recent-widget" data-target-view="workspace-panel">
+              <div class="widget-head"><div><small>N2K DRIVE</small><h3>Zuletzt hinzugefügt</h3></div><span>›</span></div>
+              <div id="overview-recent" class="overview-list"><div class="widget-empty">Keine Dateien geladen.</div></div>
+            </button>
+
+            <button class="widget ha-widget" data-target-view="home-assistant-panel">
+              <div class="widget-head"><div><small>HOME ASSISTANT</small><h3>Smart Home</h3></div><span>›</span></div>
+              <div class="ha-widget-status">
+                <span id="overview-ha-dot" class="health-dot"></span>
+                <div><strong id="overview-ha">Prüfe HAOS …</strong><span id="overview-ha-detail">–</span></div>
+              </div>
+            </button>
+
+            <div class="widget activity-widget">
+              <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
+              <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
+            </div>
+
+            <div class="widget quick-widget">
+              <div class="widget-head"><div><small>SCHNELLZUGRIFF</small><h3>Direkt öffnen</h3></div></div>
+              <div class="quick-grid">
+                <button data-target-view="workspace-panel"><span>▤</span>Arbeitsplatz</button>
+                <button data-target-view="calendar-panel"><span>□</span>Kalender</button>
+                <button data-target-view="home-assistant-panel"><span>◇</span>Home Assistant</button>
+                <button data-target-view="apps-panel"><span>▦</span>Apps</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="overview-statusbar">
+            <button data-target-view="apps-panel"><span id="overview-apps-dot" class="health-dot"></span><strong id="overview-apps">Apps –</strong></button>
+            <button data-target-view="backups-panel"><span id="overview-backup-dot" class="health-dot"></span><strong id="overview-backup">Backup –</strong></button>
+            <button data-target-view="updates-panel"><span id="overview-update-dot" class="health-dot"></span><strong id="overview-update">Update –</strong></button>
+            <button data-target-view="dashboard-top"><span id="overview-system-dot" class="health-dot"></span><strong id="overview-system">System –</strong></button>
+          </div>
         </section>
 
-        <section class="dashboard-grid">
+        <section id="module-grid" class="dashboard-grid module-grid hidden">
           <article id="workspace-panel" class="panel workspace-panel section-anchor">
             <div class="panel-head">
               <div>
