@@ -2327,13 +2327,112 @@ document.getElementById("open-onion")?.addEventListener("click", () => {
 document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
+function normalizeOnionUrl(value) {
+  let raw = String(value || "").trim();
+  if (!raw) return null;
+  if (!/^https?:\/\//i.test(raw)) raw = "http://" + raw;
+  try {
+    const parsed = new URL(raw);
+    if (!parsed.hostname.toLowerCase().endsWith(".onion")) return null;
+    return parsed.href;
+  } catch (_) {
+    return null;
+  }
+}
 
-document.getElementById("usenext-login")?.addEventListener("click", () => {
-  window.open("https://www.usenext.com/signin", "_blank", "noopener");
+function onionStoreKey(type) {
+  return `n2k_onion_${type}`;
+}
+
+function onionLoad(type) {
+  try {
+    const value = JSON.parse(localStorage.getItem(onionStoreKey(type)) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function onionSave(type, items) {
+  localStorage.setItem(onionStoreKey(type), JSON.stringify(items.slice(0, 40)));
+}
+
+function renderOnionList(type, containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  const items = onionLoad(type);
+  box.innerHTML = "";
+  if (!items.length) {
+    box.innerHTML = `<div class="app-empty">${type === "favorites" ? "Noch keine Favoriten." : "Noch kein Verlauf."}</div>`;
+    return;
+  }
+  items.slice(0, 12).forEach(item => {
+    const row = document.createElement("button");
+    row.className = "onion-list-row";
+    row.innerHTML = "<strong></strong><small></small>";
+    row.querySelector("strong").textContent = item.url;
+    row.querySelector("small").textContent = new Date(item.at).toLocaleString("de-DE", {dateStyle:"short",timeStyle:"short"});
+    row.addEventListener("click", () => {
+      const input = document.getElementById("onion-explorer-url");
+      if (input) input.value = item.url;
+    });
+    box.appendChild(row);
+  });
+}
+
+function renderOnionExplorer() {
+  renderOnionList("favorites", "onion-favorites");
+  renderOnionList("history", "onion-history");
+}
+renderOnionExplorer();
+
+document.getElementById("onion-explorer-open")?.addEventListener("click", () => {
+  const input = document.getElementById("onion-explorer-url");
+  const value = normalizeOnionUrl(input?.value);
+  if (!value) {
+    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    return;
+  }
+  const history = onionLoad("history").filter(item => item.url !== value);
+  history.unshift({url:value,at:Date.now()});
+  onionSave("history",history);
+  renderOnionExplorer();
+  window.open(value, "_blank", "noopener");
 });
-document.getElementById("usenext-help")?.addEventListener("click", () => {
-  window.open("https://www.usenext.com/usenet-infos/newsreader", "_blank", "noopener");
+
+document.getElementById("onion-explorer-save")?.addEventListener("click", () => {
+  const input = document.getElementById("onion-explorer-url");
+  const value = normalizeOnionUrl(input?.value);
+  if (!value) {
+    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    return;
+  }
+  const items = onionLoad("favorites").filter(item => item.url !== value);
+  items.unshift({url:value,at:Date.now()});
+  onionSave("favorites",items);
+  renderOnionExplorer();
 });
+
+document.getElementById("onion-copy")?.addEventListener("click", async () => {
+  const value = normalizeOnionUrl(document.getElementById("onion-explorer-url")?.value);
+  if (!value) {
+    alert("Bitte zuerst eine gültige .onion-Adresse eingeben.");
+    return;
+  }
+  try { await navigator.clipboard.writeText(value); } catch (_) {}
+});
+
+document.getElementById("tor-download")?.addEventListener("click", () => {
+  window.open("https://www.torproject.org/download/", "_blank", "noopener");
+});
+
+document.getElementById("onion-clear-history")?.addEventListener("click", () => {
+  localStorage.removeItem(onionStoreKey("history"));
+  renderOnionExplorer();
+});
+
+
+
 
 function aiStorageKey(pane) {
   return `n2k_ai_pane_${pane}`;
