@@ -18,9 +18,12 @@ UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "storage_status"
+    "app_catalog", "app_install", "storage_status",
+    "backup_list", "backup_create", "backup_restore", "vm_list"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
+BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -248,6 +251,130 @@ def storage_payload():
     }
 
 
+def vm_list_payload():
+    result = run(
+        "virsh", "--connect", "qemu:///system",
+        "list", "--all", "--name",
+        check=True,
+    )
+    vms = []
+    for name in [line.strip() for line in result.stdout.splitlines() if line.strip()]:
+        state_result = run("virsh", "--connect", "qemu:///system", "domstate", name)
+        state = state_result.stdout.strip().lower() if state_result.returncode == 0 else "unknown"
+        vms.append({
+            "name": name,
+            "state": state,
+            "managed": name == VM_NAME,
+        })
+    return {"vms": vms}
+
+
+def backup_list_payload():
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backups = []
+    for path in sorted(BACKUP_DIR.iterdir(), reverse=True):
+        if not path.is_dir() or not BACKUP_ID_RE.fullmatch(path.name):
+            continue
+        meta_file = path / "meta.json"
+        try:
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        size = 0
+        for item in path.rglob("*"):
+            try:
+                if item.is_file():
+                    size += item.stat().st_size
+            except OSError:
+                pass
+        backups.append({
+            "id": path.name,
+            "created_at": meta.get("created_at"),
+            "size_bytes": size,
+            "apps": meta.get("apps", []),
+        })
+    return {"backups": backups[:20]}
+
+
+def backup_create():
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backup_id = time.strftime("n2k-%Y%m%d-%H%M%S", time.localtime())
+    target = BACKUP_DIR / backup_id
+    target.mkdir(mode=0o700)
+    apps = []
+
+    env_file = Path("/opt/netfreak2k/server/.env")
+    if env_file.is_file():
+        shutil.copy2(env_file, target / "server.env")
+
+    db_target = target / "netfreak2k.db"
+    db_backup_inside = "/data/.netfreak2k-backup.db"
+    result = run(
+        "docker", "exec", "netfreak2k-api", "python3", "-c",
+        "import sqlite3; src=sqlite3.connect('/data/netfreak2k.db'); dst=sqlite3.connect('/data/.netfreak2k-backup.db'); src.backup(dst); dst.close(); src.close()",
+        timeout=30,
+    )
+    if result.returncode == 0:
+        run("docker", "cp", f"netfreak2k-api:{db_backup_inside}", str(db_target), check=True)
+        run("docker", "exec", "netfreak2k-api", "rm", "-f", db_backup_inside)
+
+    apps_dir = target / "apps"
+    apps_dir.mkdir()
+    for app_id, spec in APP_CATALOG.items():
+        if container_state(spec["container"]) is None:
+            continue
+        app_target = apps_dir / app_id
+        app_target.mkdir()
+        cp_result = run(
+            "docker", "cp",
+            f'{spec["container"]}:{spec["mount"]}/.',
+            str(app_target),
+            timeout=120,
+        )
+        if cp_result.returncode == 0:
+            apps.append(app_id)
+
+    meta = {
+        "id": backup_id,
+        "created_at": int(time.time()),
+        "apps": apps,
+        "includes": ["netfreak2k-admin-db", "managed-app-data", "server-env"],
+    }
+    (target / "meta.json").write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
+    return {"created": True, "backup": backup_list_payload()["backups"][0]}
+
+
+def backup_restore(backup_id):
+    if not BACKUP_ID_RE.fullmatch(backup_id):
+        raise RuntimeError("invalid_backup_id")
+    source = BACKUP_DIR / backup_id
+    if not source.is_dir():
+        raise RuntimeError("backup_not_found")
+
+    restore_script = Path("/opt/netfreak2k/scripts/restore-server.sh")
+    if not restore_script.is_file():
+        raise RuntimeError("restore_script_missing")
+
+    result = subprocess.run(
+        [
+            "systemd-run",
+            f"--unit=netfreak2k-restore-{backup_id}",
+            "--collect",
+            "--property=Type=exec",
+            str(restore_script),
+            backup_id,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "restore_start_failed")
+    return {"accepted": True, "backup_id": backup_id}
+
+
 def execute(action, request):
     if action == "status":
         return payload()
@@ -266,6 +393,18 @@ def execute(action, request):
 
     if action == "storage_status":
         return storage_payload()
+
+    if action == "vm_list":
+        return vm_list_payload()
+
+    if action == "backup_list":
+        return backup_list_payload()
+
+    if action == "backup_create":
+        return backup_create()
+
+    if action == "backup_restore":
+        return backup_restore(str(request.get("backup_id", "")))
 
     state = vm_state()
     if state == "missing":
