@@ -33,9 +33,29 @@ def docker_get(path):
 
     raw = b"".join(chunks)
     head, body = raw.split(b"\r\n\r\n", 1)
-    status_line = head.split(b"\r\n", 1)[0]
+    header_lines = head.split(b"\r\n")
+    status_line = header_lines[0]
     if b" 200 " not in status_line:
         raise RuntimeError(status_line.decode("ascii", errors="replace"))
+
+    headers = {}
+    for line in header_lines[1:]:
+        if b":" not in line:
+            continue
+        key, value = line.split(b":", 1)
+        headers[key.strip().lower()] = value.strip().lower()
+
+    if headers.get(b"transfer-encoding") == b"chunked":
+        decoded = bytearray()
+        rest = body
+        while rest:
+            size_line, rest = rest.split(b"\r\n", 1)
+            size = int(size_line.split(b";", 1)[0], 16)
+            if size == 0:
+                break
+            decoded.extend(rest[:size])
+            rest = rest[size + 2:]
+        body = bytes(decoded)
 
     return json.loads(body.decode("utf-8"))
 
