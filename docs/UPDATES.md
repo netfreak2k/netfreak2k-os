@@ -30,8 +30,8 @@ A systemd timer checks GitHub every six hours.
 
 It records:
 
-- installed commit SHA
-- current remote commit SHA
+- installed branch-archive SHA-256 fingerprint
+- current remote branch-archive SHA-256 fingerprint
 - whether an update is available
 - last check time
 
@@ -43,7 +43,7 @@ Automatic checks do not install anything.
 sudo /opt/netfreak2k/scripts/update-server.sh
 ```
 
-The updater downloads the current GitHub commit, validates the archive, replaces only Netfreak2k program files and rebuilds the Netfreak2k containers.
+The updater downloads the current GitHub branch archive, validates it, records its SHA-256 fingerprint, replaces only Netfreak2k program files and rebuilds the Netfreak2k containers. The same archive endpoint is used for update checks, so update detection does not depend on the GitHub REST API.
 
 It preserves:
 
@@ -60,7 +60,7 @@ Updates are never installed automatically.
 
 The user must explicitly approve installation.
 
-A future Netfreak2k UI will expose the same check/install flow through the browser.
+The Netfreak2k UI exposes this flow through the browser. “Neu prüfen” performs an immediate archive-fingerprint check. “Jetzt aktualisieren” still requires explicit user approval.
 
 ## Channels
 
