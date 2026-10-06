@@ -139,6 +139,14 @@ def db_connect():
     if "raw_ics" not in columns:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN raw_ics TEXT")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_uid ON calendar_events(username, uid)")
+    legacy = conn.execute("SELECT id,username,title,start_at,end_at,notes FROM calendar_events WHERE uid IS NULL OR uid=''").fetchall()
+    for row in legacy:
+        uid = f"legacy-{row[0]}@netfreak2k"
+        raw_ics = build_ics_event(uid, row[2], row[3], row[4], row[5]) if "build_ics_event" in globals() else None
+        conn.execute(
+            "UPDATE calendar_events SET uid=?,updated_at=COALESCE(updated_at,created_at),raw_ics=COALESCE(raw_ics,?) WHERE id=?",
+            (uid, raw_ics, row[0]),
+        )
     conn.commit()
     return conn
 
@@ -1295,8 +1303,9 @@ class Handler(BaseHTTPRequestHandler):
         safe_name = path.name.replace('"', "")
         self.send_header("Content-Disposition", f'{disposition}; filename="{safe_name}"')
         self.end_headers()
-        with path.open("rb") as handle:
-            shutil.copyfileobj(handle, self.wfile, length=1024 * 1024)
+        if self.command != "HEAD":
+            with path.open("rb") as handle:
+                shutil.copyfileobj(handle, self.wfile, length=1024 * 1024)
 
     def read_binary(self):
         try:
