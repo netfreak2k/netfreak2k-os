@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1140">
+  <link rel="stylesheet" href="styles.css?v=20261006-v1">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -52,17 +52,12 @@
 
       <nav class="side-nav">
         <button class="nav-item active" data-target="dashboard-top"><span>⌂</span>Übersicht</button>
-        <button class="nav-item" data-target="workspace-panel"><span>▤</span>Arbeitsplatz</button>
-        <button class="nav-item" data-target="calendar-panel"><span>□</span>Kalender</button>
-        <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
-        <button class="nav-item" data-target="vms-panel"><span>▣</span>VMs</button>
-        <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
-        <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
         <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
-        <button class="nav-item" data-target="office-panel"><span>▤</span>Office</button>
-        <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
-        <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
-        <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
+        <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
+        <button class="nav-item" data-target="vms-panel"><span>▣</span>Virtuelle Maschinen</button>
+        <button class="nav-item" data-target="ai-panel"><span>✦</span>KI Workspace</button>
+        <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
+        <button class="nav-item" data-target="privacy-panel"><span>◈</span>Privacy</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
       </nav>
 
@@ -139,19 +134,19 @@
             </button>
           </div>
 
-          <div class="widget-grid">
-            <button class="widget drive-widget" data-target-view="workspace-panel">
-              <div class="widget-head"><div><small>N2K DRIVE</small><h3>Arbeitsplatz</h3></div><span>›</span></div>
+          <div class="widget-grid v1-widget-grid">
+            <button class="widget drive-widget v1-storage-widget" data-target-view="storage-panel">
+              <div class="widget-head"><div><small>SPEICHER</small><h3>Datenträger & Gesundheit</h3></div><span>›</span></div>
               <div class="drive-widget-body">
                 <div class="drive-donut" id="drive-storage-ring"><span id="drive-storage-percent">–</span></div>
                 <div class="widget-stat-copy">
                   <strong id="drive-storage-copy">Speicher wird geladen</strong>
-                  <span id="drive-meta">–</span>
+                  <span id="drive-meta">SMART · Mounts · Backups</span>
                 </div>
               </div>
             </button>
 
-            <button class="widget network-widget" data-target-view="network-panel">
+            <button class="widget network-widget v1-network-widget" data-target-view="network-panel">
               <div class="widget-head"><div><small>NETZWERK</small><h3>Internet & LAN</h3></div><span>›</span></div>
               <div class="network-values">
                 <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
@@ -166,47 +161,77 @@
               <small id="network-interface">LAN</small>
             </button>
 
-            <button class="widget calendar-widget" data-target-view="calendar-panel">
-              <div class="widget-head"><div><small>KALENDER</small><h3>Nächste Termine</h3></div><span>›</span></div>
-              <div id="overview-calendar" class="overview-list"><div class="widget-empty">Keine Termine geladen.</div></div>
-            </button>
-
-            <button class="widget recent-widget" data-target-view="workspace-panel">
-              <div class="widget-head"><div><small>N2K DRIVE</small><h3>Zuletzt hinzugefügt</h3></div><span>›</span></div>
-              <div id="overview-recent" class="overview-list"><div class="widget-empty">Keine Dateien geladen.</div></div>
-            </button>
-
-            <button class="widget ha-widget" data-target-view="vms-panel">
-              <div class="widget-head"><div><small>HOME ASSISTANT</small><h3>Smart Home</h3></div><span>›</span></div>
+            <button class="widget ha-widget v1-vm-widget" data-target-view="vms-panel">
+              <div class="widget-head"><div><small>VIRTUELLE MASCHINEN</small><h3>VMs & Home Assistant</h3></div><span>›</span></div>
               <div class="ha-widget-status">
                 <span id="overview-ha-dot" class="health-dot"></span>
                 <div><strong id="overview-ha">Prüfe HAOS …</strong><span id="overview-ha-detail">–</span></div>
               </div>
+              <div class="v1-inline-actions"><span>Start</span><span>Stop</span><span>Konsole</span></div>
             </button>
 
-            <div class="widget activity-widget">
-              <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
-              <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
-            </div>
+            <button class="widget v1-ai-widget" data-target-view="ai-panel">
+              <div class="widget-head"><div><small>KI WORKSPACE</small><h3>4 Arbeitsfenster</h3></div><span>›</span></div>
+              <div class="v1-ai-grid">
+                <span>AI 1<small>ChatGPT</small></span>
+                <span>AI 2<small>ChatGPT</small></span>
+                <span>AI 3<small>Projekt</small></span>
+                <span>AI 4<small>Local AI</small></span>
+              </div>
+            </button>
 
-            <div class="widget quick-widget">
-              <div class="widget-head"><div><small>SCHNELLZUGRIFF</small><h3>Direkt öffnen</h3></div></div>
+            <button class="widget v1-services-widget" data-target-view="apps-panel">
+              <div class="widget-head"><div><small>DIENSTE</small><h3>Serverstatus</h3></div><span>›</span></div>
+              <div class="v1-service-list">
+                <span><i class="health-dot ok"></i>Docker</span>
+                <span><i class="health-dot ok"></i>Home Assistant</span>
+                <span><i class="health-dot"></i>Tor</span>
+                <span><i class="health-dot ok"></i>Web UI</span>
+              </div>
+              <strong id="v1-services-summary">Dienste werden geprüft …</strong>
+            </button>
+
+            <button class="widget v1-update-widget" data-target-view="updates-panel">
+              <div class="widget-head"><div><small>UPDATES</small><h3>Systemstand</h3></div><span>›</span></div>
+              <div class="v1-update-state"><span id="v1-update-dot" class="health-dot"></span><strong id="v1-update-copy">Update wird geprüft …</strong></div>
+              <div class="v1-progress-track"><span id="v1-update-progress"></span></div>
+              <small>Stable · Beta · Developer vorbereitet</small>
+            </button>
+
+            <button class="widget v1-hardware-widget" data-view="system">
+              <div class="widget-head"><div><small>HARDWARE</small><h3>System Center</h3></div><span>›</span></div>
+              <div class="v1-hardware-grid">
+                <span>CPU<strong id="v1-hw-cpu">–</strong></span>
+                <span>RAM<strong id="v1-hw-ram">–</strong></span>
+                <span>Uptime<strong id="v1-hw-uptime">–</strong></span>
+                <span>Status<strong id="v1-hw-health">–</strong></span>
+              </div>
+            </button>
+
+            <div class="widget quick-widget v1-quick-widget">
+              <div class="widget-head"><div><small>SCHNELLZUGRIFF</small><h3>Arbeitsumgebung</h3></div></div>
               <div class="quick-grid">
-                <button data-target-view="workspace-panel"><span>▤</span>Arbeitsplatz</button>
+                <button data-target-view="workspace-panel"><span>▤</span>Drive</button>
                 <button data-target-view="calendar-panel"><span>□</span>Kalender</button>
-                <button data-target-view="vms-panel"><span>◇</span>Home Assistant</button>
+                <button data-target-view="office-panel"><span>▤</span>Office</button>
                 <button data-target-view="terminal-panel"><span>&gt;_</span>Terminal</button>
               </div>
             </div>
 
-            <button class="widget matrix-widget" data-target-view="privacy-panel">
+            <button class="widget matrix-widget v1-privacy-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="300" height="110" aria-label="Matrix Simulation"></canvas>
               <div class="matrix-overlay">
-                <small>N2K UNDERGROUND</small>
-                <strong>Matrix</strong>
-                <span>Tor · Privacy · Tools</span>
+                <small>PRIVACY</small>
+                <strong>Secure Workspace</strong>
+                <span>Tor · VPN · DNS Privacy</span>
               </div>
             </button>
+
+            <div class="hidden" aria-hidden="true">
+              <div id="overview-calendar"></div>
+              <div id="overview-recent"></div>
+              <div id="overview-activity"></div>
+            </div>
           </div>
 
           <div class="overview-statusbar">
