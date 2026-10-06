@@ -711,6 +711,13 @@ WALLPAPER_IDS = {
 }
 
 
+PREFERENCE_VALUES = {
+    "usage_profile": {"home-server", "ai-workspace", "custom"},
+    "ai_provider": {"chatgpt", "local", "none"},
+    "update_channel": {"stable", "beta", "developer"},
+}
+
+
 def preferences_payload(username):
     with db_connect() as conn:
         rows = conn.execute(
@@ -721,15 +728,28 @@ def preferences_payload(username):
     wallpaper = prefs.get("wallpaper", "01-night-bay")
     if wallpaper not in WALLPAPER_IDS:
         wallpaper = "01-night-bay"
-    return {"wallpaper": wallpaper}
+    return {
+        "wallpaper": wallpaper,
+        "device_name": prefs.get("device_name", "n2k-server"),
+        "usage_profile": prefs.get("usage_profile", "home-server"),
+        "ai_provider": prefs.get("ai_provider", "chatgpt"),
+        "update_channel": prefs.get("update_channel", "developer"),
+    }
 
 
 def set_preference(username, key, value):
-    if key != "wallpaper":
+    value = str(value or "").strip()
+    if key == "wallpaper":
+        if value not in WALLPAPER_IDS:
+            raise ValueError("invalid_wallpaper")
+    elif key == "device_name":
+        if not value or len(value) > 48 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value):
+            raise ValueError("invalid_device_name")
+    elif key in PREFERENCE_VALUES:
+        if value not in PREFERENCE_VALUES[key]:
+            raise ValueError("invalid_preference_value")
+    else:
         raise ValueError("invalid_preference")
-    value = str(value or "")
-    if value not in WALLPAPER_IDS:
-        raise ValueError("invalid_wallpaper")
     now = int(time.time())
     with db_connect() as conn:
         conn.execute(
