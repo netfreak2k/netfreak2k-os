@@ -7,6 +7,21 @@ const networkHistoryDown = [];
 const networkHistoryUp = [];
 let activeView = "dashboard-top";
 
+const WALLPAPERS = [
+  {id:"01-night-bay", name:"Golden Bay", mood:"Elegant · Nacht · Gold"},
+  {id:"02-aurora", name:"Aurora", mood:"Kühl · Klar · Nordlicht"},
+  {id:"03-golden-dunes", name:"Golden Dunes", mood:"Warm · Minimal · Morgen"},
+  {id:"04-misty-forest", name:"Misty Forest", mood:"Ruhig · Natur · Nebel"},
+  {id:"05-cosmic-nebula", name:"Cosmic Nebula", mood:"Space · Tief · Leuchtend"},
+  {id:"06-glass-waves", name:"Glass Waves", mood:"Abstrakt · Clean · Golden Glass"},
+  {id:"07-server-geometry", name:"Server Geometry", mood:"Technisch · Dunkel · Präzise"},
+  {id:"08-golden-coast", name:"Golden Coast", mood:"Weit · Warm · Küste"},
+  {id:"09-cyber-city", name:"Cyber City", mood:"Urban · Regen · Zukunft"},
+  {id:"10-mountain-lake", name:"Mountain Lake", mood:"Still · Abend · Natur"}
+];
+
+let selectedWallpaper = "01-night-bay";
+
 function show(element, visible = true) {
   element.classList.toggle("hidden", !visible);
 }
@@ -94,6 +109,8 @@ function enterApp(username) {
   loadShares();
   loadCalendar();
   loadSyncCredentials();
+  renderWallpaperGallery();
+  loadPreferences();
   updateDesktopClock();
   loadOverview();
   switchView("dashboard-top");
@@ -1428,6 +1445,69 @@ async function deleteCalendarEvent(id, title) {
   }
 }
 
+function wallpaperPath(id) {
+  return `assets/wallpapers/${id}.webp`;
+}
+
+function applyWallpaper(id) {
+  const wallpaper = WALLPAPERS.find(item => item.id === id) || WALLPAPERS[0];
+  selectedWallpaper = wallpaper.id;
+  document.documentElement.style.setProperty("--n2k-wallpaper-image", `url("${wallpaperPath(wallpaper.id)}")`);
+  document.querySelectorAll(".wallpaper-card").forEach(card => {
+    card.classList.toggle("active", card.dataset.wallpaperId === wallpaper.id);
+  });
+  const selected = document.getElementById("wallpaper-selected");
+  if (selected) selected.textContent = wallpaper.name;
+}
+
+function renderWallpaperGallery() {
+  const gallery = document.getElementById("wallpaper-gallery");
+  if (!gallery) return;
+  gallery.innerHTML = "";
+  for (const wallpaper of WALLPAPERS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "wallpaper-card";
+    button.dataset.wallpaperId = wallpaper.id;
+    button.innerHTML = `
+      <span class="wallpaper-preview" style="background-image:url('${wallpaperPath(wallpaper.id)}')"></span>
+      <span class="wallpaper-copy"><strong></strong><small></small></span>
+      <span class="wallpaper-check">✓</span>
+    `;
+    button.querySelector("strong").textContent = wallpaper.name;
+    button.querySelector("small").textContent = wallpaper.mood;
+    button.addEventListener("click", () => saveWallpaper(wallpaper.id));
+    gallery.appendChild(button);
+  }
+  applyWallpaper(selectedWallpaper);
+}
+
+async function loadPreferences() {
+  try {
+    const prefs = await request("/api/preferences", {headers: {}});
+    applyWallpaper(prefs.wallpaper || "01-night-bay");
+  } catch (error) {
+    console.error(error);
+    applyWallpaper("01-night-bay");
+  }
+}
+
+async function saveWallpaper(id) {
+  const previous = selectedWallpaper;
+  applyWallpaper(id);
+  try {
+    await request("/api/preferences", {
+      method: "POST",
+      body: JSON.stringify({key: "wallpaper", value: id}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+  } catch (error) {
+    console.error(error);
+    applyWallpaper(previous);
+    alert("Wallpaper konnte nicht gespeichert werden.");
+  }
+}
+
 async function loadSyncCredentials() {
   const list = document.getElementById("sync-credentials-list");
   if (!list) return;
@@ -1740,7 +1820,7 @@ const viewGroups = {
   "network-panel": ["network-panel"],
   "ai-panel": ["ai-panel"],
   "energy-panel": ["energy-panel"],
-  "updates-panel": ["sync-panel", "updates-panel"]
+  "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
 function switchView(targetId) {
