@@ -1005,3 +1005,104 @@ body::after{
   .office-app-grid,.office-info-grid{grid-template-columns:1fr}
   .office-actions{justify-content:flex-start}
 }
+
+
+/* N2K Matrix widget */
+.matrix-widget{
+  grid-column:span 4;position:relative;overflow:hidden;padding:0;min-height:136px;
+  background:#020705;border-color:rgba(81,255,138,.14)
+}
+.matrix-widget canvas{display:block;width:100%;height:100%;min-height:136px}
+.matrix-overlay{
+  position:absolute;inset:auto 0 0 0;padding:12px;
+  background:linear-gradient(180deg,transparent,rgba(0,8,3,.9));
+  text-align:left
+}
+.matrix-overlay small,.matrix-overlay strong,.matrix-overlay span{display:block}
+.matrix-overlay small{font-size:7px;letter-spacing:.12em;color:#6eff9d}
+.matrix-overlay strong{font-size:12px;margin-top:3px;color:#e5ffeb}
+.matrix-overlay span{font-size:7px;margin-top:3px;color:#80b88f}
+
+/* N2K Terminal */
+.terminal-panel{grid-column:1/-1}
+.terminal-window{
+  margin-top:14px;border-radius:16px;overflow:hidden;background:#020504;
+  border:1px solid rgba(96,255,144,.13);box-shadow:0 20px 48px rgba(0,0,0,.28)
+}
+.terminal-titlebar{
+  min-height:38px;display:flex;align-items:center;gap:7px;padding:0 12px;
+  background:linear-gradient(180deg,rgba(18,28,22,.96),rgba(7,14,10,.98));
+  border-bottom:1px solid rgba(102,255,151,.08)
+}
+.terminal-titlebar strong{margin-left:6px;font:600 9px/1 monospace;color:#8ff9ab}
+.terminal-dot{width:8px;height:8px;border-radius:50%;background:#35533e}
+.terminal-output{
+  min-height:320px;max-height:460px;overflow:auto;padding:15px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  color:#9df4b4;background:
+    radial-gradient(circle at 15% 0%,rgba(37,117,59,.08),transparent 28%),
+    #020504
+}
+.terminal-line{white-space:pre-wrap;word-break:break-word}
+.terminal-banner{color:#d5ffdf;font-weight:800}
+.terminal-muted{color:#5c8c68}
+.terminal-command{color:#effff2;margin-top:10px}
+.terminal-error{color:#ff9e93}
+.terminal-input-row{
+  display:flex;align-items:center;gap:9px;padding:11px 13px;background:#050a07;
+  border-top:1px solid rgba(102,255,151,.08)
+}
+.terminal-prompt{
+  flex:0 0 auto;font:700 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#6cff92
+}
+.terminal-input-row input{
+  width:100%;border:0;outline:0;background:transparent;color:#d8ffe2;
+  font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace
+}
+.terminal-note{
+  margin-top:10px;padding:9px 11px;border-radius:10px;background:rgba(64,150,86,.045);
+  border:1px solid rgba(102,255,151,.07);color:#81958a;font-size:8px
+}
+
+/* N2K Underground / Privacy */
+.privacy-panel{grid-column:1/-1}
+.privacy-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.privacy-card{
+  display:flex;gap:13px;padding:16px;border-radius:16px;
+  background:rgba(7,14,22,.5);border:1px solid rgba(255,229,168,.07)
+}
+.privacy-card.tor-card{border-color:rgba(108,255,155,.09);background:rgba(4,14,9,.5)}
+.privacy-icon{
+  width:46px;height:46px;flex:0 0 46px;border-radius:13px;display:grid;place-items:center;
+  background:rgba(216,180,90,.08);border:1px solid rgba(236,202,110,.1);color:#efd783;font-weight:900
+}
+.tor-card .privacy-icon{background:rgba(66,190,102,.08);border-color:rgba(102,255,151,.1);color:#83f7a6}
+.privacy-card small,.privacy-card strong{display:block}
+.privacy-card small{font-size:7px;letter-spacing:.1em;color:#8d8165}
+.tor-card small{color:#74af84}
+.privacy-card strong{font-size:13px;margin-top:3px}
+.privacy-card p{font-size:9px;line-height:1.45;color:#8a949f;margin:6px 0 10px}
+.onion-launcher{display:flex;gap:7px}
+.onion-launcher input{
+  min-width:0;flex:1;border:1px solid rgba(102,255,151,.1);border-radius:9px;
+  background:#030906;color:#d8ffe2;padding:8px 9px;font-size:8px;outline:none
+}
+.onion-launcher input:focus{border-color:rgba(102,255,151,.24)}
+.privacy-status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.privacy-status-grid section{
+  padding:11px 12px;border-radius:12px;background:rgba(8,15,23,.45);
+  border:1px solid rgba(255,255,255,.045)
+}
+.privacy-status-grid small,.privacy-status-grid strong,.privacy-status-grid span{display:block}
+.privacy-status-grid small{font-size:7px;color:#78838d;letter-spacing:.08em}
+.privacy-status-grid strong{font-size:10px;margin-top:3px}
+.privacy-status-grid span{font-size:7px;color:#74808a;margin-top:3px}
+
+@media(max-width:900px){
+  .privacy-grid{grid-template-columns:1fr}
+  .privacy-status-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .privacy-status-grid{grid-template-columns:1fr}
+  .matrix-widget{grid-column:span 12}
+}
