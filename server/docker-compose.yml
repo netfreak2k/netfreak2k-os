@@ -1,4 +1,22 @@
 services:
+  netfreak2k-collector:
+    build:
+      context: ..
+      dockerfile: server/collector/Dockerfile
+    container_name: netfreak2k-collector
+    restart: unless-stopped
+    network_mode: "none"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      N2K_COLLECT_INTERVAL: "15"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - netfreak2k-inventory:/state
+
   netfreak2k-api:
     build:
       context: ..
@@ -8,11 +26,13 @@ services:
     environment:
       N2K_VERSION: "0.1.0-dev"
       N2K_DATA_DIR: "/data"
+      N2K_APPS_FILE: "/inventory/apps.json"
     volumes:
       - /proc:/host/proc:ro
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/hostname:/host/etc/hostname:ro
       - netfreak2k-data:/data
+      - netfreak2k-inventory:/inventory:ro
     networks:
       - netfreak2k
 
@@ -36,3 +56,5 @@ networks:
 volumes:
   netfreak2k-data:
     name: netfreak2k-data
+  netfreak2k-inventory:
+    name: netfreak2k-inventory
