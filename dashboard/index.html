@@ -199,21 +199,26 @@
               </div>
             </div>
 
-            <button class="widget onion-explorer-widget" data-target-view="privacy-panel">
-              <div class="widget-head"><div><small>N2K ONION EXPLORER</small><h3>Darkweb entdecken</h3></div><span>›</span></div>
+            <div class="widget onion-explorer-widget" data-target-view="privacy-panel" role="button" tabindex="0" aria-label="Tor Browser Workspace öffnen">
+              <div class="widget-head"><div><small>N2K TOR BROWSER</small><h3>Privacy Browser</h3></div><span>›</span></div>
               <div class="onion-widget-body">
                 <span class="onion-mark">◈</span>
                 <div>
                   <strong>Tor / Onion</strong>
-                  <span>Seiten direkt im N2K Tor-Workspace</span>
+                  <span>Isoliert im N2K Tor-Workspace</span>
                 </div>
               </div>
               <div class="widget-detail-lines">
-                <span><b>Modus</b><strong>Tor Browser</strong></span>
-                <span><b>Proxy</b><strong>nicht serverseitig</strong></span>
-                <span><b>Status</b><strong id="overview-tor-status">wird geprüft</strong></span>
+                <span><b>Status</b><strong class="tor-status-line"><i id="overview-tor-dot" class="tor-status-dot unknown"></i><span id="overview-tor-status">wird geprüft</span></strong></span>
+                <span><b>Isolation</b><strong>eigener Container</strong></span>
+                <span><b>Port</b><strong>6901 · lokal</strong></span>
               </div>
-            </button>
+              <div id="overview-tor-controls" class="tor-widget-controls" aria-label="Tor Browser Steuerung">
+                <button id="overview-tor-start" class="tor-control start" type="button">Start</button>
+                <button id="overview-tor-stop" class="tor-control stop" type="button">Stop</button>
+                <button id="overview-tor-restart" class="tor-control restart" type="button">↻</button>
+              </div>
+            </div>
 
             <button class="widget matrix-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="360" height="150" aria-label="Matrix Simulation"></canvas>
@@ -727,6 +732,9 @@
                 </div>
                 <div class="tor-browser-actions">
                   <button id="tor-browser-install" class="primary compact">Tor Browser installieren</button>
+                  <button id="tor-browser-start" class="secondary compact">Start</button>
+                  <button id="tor-browser-stop" class="secondary compact">Stop</button>
+                  <button id="tor-browser-restart" class="secondary compact">Neu starten</button>
                   <button id="tor-browser-open" class="secondary compact">Groß öffnen</button>
                 </div>
               </div>
