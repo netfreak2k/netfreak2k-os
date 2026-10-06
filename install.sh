@@ -159,8 +159,8 @@ start_stack() {
   docker compose pull --ignore-buildable 2>/dev/null || true
   docker compose up -d --build
 
-  for _ in $(seq 1 45); do
-    if curl -fsS "http://127.0.0.1:${N2K_PORT}/healthz" >/dev/null 2>&1; then
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://127.0.0.1:${N2K_PORT}/api/setup" >/dev/null 2>&1; then
       return
     fi
     sleep 1
