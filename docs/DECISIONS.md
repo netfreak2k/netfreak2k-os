@@ -73,3 +73,13 @@ The initial bootstrap must not silently install Docker, change host networking, 
 If prerequisites are missing, the installer stops and tells the operator what is required.
 
 Every future host-management capability must be explicit, permission-scoped and documented.
+## ADR-009 — Home Assistant Core is mandatory
+
+**Status:** Accepted
+
+Home Assistant Core, deployed in its official container form, is a mandatory first-class application for Netfreak2k Server.
+
+This is not an optional community add-on. Netfreak2k must provide a supported installation and lifecycle path for Home Assistant, including persistent configuration storage, safe updates, backups and integration with the Netfreak2k energy/automation layers.
+
+The Home Assistant deployment must not require replacing the host operating system with Home Assistant OS.
+
