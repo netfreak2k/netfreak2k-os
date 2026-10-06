@@ -75,6 +75,7 @@ function enterApp(username) {
   show(document.getElementById("app-shell"), true);
   document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
   loadStatus();
+  loadApps();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -189,7 +190,59 @@ async function loadStatus() {
   }
 }
 
+async function loadApps() {
+  if (document.getElementById("app-shell").classList.contains("hidden")) return;
+  const summary = document.getElementById("apps-summary");
+  const list = document.getElementById("apps-list");
+  try {
+    const data = await request("/api/apps", {headers: {}});
+    const containers = Array.isArray(data.containers) ? data.containers : [];
+    if (!data.available) {
+      summary.textContent = "Docker-Inventar momentan nicht verfügbar.";
+      list.innerHTML = "";
+      return;
+    }
+    const running = containers.filter(item => item.state === "running").length;
+    summary.textContent = `${containers.length} Container · ${running} aktiv`;
+    list.innerHTML = "";
+    for (const item of containers) {
+      const row = document.createElement("div");
+      row.className = "app-row";
+      const ports = (item.ports || []).map(port => `${port.public}→${port.private}/${port.protocol}`).join(", ");
+      row.innerHTML = `
+        <div>
+          <strong></strong>
+          <small></small>
+        </div>
+        <div class="app-meta">
+          <span class="state-pill"></span>
+          <small class="app-ports"></small>
+        </div>`;
+      row.querySelector("strong").textContent = item.name || item.id || "Container";
+      row.querySelector("small").textContent = item.image || "unbekanntes Image";
+      const pill = row.querySelector(".state-pill");
+      pill.textContent = item.state || "unknown";
+      pill.classList.toggle("running", item.state === "running");
+      row.querySelector(".app-ports").textContent = ports || "keine veröffentlichten Ports";
+      list.appendChild(row);
+    }
+    if (!containers.length) {
+      list.innerHTML = '<div class="app-empty">Keine Docker-Container gefunden.</div>';
+    }
+  } catch (error) {
+    if (error.status === 401) {
+      csrfToken = "";
+      await bootstrapAuth();
+      return;
+    }
+    console.error(error);
+    summary.textContent = "Containerliste konnte nicht geladen werden.";
+    list.innerHTML = "";
+  }
+}
+
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
+document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
@@ -202,3 +255,4 @@ bootstrapAuth().catch(error => {
 });
 
 setInterval(loadStatus, 30000);
+setInterval(loadApps, 30000);
