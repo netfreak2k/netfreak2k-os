@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1050">
+  <link rel="stylesheet" href="styles.css?v=20261006-1105">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -60,6 +60,8 @@
         <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
         <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
         <button class="nav-item" data-target="office-panel"><span>▤</span>Office</button>
+        <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
+        <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
         <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
       </nav>
@@ -193,9 +195,18 @@
                 <button data-target-view="workspace-panel"><span>▤</span>Arbeitsplatz</button>
                 <button data-target-view="calendar-panel"><span>□</span>Kalender</button>
                 <button data-target-view="vms-panel"><span>◇</span>Home Assistant</button>
-                <button data-target-view="apps-panel"><span>▦</span>Apps</button>
+                <button data-target-view="terminal-panel"><span>&gt;_</span>Terminal</button>
               </div>
             </div>
+
+            <button class="widget matrix-widget" data-target-view="privacy-panel">
+              <canvas id="matrix-canvas" width="360" height="150" aria-label="Matrix Simulation"></canvas>
+              <div class="matrix-overlay">
+                <small>N2K UNDERGROUND</small>
+                <strong>Enter the matrix</strong>
+                <span>Usenet · Tor · Privacy</span>
+              </div>
+            </button>
           </div>
 
           <div class="overview-statusbar">
@@ -609,6 +620,76 @@
             </div>
           </article>
 
+          <article id="terminal-panel" class="panel terminal-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K TERMINAL</p>
+                <h2>Netfreak2k Terminal</h2>
+                <p>Sicheres Diagnose-Terminal mit freigegebenen Systembefehlen.</p>
+              </div>
+              <span class="state-pill running">LOCAL</span>
+            </div>
+            <div class="terminal-window">
+              <div class="terminal-titlebar">
+                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+                <strong>netfreak2k@server-os</strong>
+              </div>
+              <div id="terminal-output" class="terminal-output">
+                <div class="terminal-line terminal-banner">Netfreak2k Server-OS Diagnostic Shell</div>
+                <div class="terminal-line terminal-muted">Tippe <b>help</b> für verfügbare Befehle.</div>
+              </div>
+              <form id="terminal-form" class="terminal-input-row">
+                <span class="terminal-prompt">n2k@server:~$</span>
+                <input id="terminal-input" autocomplete="off" spellcheck="false" placeholder="help">
+              </form>
+            </div>
+            <div class="terminal-note">Dieses Terminal ist absichtlich eingeschränkt. Es stellt keine allgemeine Root-Shell bereit und führt keine beliebigen Host-Kommandos aus.</div>
+          </article>
+
+          <article id="privacy-panel" class="panel privacy-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K UNDERGROUND</p>
+                <h2>Privacy & Underground</h2>
+                <p>Usenet und Tor sind getrennte Netze. Netfreak2k behandelt sie auch getrennt.</p>
+              </div>
+              <span class="state-pill">PRIVACY</span>
+            </div>
+
+            <div class="privacy-grid">
+              <section class="privacy-card usenet-card">
+                <div class="privacy-icon">U</div>
+                <div>
+                  <small>USENET</small>
+                  <strong>Provider-Zugang</strong>
+                  <p>Für klassische Usenet-Anbieter wie UseNeXT. Newsreader und Providerdaten bleiben separat konfigurierbar.</p>
+                  <button id="usenet-info" class="secondary compact">Usenet-Bereich</button>
+                </div>
+              </section>
+
+              <section class="privacy-card tor-card">
+                <div class="privacy-icon">T</div>
+                <div>
+                  <small>TOR / ONION</small>
+                  <strong>Tor-fähigen Browser verwenden</strong>
+                  <p>.onion-Adressen funktionieren nur über einen Tor-fähigen Browser. N2K betreibt keinen offenen Proxy.</p>
+                  <div class="onion-launcher">
+                    <input id="onion-url" type="text" placeholder="http://exampleonionaddress.onion/">
+                    <button id="open-onion" class="primary compact">Öffnen</button>
+                  </div>
+                  <button id="tor-project" class="mini-action">Tor Project öffnen</button>
+                </div>
+              </section>
+            </div>
+
+            <div class="privacy-status-grid">
+              <section><small>SERVER-PROXY</small><strong>Deaktiviert</strong><span>Kein offener SOCKS/HTTP-Proxy</span></section>
+              <section><small>ONION-LAUNCHER</small><strong>Browser-seitig</strong><span>Nur URL-Übergabe, kein Server-Relay</span></section>
+              <section><small>USENET</small><strong>Provider-neutral</strong><span>Kein Anbieter fest eingebaut</span></section>
+              <section><small>SICHERHEIT</small><strong>LAN-first</strong><span>Keine WAN-Freigabe standardmäßig</span></section>
+            </div>
+          </article>
+
           <article id="ai-panel" class="panel ai-workspace-panel section-anchor">
             <div class="panel-head">
               <div><p class="eyebrow">N2K AI WORKSPACE</p><h2>KI-Arbeitsplatz</h2><p>Vier parallele Chat-Slots. Heute ChatGPT, später zusätzlich lokale KI.</p></div>
@@ -628,6 +709,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1050"></script>
+  <script src="app.js?v=20261006-1105"></script>
 </body>
 </html>
