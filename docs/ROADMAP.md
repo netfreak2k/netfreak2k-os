@@ -1,13 +1,14 @@
 # Roadmap
 
-This roadmap reflects the current **Proxmox-based appliance** direction.
+This roadmap reflects the current **Linux Mint host + browser-managed Netfreak2k platform** direction.
 
-## Phase 0 — Appliance foundation / 0.1.x
+## Phase 0 — Linux Mint host foundation / 0.1.x
 
-- Proxmox VE virtualization base
-- dedicated Netfreak2k management guest
-- existing Linux host is not modified
-- N2K Glass web interface
+- Linux Mint remains the host OS
+- Netfreak2k background services
+- browser-managed N2K Glass web interface
+- KVM/QEMU + libvirt runtime for managed VMs
+- Home Assistant OS VM support
 - access through `http://SERVER-IP/`
 - health endpoint
 - self-contained install/start script
@@ -121,7 +122,7 @@ Only after the server platform is mature:
 - optional daily-driver desktop edition
 ### Mandatory Home Assistant support
 
-- Home Assistant OS in a KVM VM is a required first-class workload
+- Home Assistant OS in a Netfreak2k-managed KVM VM is a required first-class workload
 - persistent Home Assistant config storage
 - LAN device discovery support where technically required
 - clear port/network conflict checks
