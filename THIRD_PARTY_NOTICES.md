@@ -53,3 +53,12 @@ Before adding a dependency:
 5. prefer maintained projects,
 6. document security/support status,
 7. update this file in the same change.
+
+
+## N2K Sync implementation
+
+The WebDAV and CalDAV server paths are implemented directly in Netfreak2k-owned source code using the existing Python standard library and NGINX reverse proxy.
+
+No new third-party DAV server, calendar server, font, icon set or binary dependency is introduced by this feature.
+
+WebDAV and CalDAV are open interoperability standards/protocol families; implementing those protocols does not add a software dependency license to this repository.
