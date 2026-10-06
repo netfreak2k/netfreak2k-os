@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hmac
 import json
 import os
 import socket
@@ -7,18 +8,27 @@ import time
 from pathlib import Path
 
 SOCKET_PATH = Path("/run/netfreak2k/vm-agent.sock")
+TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/var/lib/netfreak2k/agent.token"))
 VM_NAME = "netfreak2k-homeassistant"
 HA_IP = "192.168.122.50"
-ALLOWED = {"status", "start", "shutdown", "restart"}
+UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
+ALLOWED = {"status", "start", "shutdown", "restart", "update_netfreak2k"}
 
 
-def run(*args, check=False):
+def read_token():
+    try:
+        return TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def run(*args, check=False, timeout=20):
     result = subprocess.run(
         list(args),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        timeout=20,
+        timeout=timeout,
         check=False,
     )
     if check and result.returncode != 0:
@@ -54,13 +64,40 @@ def payload():
         "state": state,
         "installed": state != "missing",
         "reachable": ha_reachable() if state == "running" else False,
-        "url": f"http://{os.environ.get('N2K_PUBLIC_HOST', '')}:8123/" if os.environ.get("N2K_PUBLIC_HOST") else None,
     }
+
+
+def trigger_update():
+    if not Path(UPDATE_SCRIPT).is_file():
+        raise RuntimeError("update_script_missing")
+
+    result = subprocess.run(
+        [
+            "systemd-run",
+            "--unit=netfreak2k-web-update",
+            "--collect",
+            "--property=Type=exec",
+            UPDATE_SCRIPT,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if result.returncode != 0:
+        if "already exists" in result.stderr.lower():
+            return {"accepted": True, "already_running": True}
+        raise RuntimeError(result.stderr.strip() or "update_start_failed")
+    return {"accepted": True, "already_running": False}
 
 
 def execute(action):
     if action == "status":
         return payload()
+
+    if action == "update_netfreak2k":
+        return trigger_update()
 
     state = vm_state()
     if state == "missing":
@@ -99,15 +136,22 @@ def serve():
         with conn:
             try:
                 raw = b""
-                while b"\n" not in raw and len(raw) < 4096:
+                while b"\n" not in raw and len(raw) < 8192:
                     chunk = conn.recv(4096)
                     if not chunk:
                         break
                     raw += chunk
+
                 request = json.loads(raw.decode("utf-8").strip() or "{}")
                 action = str(request.get("action", "status"))
+                supplied_token = str(request.get("token", ""))
+                expected_token = read_token()
+
+                if not expected_token or not supplied_token or not hmac.compare_digest(supplied_token, expected_token):
+                    raise RuntimeError("agent_auth_failed")
                 if action not in ALLOWED:
                     raise RuntimeError("unsupported_action")
+
                 response = {"ok": True, "data": execute(action)}
             except Exception as exc:
                 response = {"ok": False, "error": str(exc)}
