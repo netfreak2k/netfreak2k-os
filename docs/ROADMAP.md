@@ -1,151 +1,120 @@
 # Roadmap
 
-This roadmap reflects the product specification in [PRODUCT_SPEC.md](PRODUCT_SPEC.md).
+This roadmap reflects the current **server-first** direction.
 
-## Phase 0 — Foundation / 0.1.x
+## Phase 0 — Web server bootstrap / 0.1.x
 
-- Choose and lock Linux base
-- Reproducible image/build pipeline
-- Raspberry Pi and x86-64 boot targets
-- VM/Proxmox target
-- N2K Glass desktop foundation
-- Bottom dock + top status bar
-- Hardware detection baseline
-- Wi-Fi
-- Bluetooth
-- Ethernet
-- audio
-- graphics
-- USB/storage
-- printers/scanners baseline
-- Google Chrome integration
-- LibreOffice, PDF, media and image baseline apps
-- software center + Flatpak
-- graphical installer
-- Live USB mode
-- first-boot assistant
-- Stable/Beta/Developer update channels
-- recovery point before updates
-- Btrfs snapshot design
-- firewall defaults
-- disk encryption option
-- telemetry opt-in only
-- Git-based development workflow
+- existing Linux host remains intact
+- Docker Compose deployment
+- N2K Glass web interface
+- access through `http://SERVER-IP/`
+- health endpoint
+- self-contained install/start script
+- reversible stop/remove script
+- CI validation
+- container build validation
+- LAN-first operation
+- no host-changing administration yet
 
-## Phase 1 — Daily-driver completeness
+### Definition of done
 
-- multi-monitor + HiDPI
-- touchscreen / 2-in-1 support
-- audio routing per app
-- central Settings
-- central Control Center
+- stack starts on a Linux host with Docker Compose
+- browser can open the UI by IP address
+- container health check passes
+- restart policy works
+- uninstall helper removes Netfreak2k containers/network
+- no bootloader, partition or desktop changes
+
+## Phase 1 — Secure server management
+
+- first-run wizard
+- admin account
+- authentication
+- session management
+- HTTPS strategy
+- CSRF/security hardening
+- limited host agent
+- explicit permission model
+- system status API
+- CPU/RAM/load/temperature
+- network status
+- disk/storage status
+- service status
+- update status
+
+No host-changing control is enabled before authentication is implemented.
+
+## Phase 2 — App platform
+
+- Docker app inventory
+- start/stop/restart apps
+- app logs
+- app installation framework
+- app catalog
+- storage mappings
+- port conflict detection
 - app permissions
-- guest mode
-- parental controls
-- password manager
-- biometric integration
-- default-app management
-- autostart manager
-- web-app manager
-- SMB/NAS discovery
-- smartphone integration
-- local file sharing
-- VPN center
-- remote desktop
-- device overview
-- local/Tailscale clipboard and file transfer
+- backup metadata
+- safe uninstall
 
-## Phase 2 — Backup, recovery and diagnostics
+## Phase 3 — Storage, backup and remote access
 
-- incremental encrypted backups
-- USB/NAS backup targets
-- backup schedules
-- retention policies
-- backup integrity checks
-- SMART monitoring
-- storage-health UX
-- system health dashboard
-- driver/firmware diagnostics
-- bootable recovery environment
-- system reset with keep-files option
-- automatic repair assistant
-- post-repair verification
-- emergency mode
+- mounted disk overview
+- SMART health
+- storage warnings
+- backup destinations
+- scheduled backups
+- encrypted backups
+- integrity checks
+- SMB/NAS integration
+- Tailscale
+- remote browser access
 
-## Phase 3 — AI platform
+## Phase 4 — AI platform
 
 - AI Provider Center
 - ChatGPT/Gemini/Claude integration paths
-- local model support
+- local model services
 - hardware-based local-model recommendations
 - multi-pane AI dashboard
-- shared prompt input
-- answer comparison
-- answer synthesis
-- file drag-and-drop
-- explicit project-folder permissions
-- AI permission dashboard
-- cloud-upload confirmation UX
-- local AI activity logging
+- project/folder permissions
 - local/cloud routing rules
 - offline mode
-- private mode
+- local activity log
 
-## Phase 4 — Automation platform
+## Phase 5 — Automation platform
 
 - graphical automation editor
+- time/network/device/energy triggers
 - multiple conditions
-- time/network/device triggers
 - notifications
-- manual automation launch
-- Control Center automation actions
 - templates
-- import/export
-- version history
 - simulation mode
 - local audit log
 - mandatory confirmation for critical actions
 
-## Phase 5 — Multi-device ecosystem
-
-- device discovery
-- device state overview
-- Wake-on-LAN
-- shared clipboard
-- file transfer
-- folder synchronization
-- sync version history
-- conflict handling
-- remote desktop actions
-- backup to another Netfreak2k device
-- optional Tailscale transport
-
 ## Phase 6 — Energy / off-grid
 
-- multi-site energy dashboard
-- inverter/battery/PV/consumption integration framework
+- solar/battery/inverter dashboard
 - UPS monitoring
-- multiple power sources
-- energy history and charts
-- long-term local storage
-- alerts and trend detection
-- energy-aware power profiles
+- multiple sites
+- history and charts
+- alerts
+- energy-aware system rules
 - critical-service prioritization
-- power-failure actions
 - local-AI energy analysis
-- energy-saving recommendations
-- generator control framework with mandatory safety checks
+- generator integration with mandatory safety controls
 
-## Phase 7 — Hardening and public release
+## Phase 7 — Dedicated Netfreak2k OS / Desktop
 
-- hardware compatibility matrix
-- Secure Boot path
-- signed releases
-- rollback validation
-- accessibility review
-- localization
-- privacy/security review
-- performance tuning
-- low-memory profile for constrained devices
-- public documentation
-- release engineering
+Only after the server platform is mature:
+
+- dedicated bootable images
+- x86-64 installer
+- Raspberry Pi images
+- N2K Glass desktop
+- hardware detection
+- Wi-Fi/Bluetooth desktop controls
+- recovery environment
+- Secure Boot work
+- optional daily-driver desktop edition
