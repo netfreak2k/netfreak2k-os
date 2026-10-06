@@ -73,12 +73,15 @@ def sanitize(items):
             if public:
                 ports.append({"public": public, "private": private, "protocol": proto})
 
+        labels = item.get("Labels") or {}
         result.append({
             "id": item.get("Id", "")[:12],
             "name": name,
             "image": item.get("Image", ""),
             "state": item.get("State", "unknown"),
             "status": item.get("Status", ""),
+            "managed": str(labels.get("netfreak2k.managed", "")).lower() == "true",
+            "core": str(labels.get("netfreak2k.core", "")).lower() == "true",
             "ports": ports,
         })
     return sorted(result, key=lambda x: x["name"].lower())
