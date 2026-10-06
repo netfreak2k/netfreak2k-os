@@ -8,6 +8,7 @@ import platform
 import re
 import secrets
 import sqlite3
+import socket
 import threading
 import time
 from http import cookies
@@ -20,6 +21,7 @@ HOST_ETC = Path("/host/etc")
 DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
 APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
+VM_AGENT_SOCKET = os.environ.get("N2K_VM_AGENT_SOCKET", "/run/netfreak2k/vm-agent.sock")
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -204,6 +206,29 @@ def apps_payload():
         }
 
 
+def vm_agent(action):
+    try:
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.settimeout(3)
+        client.connect(VM_AGENT_SOCKET)
+        client.sendall((json.dumps({"action": action}) + "\n").encode("utf-8"))
+        raw = b""
+        while b"\n" not in raw and len(raw) < 65536:
+            chunk = client.recv(65536)
+            if not chunk:
+                break
+            raw += chunk
+        client.close()
+        result = json.loads(raw.decode("utf-8").strip() or "{}")
+        if not result.get("ok"):
+            return {"available": False, "error": result.get("error", "vm_agent_error")}
+        data = result.get("data") or {}
+        data["available"] = True
+        return data
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {"available": False, "installed": False, "state": "unavailable", "reachable": False}
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -325,6 +350,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(apps_payload())
             return
 
+        if self.path == "/homeassistant":
+            if not self.require_auth():
+                return
+            self.send_json(vm_agent("status"))
+            return
+
         self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self):
@@ -359,6 +390,28 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             self.set_session_response(username)
+            return
+
+        if self.path == "/homeassistant/action":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            action = str(data.get("action", ""))
+            if action not in {"start", "shutdown", "restart"}:
+                self.send_json({"error": "invalid_action"}, 400)
+                return
+            result = vm_agent(action)
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
             return
 
         if self.path == "/logout":
