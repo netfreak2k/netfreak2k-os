@@ -26,3 +26,13 @@ button{border:0;border-radius:999px;padding:11px 18px;background:#1769e0;color:w
 .dock{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:22px;padding:14px 24px;border-radius:24px;font-size:13px;z-index:4}
 @media(max-width:900px){.system-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.topbar nav{display:none}.status #session-user{display:none}.grid,.system-overview{grid-template-columns:1fr}.hero{align-items:flex-start;gap:20px;flex-direction:column}h1{font-size:34px}.dock{max-width:92vw;overflow:auto}}
+
+.app-card{grid-column:span 2}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.apps-summary{font-size:13px;opacity:.7;margin:10px 0 14px}
+.apps-list{display:grid;gap:10px}
+.app-row{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.42);border:1px solid rgba(255,255,255,.5)}
+.app-row>div:first-child{min-width:0}.app-row strong,.app-row small{display:block}.app-row small{opacity:.65;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px}
+.app-meta{text-align:right;min-width:150px}.state-pill{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(16,36,63,.08);font-size:11px;text-transform:uppercase}.state-pill.running{background:rgba(35,165,90,.12);color:#16733d}.app-ports{font-size:11px}.app-empty{font-size:13px;opacity:.65;padding:10px 0}
+@media(max-width:900px){.app-card{grid-column:span 2}}
+@media(max-width:650px){.app-card{grid-column:auto}.app-row{align-items:flex-start;flex-direction:column}.app-meta{text-align:left;min-width:0}}
