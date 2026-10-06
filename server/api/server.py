@@ -232,7 +232,7 @@ def vm_agent(action):
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
-        "product": "Netfreak2k Server",
+        "product": "Netfreak2k Server-OS",
         "version": VERSION,
         "mode": "server-first",
         "read_only": True,
