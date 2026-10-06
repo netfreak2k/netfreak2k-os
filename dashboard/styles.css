@@ -36,3 +36,9 @@ button{border:0;border-radius:999px;padding:11px 18px;background:#1769e0;color:w
 .app-meta{text-align:right;min-width:150px}.state-pill{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(16,36,63,.08);font-size:11px;text-transform:uppercase}.state-pill.running{background:rgba(35,165,90,.12);color:#16733d}.app-ports{font-size:11px}.app-empty{font-size:13px;opacity:.65;padding:10px 0}
 @media(max-width:900px){.app-card{grid-column:span 2}}
 @media(max-width:650px){.app-card{grid-column:auto}.app-row{align-items:flex-start;flex-direction:column}.app-meta{text-align:left;min-width:0}}
+
+.ha-card{grid-column:span 3}
+.ha-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.button-danger{background:rgba(180,45,45,.12);color:#9b2020}
+@media(max-width:900px){.ha-card{grid-column:span 2}}
+@media(max-width:650px){.ha-card{grid-column:auto}}
