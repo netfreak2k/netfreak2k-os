@@ -2,6 +2,7 @@
 import hmac
 import json
 import os
+import re
 import socket
 import subprocess
 import time
@@ -12,7 +13,11 @@ TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/var/lib/netfreak2k/ag
 VM_NAME = "netfreak2k-homeassistant"
 HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
-ALLOWED = {"status", "start", "shutdown", "restart", "update_netfreak2k"}
+ALLOWED = {
+    "status", "start", "shutdown", "restart", "update_netfreak2k",
+    "app_start", "app_stop", "app_restart"
+}
+CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def read_token():
@@ -92,12 +97,46 @@ def trigger_update():
     return {"accepted": True, "already_running": False}
 
 
-def execute(action):
+def managed_container_state(name):
+    if not CONTAINER_RE.fullmatch(name):
+        raise RuntimeError("invalid_container_name")
+
+    label = run(
+        "docker", "inspect", "--format",
+        '{{ index .Config.Labels "netfreak2k.managed" }}',
+        name,
+    )
+    if label.returncode != 0:
+        raise RuntimeError("container_not_found")
+    if label.stdout.strip().lower() != "true":
+        raise RuntimeError("container_not_managed")
+
+    state = run("docker", "inspect", "--format", "{{.State.Status}}", name, check=True)
+    return state.stdout.strip()
+
+
+def app_action(action, name):
+    managed_container_state(name)
+    if action == "app_start":
+        run("docker", "start", name, check=True)
+    elif action == "app_stop":
+        run("docker", "stop", "--time", "20", name, check=True, timeout=30)
+    elif action == "app_restart":
+        run("docker", "restart", "--time", "20", name, check=True, timeout=30)
+    else:
+        raise RuntimeError("unsupported_action")
+    return {"name": name, "state": managed_container_state(name)}
+
+
+def execute(action, request):
     if action == "status":
         return payload()
 
     if action == "update_netfreak2k":
         return trigger_update()
+
+    if action in {"app_start", "app_stop", "app_restart"}:
+        return app_action(action, str(request.get("name", "")))
 
     state = vm_state()
     if state == "missing":
@@ -152,7 +191,7 @@ def serve():
                 if action not in ALLOWED:
                     raise RuntimeError("unsupported_action")
 
-                response = {"ok": True, "data": execute(action)}
+                response = {"ok": True, "data": execute(action, request)}
             except Exception as exc:
                 response = {"ok": False, "error": str(exc)}
             conn.sendall((json.dumps(response, separators=(",", ":")) + "\n").encode("utf-8"))
