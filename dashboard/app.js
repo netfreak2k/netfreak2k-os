@@ -596,6 +596,28 @@ async function loadWorkspace() {
           window.location.href = `/api/workspace/file?${workspaceQuery({name: item.name, download: "1"})}`;
         });
         row.querySelector(".file-actions").append(open, download);
+
+        if (workspaceArea !== "trash") {
+          const share = document.createElement("button");
+          share.className = "mini-action";
+          share.textContent = "Teilen";
+          share.addEventListener("click", () => shareWorkspaceItem(item.name));
+          row.querySelector(".file-actions").appendChild(share);
+        }
+      }
+
+      if (workspaceArea !== "trash") {
+        const rename = document.createElement("button");
+        rename.className = "mini-action";
+        rename.textContent = "Umbenennen";
+        rename.addEventListener("click", () => renameWorkspaceItem(item.name));
+        row.querySelector(".file-actions").appendChild(rename);
+      } else {
+        const restore = document.createElement("button");
+        restore.className = "mini-action";
+        restore.textContent = "Wiederherstellen";
+        restore.addEventListener("click", () => restoreWorkspaceItem(item.name));
+        row.querySelector(".file-actions").appendChild(restore);
       }
 
       const remove = document.createElement("button");
@@ -671,6 +693,136 @@ async function deleteWorkspaceItem(name) {
   } catch (error) {
     console.error(error);
     alert("Aktion konnte nicht ausgeführt werden.");
+  }
+}
+
+async function renameWorkspaceItem(oldName) {
+  const newName = prompt("Neuer Name:", oldName);
+  if (!newName || newName === oldName) return;
+  try {
+    await request("/api/workspace/rename", {
+      method: "POST",
+      body: JSON.stringify({
+        area: workspaceArea,
+        path: workspacePath,
+        old_name: oldName,
+        new_name: newName
+      }),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+  } catch (error) {
+    console.error(error);
+    alert("Umbenennen nicht möglich.");
+  }
+}
+
+async function restoreWorkspaceItem(name) {
+  if (!confirm(`${name} nach Dokumente wiederherstellen?`)) return;
+  try {
+    await request("/api/workspace/restore", {
+      method: "POST",
+      body: JSON.stringify({name}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+  } catch (error) {
+    console.error(error);
+    alert("Wiederherstellung nicht möglich.");
+  }
+}
+
+async function shareWorkspaceItem(name) {
+  const raw = prompt("Freigabe gültig für wie viele Stunden?", "24");
+  if (!raw) return;
+  const hours = Number.parseInt(raw, 10);
+  if (!Number.isFinite(hours) || hours < 1) {
+    alert("Bitte eine gültige Stundenanzahl eingeben.");
+    return;
+  }
+  try {
+    const data = await request("/api/workspace/share", {
+      method: "POST",
+      body: JSON.stringify({
+        area: workspaceArea,
+        path: workspacePath,
+        name,
+        hours
+      }),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    const url = `${window.location.origin}/api/share?token=${encodeURIComponent(data.token)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Freigabelink wurde kopiert.");
+    } catch (_) {
+      prompt("Freigabelink:", url);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Freigabelink konnte nicht erstellt werden.");
+  }
+}
+
+function openSearchResult(result) {
+  if (result.kind === "calendar") {
+    document.getElementById("calendar-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+    return;
+  }
+  workspaceArea = result.area;
+  workspacePath = result.path || "";
+  document.querySelectorAll(".drive-area").forEach(item => {
+    item.classList.toggle("active", item.dataset.area === workspaceArea);
+  });
+  document.getElementById("workspace-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+  loadWorkspace().then(() => {
+    const rows = Array.from(document.querySelectorAll(".workspace-row"));
+    const row = rows.find(item => item.querySelector("strong")?.textContent === result.name);
+    row?.classList.add("search-hit");
+    setTimeout(() => row?.classList.remove("search-hit"), 2500);
+  });
+}
+
+let searchTimer = null;
+async function performGlobalSearch() {
+  const input = document.getElementById("global-search");
+  const box = document.getElementById("global-search-results");
+  if (!input || !box) return;
+  const q = input.value.trim();
+  if (q.length < 2) {
+    box.innerHTML = "";
+    box.classList.add("hidden");
+    return;
+  }
+  try {
+    const data = await request(`/api/search?q=${encodeURIComponent(q)}`, {headers: {}});
+    const results = Array.isArray(data.results) ? data.results : [];
+    box.innerHTML = "";
+    for (const result of results.slice(0, 12)) {
+      const button = document.createElement("button");
+      button.className = "search-result";
+      if (result.kind === "calendar") {
+        button.innerHTML = "<strong></strong><small>Kalender</small>";
+        button.querySelector("strong").textContent = result.title;
+      } else {
+        button.innerHTML = "<strong></strong><small></small>";
+        button.querySelector("strong").textContent = result.name;
+        button.querySelector("small").textContent =
+          `${workspaceAreaNames[result.area] || result.area}${result.path ? " / " + result.path : ""}`;
+      }
+      button.addEventListener("click", () => {
+        box.classList.add("hidden");
+        openSearchResult(result);
+      });
+      box.appendChild(button);
+    }
+    if (!results.length) {
+      box.innerHTML = '<div class="search-empty">Keine Treffer.</div>';
+    }
+    box.classList.remove("hidden");
+  } catch (error) {
+    console.error(error);
+    box.classList.add("hidden");
   }
 }
 
@@ -952,8 +1104,21 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     });
     document.getElementById("update-title").textContent = "Update läuft";
     document.getElementById("update-detail").textContent =
-      "Netfreak2k lädt den aktuellen GitHub-Stand. Die Oberfläche kann kurz nicht erreichbar sein.";
-    setTimeout(() => window.location.reload(), 15000);
+      "Netfreak2k lädt den aktuellen GitHub-Stand. Die Oberfläche startet danach automatisch neu.";
+    let attempts = 0;
+    const waitForServer = async () => {
+      attempts += 1;
+      try {
+        const response = await fetch("/api/healthz", {cache: "no-store"});
+        if (response.ok && attempts > 2) {
+          window.location.reload();
+          return;
+        }
+      } catch (_) {}
+      if (attempts < 60) setTimeout(waitForServer, 2000);
+      else window.location.reload();
+    };
+    setTimeout(waitForServer, 5000);
   } catch (error) {
     console.error(error);
     button.disabled = false;
@@ -963,10 +1128,16 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
 });
 const globalSearch = document.getElementById("global-search");
 globalSearch?.addEventListener("input", () => {
-  const q = globalSearch.value.trim().toLowerCase();
-  document.querySelectorAll(".workspace-row").forEach(row => {
-    row.classList.toggle("search-hidden", q && !row.textContent.toLowerCase().includes(q));
-  });
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(performGlobalSearch, 180);
+});
+globalSearch?.addEventListener("focus", () => {
+  if (globalSearch.value.trim().length >= 2) performGlobalSearch();
+});
+document.addEventListener("click", event => {
+  const box = document.getElementById("global-search-results");
+  if (!box) return;
+  if (!event.target.closest(".command-search-wrap")) box.classList.add("hidden");
 });
 document.addEventListener("keydown", event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
