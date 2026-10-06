@@ -563,6 +563,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if self.path == "/updates/check":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("check_updates")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if self.path == "/updates/install":
             session = self.require_auth()
             if not session:
