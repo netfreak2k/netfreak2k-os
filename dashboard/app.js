@@ -216,8 +216,23 @@ async function loadStatus() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   setConnection(false, "Verbinde …");
   try {
-    await request("/api/status", {headers: {}});
+    const data = await request("/api/status", {headers: {}});
     setConnection(true, "Server online");
+    const host = data.host || {};
+    const memory = host.memory || {};
+    const network = host.network || {};
+    setText("system-hostname", host.hostname || "–");
+    setText("system-os", host.os?.PRETTY_NAME || host.os?.NAME || "Linux");
+    setText("system-cpu", Number.isFinite(host.cpu_percent) ? `${Math.round(host.cpu_percent)}%` : "–");
+    setText("system-load", Array.isArray(host.load) ? `Load: ${host.load.join(" · ")}` : "Load: –");
+    setText("system-ram", Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–");
+    setText("system-memory-detail", memory.total_bytes ? `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}` : "–");
+    setText("system-uptime", formatUptime(host.uptime_seconds));
+    setText("system-version", `Netfreak2k ${data.version || "–"}`);
+    setText("system-network", Array.isArray(network.interfaces) && network.interfaces.length ? network.interfaces.join(" · ") : "Netzwerk");
+    setText("system-network-detail", network.public_ip ? `WAN ${network.public_ip}` : "WAN-IP nicht verfügbar");
+    const state = document.getElementById("system-center-state");
+    if (state) { state.textContent = "Online"; state.classList.add("running"); }
   } catch (error) {
     if (error.status === 401) {
       csrfToken = "";
@@ -2120,6 +2135,7 @@ document.addEventListener("keydown", event => {
 });
 
 const viewGroups = {
+  "system-panel": ["system-panel"],
   "workspace-panel": ["workspace-panel", "drive-management-panel"],
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
@@ -2143,7 +2159,7 @@ function switchView(targetId) {
     item.classList.toggle("active", item.dataset.target === activeView);
   });
 
-  if (activeView === "dashboard-top" || activeView === "system") {
+  if (activeView === "dashboard-top") {
     show(overview, true);
     show(grid, false);
     window.scrollTo({top: 0, behavior: "smooth"});
@@ -2174,7 +2190,7 @@ document.addEventListener("click", event => {
   switchView(button.dataset.targetView);
 });
 document.querySelectorAll("[data-view]").forEach(btn => {
-  btn.addEventListener("click", () => switchView("dashboard-top"));
+  btn.addEventListener("click", () => switchView(btn.dataset.view === "system" ? "system-panel" : "dashboard-top"));
 });
 
 document.querySelectorAll("[data-url]").forEach(btn => {
