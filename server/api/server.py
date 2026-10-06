@@ -22,6 +22,7 @@ DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
 APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
 VM_AGENT_SOCKET = os.environ.get("N2K_VM_AGENT_SOCKET", "/run/netfreak2k/vm-agent.sock")
+AGENT_TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/host/netfreak2k/agent.token"))
 UPDATE_FILE = Path(os.environ.get("N2K_UPDATE_FILE", "/host/netfreak2k/update-status.json"))
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
@@ -209,10 +210,13 @@ def apps_payload():
 
 def vm_agent(action):
     try:
+        token = AGENT_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if not token:
+            return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         client.settimeout(3)
         client.connect(VM_AGENT_SOCKET)
-        client.sendall((json.dumps({"action": action}) + "\n").encode("utf-8"))
+        client.sendall((json.dumps({"action": action, "token": token}) + "\n").encode("utf-8"))
         raw = b""
         while b"\n" not in raw and len(raw) < 65536:
             chunk = client.recv(65536)
@@ -435,6 +439,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if self.path == "/updates/install":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("update_netfreak2k")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result, 202)
             return
 
         if self.path == "/logout":
