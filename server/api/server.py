@@ -455,6 +455,34 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_file(self, path, download=False):
+        path = Path(path)
+        if not path.is_file():
+            self.send_json({"error": "not_found"}, 404)
+            return
+        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        size = path.stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(size))
+        self.send_header("Cache-Control", "private, no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        disposition = "attachment" if download else "inline"
+        safe_name = path.name.replace('"', "")
+        self.send_header("Content-Disposition", f'{disposition}; filename="{safe_name}"')
+        self.end_headers()
+        with path.open("rb") as handle:
+            shutil.copyfileobj(handle, self.wfile, length=1024 * 1024)
+
+    def read_binary(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raise ValueError("invalid_length")
+        if length <= 0 or length > MAX_UPLOAD:
+            raise ValueError("invalid_upload_size")
+        return self.rfile.read(length)
+
     def read_json(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -499,6 +527,7 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def set_session_response(self, username):
+        ensure_workspace(username)
         token, csrf, _ = new_session(username)
         cookie = (
             f"n2k_session={token}; Path=/; HttpOnly; SameSite=Strict; "
@@ -511,15 +540,19 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def do_GET(self):
-        if self.path == "/healthz":
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
+        if path == "/healthz":
             self.send_json({"status": "ok"})
             return
 
-        if self.path == "/setup":
+        if path == "/setup":
             self.send_json({"configured": is_configured()})
             return
 
-        if self.path == "/session":
+        if path == "/session":
             session = self.session()
             if not session:
                 self.send_json({"authenticated": False}, 200)
@@ -533,31 +566,31 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
-        if self.path == "/status":
+        if path == "/status":
             if not self.require_auth():
                 return
             self.send_json(status_payload())
             return
 
-        if self.path == "/apps":
+        if path == "/apps":
             if not self.require_auth():
                 return
             self.send_json(apps_payload())
             return
 
-        if self.path == "/homeassistant":
+        if path == "/homeassistant":
             if not self.require_auth():
                 return
             self.send_json(vm_agent("status"))
             return
 
-        if self.path == "/updates":
+        if path == "/updates":
             if not self.require_auth():
                 return
             self.send_json(update_payload())
             return
 
-        if self.path == "/catalog":
+        if path == "/catalog":
             if not self.require_auth():
                 return
             result = vm_agent("app_catalog")
@@ -567,7 +600,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/storage":
+        if path == "/storage":
             if not self.require_auth():
                 return
             result = vm_agent("storage_status")
@@ -577,7 +610,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/vms":
+        if path == "/vms":
             if not self.require_auth():
                 return
             result = vm_agent("vm_list")
@@ -587,7 +620,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/backups":
+        if path == "/backups":
             if not self.require_auth():
                 return
             result = vm_agent("backup_list")
@@ -597,10 +630,50 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/workspace":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                area = (query.get("area") or ["documents"])[0]
+                rel = (query.get("path") or [""])[0]
+                self.send_json(workspace_list(session["username"], area, rel))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/file":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                area = (query.get("area") or ["documents"])[0]
+                rel = (query.get("path") or [""])[0]
+                name = (query.get("name") or [""])[0]
+                if not name or "/" in name or "\\" in name:
+                    raise ValueError("invalid_name")
+                _, parent = workspace_target(session["username"], area, rel)
+                target = (parent / name).resolve()
+                base = workspace_base(session["username"], area).resolve()
+                if base not in target.parents:
+                    raise ValueError("invalid_path")
+                download = (query.get("download") or ["0"])[0] == "1"
+                self.send_file(target, download=download)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/calendar":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(calendar_payload(session["username"]))
+            return
+
         self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self):
-        if self.path == "/setup":
+        if path == "/setup":
             if is_configured():
                 self.send_json({"error": "already_configured"}, 409)
                 return
@@ -615,7 +688,7 @@ class Handler(BaseHTTPRequestHandler):
             self.set_session_response(username)
             return
 
-        if self.path == "/login":
+        if path == "/login":
             if not is_configured():
                 self.send_json({"error": "setup_required"}, 409)
                 return
@@ -633,7 +706,103 @@ class Handler(BaseHTTPRequestHandler):
             self.set_session_response(username)
             return
 
-        if self.path == "/homeassistant/action":
+        if path == "/workspace/upload":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                area = (query.get("area") or ["documents"])[0]
+                rel = (query.get("path") or [""])[0]
+                name = (query.get("name") or [""])[0]
+                if not name or name in {".", ".."} or "/" in name or "\\" in name:
+                    raise ValueError("invalid_name")
+                _, parent = workspace_target(session["username"], area, rel)
+                if not parent.is_dir():
+                    raise ValueError("folder_not_found")
+                target = parent / name
+                if target.exists():
+                    raise ValueError("already_exists")
+                payload = self.read_binary()
+                target.write_bytes(payload)
+                self.send_json({"uploaded": True, "name": name, "size_bytes": len(payload)}, 201)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/mkdir":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(
+                    workspace_mkdir(
+                        session["username"],
+                        str(data.get("area", "documents")),
+                        str(data.get("path", "")),
+                        str(data.get("name", "")).strip(),
+                    ),
+                    201,
+                )
+            except (ValueError, FileExistsError) as exc:
+                self.send_json({"error": str(exc) or "already_exists"}, 400)
+            return
+
+        if path == "/workspace/delete":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(workspace_delete(
+                    session["username"],
+                    str(data.get("area", "documents")),
+                    str(data.get("path", "")),
+                    str(data.get("name", "")).strip(),
+                ))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/calendar/create":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(calendar_create(
+                    session["username"],
+                    data.get("title", ""),
+                    data.get("start_at"),
+                    data.get("end_at"),
+                    data.get("notes", ""),
+                ), 201)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/calendar/delete":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(calendar_delete(session["username"], data.get("id")))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/homeassistant/action":
             session = self.require_auth()
             if not session:
                 return
@@ -655,7 +824,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/backups/create":
+        if path == "/backups/create":
             session = self.require_auth()
             if not session:
                 return
@@ -668,7 +837,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 201)
             return
 
-        if self.path == "/backups/restore":
+        if path == "/backups/restore":
             session = self.require_auth()
             if not session:
                 return
@@ -687,7 +856,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 202)
             return
 
-        if self.path == "/catalog/install":
+        if path == "/catalog/install":
             session = self.require_auth()
             if not session:
                 return
@@ -706,7 +875,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 201)
             return
 
-        if self.path == "/apps/action":
+        if path == "/apps/action":
             session = self.require_auth()
             if not session:
                 return
@@ -734,7 +903,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/updates/check":
+        if path == "/updates/check":
             session = self.require_auth()
             if not session:
                 return
@@ -747,7 +916,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
-        if self.path == "/updates/install":
+        if path == "/updates/install":
             session = self.require_auth()
             if not session:
                 return
@@ -760,7 +929,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 202)
             return
 
-        if self.path == "/logout":
+        if path == "/logout":
             session = self.require_auth()
             if not session:
                 return
