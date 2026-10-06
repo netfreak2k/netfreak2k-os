@@ -18,6 +18,7 @@ systemctl disable --now netfreak2k-vm-agent.service 2>/dev/null || true
 systemctl disable --now netfreak2k-ha-proxy.service 2>/dev/null || true
 rm -f /etc/systemd/system/netfreak2k-vm-agent.service /etc/systemd/system/netfreak2k-ha-proxy.service
 rm -f /usr/local/lib/netfreak2k/vm-agent.py
+rm -f /usr/local/sbin/netfreak2k-update /usr/local/sbin/netfreak2k-uninstall
 systemctl daemon-reload
 
 rm -rf "${N2K_DIR}"
