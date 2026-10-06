@@ -1,22 +1,122 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-cat >&2 <<'EOF'
-Netfreak2k install.sh is LEGACY.
+N2K_REPO="netfreak2k/netfreak2k-os"
+N2K_REF="${N2K_REF:-main}"
+N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
+N2K_HTTP_PORT="${N2K_HTTP_PORT:-}"
+ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
 
-The project architecture has moved to a dedicated Proxmox-based Netfreak2k Appliance.
-This installer intentionally does not install anything into your existing Linux system.
+log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
+die(){ printf '\n[Netfreak2k] FEHLER: %s\n' "$*" >&2; exit 1; }
 
-Current target:
-- Netfreak2k Appliance on Proxmox VE base
-- Netfreak2k web UI as the normal browser entry point
-- Home Assistant OS as a full KVM VM with Supervisor and Apps/Add-ons
+[[ "${EUID}" -eq 0 ]] || die "Bitte mit sudo/root ausführen."
+[[ "$(uname -s)" == "Linux" ]] || die "Nur Linux wird unterstützt."
+[[ -r /etc/os-release ]] || die "/etc/os-release fehlt."
 
-Use a separate machine, separate boot/storage device, or an already-existing hypervisor
-if your current Linux installation must remain untouched.
+# shellcheck disable=SC1091
+. /etc/os-release
 
-See:
-docs/APPLIANCE_ARCHITECTURE.md
-EOF
+case "${ID:-}" in
+  linuxmint|ubuntu) ;;
+  *) die "Dieser Installer ist aktuell für Linux Mint/Ubuntu freigegeben. Gefunden: ${ID:-unbekannt}" ;;
+esac
 
-exit 2
+case "$(dpkg --print-architecture 2>/dev/null || true)" in
+  amd64) ;;
+  *) die "Home Assistant OS KVM wird in diesem Installer aktuell nur auf amd64 unterstützt." ;;
+esac
+
+case "${N2K_DIR}" in
+  /|/bin|/boot|/dev|/etc|/home|/lib|/lib64|/media|/mnt|/opt|/proc|/root|/run|/sbin|/srv|/sys|/tmp|/usr|/var)
+    die "Unsicherer Installationspfad: ${N2K_DIR}"
+    ;;
+esac
+
+export DEBIAN_FRONTEND=noninteractive
+
+log "Prüfe Hardware-Virtualisierung."
+if ! grep -Eq '(vmx|svm)' /proc/cpuinfo; then
+  die "CPU-Virtualisierung wurde nicht erkannt. Intel VT-x/AMD-V bitte im BIOS/UEFI aktivieren."
+fi
+
+log "Installiere Netfreak2k-Laufzeitabhängigkeiten."
+apt-get update
+apt-get install -y   ca-certificates curl xz-utils python3 socat   qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf
+
+if ! command -v docker >/dev/null 2>&1; then
+  apt-get install -y docker.io docker-compose-v2
+elif ! docker compose version >/dev/null 2>&1; then
+  apt-get install -y docker-compose-v2
+fi
+
+systemctl enable --now docker
+systemctl enable --now libvirtd
+
+[[ -e /dev/kvm ]] || die "/dev/kvm fehlt trotz installierter KVM-Pakete. Virtualisierung im BIOS/UEFI prüfen."
+docker compose version >/dev/null || die "Docker Compose v2 ist nicht verfügbar."
+virsh --connect qemu:///system list >/dev/null || die "libvirt ist nicht funktionsfähig."
+
+if [[ -z "${N2K_HTTP_PORT}" ]]; then
+  N2K_HTTP_PORT=80
+  if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)80$'; then
+    N2K_HTTP_PORT=8080
+    log "Port 80 ist bereits belegt; Netfreak2k nutzt Port 8080."
+  fi
+fi
+
+if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123$'; then
+  die "Port 8123 ist bereits belegt. Home Assistant benötigt diesen Port auf dem Mint-Host."
+fi
+
+log "Lade Netfreak2k."
+tmp="$(mktemp -d)"
+# shellcheck disable=SC2064
+trap "rm -rf '${tmp}'" EXIT
+curl -fL --retry 3 "${ARCHIVE_URL}" -o "${tmp}/netfreak2k.tar.gz"
+mkdir -p "${tmp}/src"
+tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
+[[ -f "${tmp}/src/server/docker-compose.yml" ]] || die "Ungültiges Netfreak2k-Archiv."
+
+mkdir -p "${N2K_DIR}"
+find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -a "${tmp}/src/." "${N2K_DIR}/"
+printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
+
+log "Installiere eingeschränkten Netfreak2k VM-Agenten."
+install -d -m 0755 /usr/local/lib/netfreak2k /run/netfreak2k /var/lib/netfreak2k
+install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent.py
+install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
+systemctl daemon-reload
+systemctl enable --now netfreak2k-vm-agent.service
+systemctl enable --now netfreak2k-ha-proxy.service
+
+log "Installiere Home Assistant OS als KVM-VM."
+bash "${N2K_DIR}/scripts/provision-haos.sh"
+
+log "Starte Netfreak2k Webplattform."
+cd "${N2K_DIR}/server"
+docker compose up -d --build
+
+for _ in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
+
+host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+[[ -n "${host_ip}" ]] || host_ip="<MINT-IP>"
+
+printf '\n============================================================\n'
+printf ' Netfreak2k wurde erfolgreich installiert.\n'
+printf ' Linux Mint wurde nicht ersetzt oder neu partitioniert.\n'
+printf ' Netfreak2k: http://%s' "${host_ip}"
+if [[ "${N2K_HTTP_PORT}" != "80" ]]; then printf ':%s' "${N2K_HTTP_PORT}"; fi
+printf '/\n'
+printf ' Home Assistant OS: http://%s:8123/\n' "${host_ip}"
+printf '============================================================\n'
+printf '\nBeim ersten Netfreak2k-Aufruf legst du deinen lokalen Admin an.\n'
+printf 'HAOS kann beim ersten Start einige Minuten benötigen.\n'
