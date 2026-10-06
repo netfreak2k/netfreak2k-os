@@ -28,6 +28,7 @@ services:
       N2K_DATA_DIR: "/data"
       N2K_APPS_FILE: "/inventory/apps.json"
       N2K_VM_AGENT_SOCKET: "/run/netfreak2k/vm-agent.sock"
+      N2K_AGENT_TOKEN_FILE: "/host/netfreak2k/agent.token"
       N2K_UPDATE_FILE: "/host/netfreak2k/update-status.json"
     volumes:
       - /proc:/host/proc:ro
