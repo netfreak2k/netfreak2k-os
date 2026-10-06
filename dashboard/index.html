@@ -155,6 +155,16 @@
             <div id="apps-list" class="apps-list"></div>
           </article>
 
+          <article class="panel store-panel">
+            <div class="panel-head">
+              <div><h2>App-Katalog</h2><p>Freigegebene One-Click-Apps für Netfreak2k.</p></div>
+              <button id="refresh-catalog" class="secondary compact">Neu laden</button>
+            </div>
+            <div id="catalog-list" class="catalog-list">
+              <div class="app-empty">Katalog wird geladen …</div>
+            </div>
+          </article>
+
           <article class="panel vm-panel">
             <div class="panel-head"><div><h2>Virtuelle Maschinen</h2><p>KVM-Workloads unter einem Dach.</p></div><span class="panel-symbol">▣</span></div>
             <div class="vm-row">
@@ -166,8 +176,17 @@
 
           <article class="panel storage-panel">
             <div class="panel-head"><div><h2>Speicher</h2><p>System, Backups und Daten.</p></div><span class="panel-symbol">◉</span></div>
-            <div class="storage-row"><span>System</span><strong>Host-Speicher</strong><small>Detailansicht folgt</small></div>
-            <div class="storage-row"><span>HAOS</span><strong>64 GB VM-Disk</strong><small>virtuelle Systemdisk</small></div>
+            <div class="storage-row">
+              <span>System</span>
+              <strong id="storage-host-main">Host-Speicher wird geladen …</strong>
+              <small id="storage-host-detail">–</small>
+              <div class="storage-meter"><span id="storage-meter-fill"></span></div>
+            </div>
+            <div class="storage-row">
+              <span>HAOS</span>
+              <strong id="storage-haos-main">VM-Disk wird geladen …</strong>
+              <small>virtuelle Systemdisk</small>
+            </div>
           </article>
 
           <article class="panel mini-panel">
