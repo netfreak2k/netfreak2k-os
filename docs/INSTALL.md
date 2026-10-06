@@ -1,49 +1,49 @@
-# Installation
+# Installation on Linux Mint
 
-Netfreak2k Server is designed to install alongside an existing Debian or Ubuntu host without replacing the operating system.
+Netfreak2k runs in the background on Linux Mint and is opened through the host IP in a browser.
 
-## One-command installation
+It installs only the runtime components needed by Netfreak2k:
+
+- Docker/Compose for ordinary Netfreak2k workloads
+- KVM/QEMU + libvirt
+- OVMF/UEFI firmware
+- restricted Netfreak2k VM agent
+- Home Assistant OS as a dedicated KVM VM
+
+It does **not** repartition the disk, replace Linux Mint, replace the bootloader, or remove the Mint desktop.
+
+## One-command install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/netfreak2k/netfreak2k-os/main/install.sh | sudo bash
 ```
 
-The installer:
+Requirements:
 
-- keeps the existing Linux installation
-- does not repartition disks
-- does not install or alter a bootloader
-- does not replace the desktop environment
-- installs Netfreak2k under `/opt/netfreak2k`
-- uses Docker Compose
-- uses existing Docker if already present
-- installs Docker only on plain Debian/Ubuntu when Docker is absent and no conflicting container packages are detected
-- aborts instead of removing/replacing existing container packages
-- uses port 80 if free
-- automatically falls back to port 8080 if port 80 is already in use
-- preserves Netfreak2k Docker volumes across updates
+- amd64 Linux Mint/Ubuntu host
+- Intel VT-x or AMD-V enabled in BIOS/UEFI
+- internet access during installation
+- port 8123 free for Home Assistant
 
-## First start
+The installer creates Home Assistant OS with 2 vCPU, 4 GB RAM and a 64 GB expandable qcow2 disk. HAOS itself provides Home Assistant Core, Supervisor, Apps/Add-ons, HAOS updates and backups.
 
-After installation the script prints the URL, typically:
+## Access
+
+Netfreak2k:
 
 ```text
-http://SERVER-IP/
+http://MINT-IP/
 ```
 
-If port 80 was already occupied:
+If port 80 is occupied, Netfreak2k uses port 8080.
+
+Home Assistant OS:
 
 ```text
-http://SERVER-IP:8080/
+http://MINT-IP:8123/
 ```
 
-The first browser visit opens the local admin setup.
-
-## Update
-
-```bash
-sudo /opt/netfreak2k/scripts/update-server.sh
-```
+The Netfreak2k dashboard also provides Home Assistant start, shutdown, restart and open controls.
 
 ## Uninstall
 
@@ -51,12 +51,4 @@ sudo /opt/netfreak2k/scripts/update-server.sh
 sudo /opt/netfreak2k/scripts/uninstall-server.sh
 ```
 
-Uninstall removes Netfreak2k program files and Netfreak2k containers/network, but deliberately leaves:
-
-- Docker itself
-- unrelated containers
-- unrelated Docker volumes
-- Netfreak2k persistent data volumes
-- the host operating system
-
-Persistent Netfreak2k data can be removed manually only when explicitly desired.
+For safety, uninstall does not delete the HAOS VM or its virtual disk automatically.
