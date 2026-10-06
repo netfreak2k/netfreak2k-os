@@ -1350,6 +1350,67 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def send_xml(self, xml, status=207, extra_headers=None):
+        body = xml.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/xml; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def sync_auth(self):
+        header = self.headers.get("Authorization", "")
+        if not header.startswith("Basic "):
+            return None
+        try:
+            raw = base64.b64decode(header.split(" ", 1)[1]).decode("utf-8")
+            username, password = raw.split(":", 1)
+        except Exception:
+            return None
+        username = username.strip()
+        if not username or not verify_sync_login(username, password):
+            return None
+        ensure_workspace(username)
+        return username
+
+    def require_sync_auth(self):
+        username = self.sync_auth()
+        if username:
+            return username
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Netfreak2k Sync"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return None
+
+    def read_body(self, max_size=MAX_UPLOAD):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raise ValueError("invalid_length")
+        if length < 0 or length > max_size:
+            raise ValueError("invalid_body")
+        return self.rfile.read(length)
+
+    def dav_file_path(self, username):
+        prefix = "/dav/files/"
+        path = urlparse(self.path).path
+        rel = unquote(path[len(prefix):]) if path.startswith(prefix) else ""
+        return dav_resolve(username, rel)
+
+    def caldav_parts(self):
+        path = unquote(urlparse(self.path).path)
+        prefix = "/dav/calendars/"
+        if not path.startswith(prefix):
+            return None
+        rel = path[len(prefix):].strip("/")
+        return [part for part in rel.split("/") if part]
+
     def set_session_response(self, username):
         ensure_workspace(username)
         token, csrf, _ = new_session(username)
@@ -1367,6 +1428,45 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+
+        if path.startswith("/dav/files/"):
+            username = self.require_sync_auth()
+            if not username:
+                return
+            try:
+                _, target, _ = self.dav_file_path(username)
+                if target is None or not target.is_file():
+                    raise ValueError("not_found")
+                self.send_file(target, download=False)
+            except ValueError:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            return
+
+        if path.startswith("/dav/calendars/"):
+            username = self.require_sync_auth()
+            if not username:
+                return
+            parts = self.caldav_parts() or []
+            if len(parts) == 3 and parts[0] == username and parts[1] == "default" and parts[2].endswith(".ics"):
+                uid = unquote(parts[2][:-4])
+                row = calendar_event_by_uid(username, uid)
+                if row:
+                    ics = row[6] or build_ics_event(row[5] or uid, row[1], row[2], row[3], row[4])
+                    body = ics.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/calendar; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("ETag", f'"{(row[7] or row[2]):x}"')
+                    self.end_headers()
+                    if self.command != "HEAD":
+                        self.wfile.write(body)
+                    return
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
 
         if path == "/healthz":
             self.send_json({"status": "ok"})
@@ -1537,6 +1637,16 @@ class Handler(BaseHTTPRequestHandler):
                 ))
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/sync/credentials":
+            session = self.require_auth()
+            if not session:
+                return
+            payload = sync_credentials_payload(session["username"])
+            payload["webdav_url"] = "/dav/files/"
+            payload["caldav_url"] = f'/dav/calendars/{quote(session["username"])}/default/'
+            self.send_json(payload)
             return
 
         if path == "/calendar":
@@ -1797,6 +1907,32 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self.read_json()
                 self.send_json(version_restore(session["username"], data.get("id")))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/sync/credentials/create":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(create_sync_credential(session["username"], data.get("label", "Sync")), 201)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/sync/credentials/revoke":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(revoke_sync_credential(session["username"], data.get("id")))
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
