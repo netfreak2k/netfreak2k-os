@@ -83,27 +83,26 @@ This is not an optional community add-on. Netfreak2k must provide a supported in
 
 The Home Assistant deployment must not require replacing the host operating system with Home Assistant OS.
 
-## ADR-010 — Netfreak2k becomes a Proxmox-based appliance
+## ADR-010 — Linux Mint host, Netfreak2k background platform
 
 **Status:** Accepted
 
-Netfreak2k is no longer primarily installed as a Docker stack inside an existing Debian/Ubuntu host.
+Netfreak2k is installed on top of an existing Linux Mint host and runs as background services with a browser-based UI.
 
-The primary product becomes a browser-managed appliance built on a Proxmox VE virtualization base.
+Linux Mint remains the host operating system and desktop.
 
-Proxmox provides KVM/QEMU, LXC, storage, networking, backup/snapshot and lifecycle primitives.
+Netfreak2k may install only runtime dependencies required for its own operation, including Docker and KVM/QEMU/libvirt where required.
 
-The Netfreak2k user-facing environment runs as a dedicated management guest and becomes the normal web entry point.
+It must not repartition the system disk, replace the bootloader, remove the desktop environment, or replace Linux Mint.
 
-Home Assistant runs as Home Assistant OS in a dedicated KVM VM.
-
-The existing Linux installation of a user must not be modified by the appliance. Therefore the appliance requires a separate machine, separate boot/storage device, or an already-existing hypervisor.
-
-## ADR-011 — Existing-Linux installer is legacy
+## ADR-011 — Home Assistant OS runs as a managed KVM VM
 
 **Status:** Accepted
 
-The previous `install.sh` path that installed Netfreak2k directly into Debian/Ubuntu is no longer the primary architecture and must not be presented as the recommended installation method.
+Home Assistant OS runs as a dedicated KVM/QEMU VM managed by Netfreak2k through libvirt.
 
-The target installation artifact becomes a dedicated Netfreak2k Appliance image/installer based on Proxmox VE.
+This provides the full Home Assistant stack including Supervisor and Apps/Add-ons without requiring Proxmox.
+
+Netfreak2k is the normal user-facing management layer. libvirt/QEMU are implementation details and are not intended as separate user-facing products.
+
 
