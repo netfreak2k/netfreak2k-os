@@ -70,7 +70,7 @@ Implemented foundation:
 - media metadata/indexing
 - optional share-link passwords
 - version retention policy and automatic pruning
-- WebDAV
+- WebDAV client compatibility expansion
 - SMB/NFS integration
 - external backup targets
 - optional object-storage synchronization
@@ -116,3 +116,12 @@ Move and rename operations update related favorite/version metadata to keep refe
 ## Transfer model
 
 Copy and move operations accept only known N2K Drive areas and paths resolved through the same path-safety layer used by the normal workspace API. The browser cannot submit an arbitrary host filesystem destination.
+
+
+## WebDAV sync
+
+N2K Drive now exposes a first-party WebDAV endpoint at `/dav/files/`.
+
+DAV authentication uses revocable app passwords instead of the normal browser-admin password. The WebDAV implementation reuses the existing workspace path-safety model and does not expose arbitrary host paths.
+
+See `docs/SYNC.md`.
