@@ -101,3 +101,13 @@ Upstream source and license:
 
 The Community Edition is resource-intensive relative to the Netfreak2k core. Netfreak2k therefore treats it as optional rather than a mandatory runtime dependency.
 
+## UseNeXT interoperability
+
+Netfreak2k includes an optional UseNeXT-branded interoperability widget that links to the official UseNeXT member area and official newsreader information.
+
+No UseNeXT credentials are collected or stored by Netfreak2k. The widget does not proxy, scrape or redistribute the UseNeXT service.
+
+The displayed NNTP connection examples (`high.usenext.de`, `flat.usenext.de`, SSL port `563`) are taken from public UseNeXT support documentation and are shown only to help the user configure a compatible newsreader.
+
+UseNeXT is a third-party trademark/service of its respective owner. Netfreak2k Server-OS is not affiliated with or endorsed by UseNeXT.
+
