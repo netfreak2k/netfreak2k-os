@@ -4,6 +4,8 @@ services:
       context: ..
       dockerfile: server/collector/Dockerfile
     container_name: netfreak2k-collector
+    labels:
+      netfreak2k.core: "true"
     restart: unless-stopped
     network_mode: "none"
     read_only: true
@@ -22,6 +24,8 @@ services:
       context: ..
       dockerfile: server/api/Dockerfile
     container_name: netfreak2k-api
+    labels:
+      netfreak2k.core: "true"
     restart: unless-stopped
     environment:
       N2K_VERSION: "0.2.0-dev"
@@ -56,6 +60,8 @@ services:
       context: ..
       dockerfile: server/Dockerfile
     container_name: netfreak2k-web
+    labels:
+      netfreak2k.core: "true"
     restart: unless-stopped
     depends_on:
       netfreak2k-api:
