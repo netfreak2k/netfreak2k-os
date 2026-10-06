@@ -2145,8 +2145,8 @@ class Handler(BaseHTTPRequestHandler):
                             child_rel = f"{rel}/{child.name}"
                             child_href = dav_href(child_rel) + ("/" if child.is_dir() else "")
                             responses.append(dav_prop_response(child_href, child, child.is_dir(), child.name))
-                xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:">' + "".join(responses) + "</d:multistatus>"
-                self.send_xml(xml)
+                xml_body = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:">' + "".join(responses) + "</d:multistatus>"
+                self.send_xml(xml_body)
             except ValueError:
                 self.send_response(404)
                 self.send_header("Content-Length", "0")
@@ -2195,8 +2195,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
-            self.send_xml(xml)
+            xml_body = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
+            self.send_xml(xml_body)
             return
 
         self.send_response(404)
@@ -2231,8 +2231,8 @@ class Handler(BaseHTTPRequestHandler):
                 f'<c:calendar-data>{esc(ics)}</c:calendar-data>'
                 '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
             )
-        xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
-        self.send_xml(xml)
+        xml_body = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
+        self.send_xml(xml_body)
 
     def do_MKCOL(self):
         path = urlparse(self.path).path
