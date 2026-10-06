@@ -162,3 +162,15 @@ Replacing or restoring a file snapshots the displaced version first. Version met
 Rename and move operations update associated metadata so favorites and versions continue to follow the logical file.
 
 This keeps versioning local-first, reversible and within the same `/srv/netfreak2k` security boundary as the normal workspace.
+
+## ADR-017: Overview is a status desktop, not a management duplicate
+
+**Status:** Accepted
+
+The Netfreak2k overview remains intentionally compact.
+
+It may contain status widgets, recent activity, health warnings and navigation shortcuts, but detailed operational controls stay inside the corresponding sidebar module.
+
+This prevents the start screen from becoming a second full management console and keeps risky actions out of the glanceable overview.
+
+See `docs/DASHBOARD.md`.
