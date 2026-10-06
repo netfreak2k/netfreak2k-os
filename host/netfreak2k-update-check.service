@@ -1,0 +1,8 @@
+[Unit]
+Description=Netfreak2k GitHub update check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/netfreak2k/check-updates.sh
