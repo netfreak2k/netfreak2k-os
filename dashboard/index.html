@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1030">
+  <link rel="stylesheet" href="styles.css?v=20261006-1050">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -59,6 +59,7 @@
         <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
         <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
         <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+        <button class="nav-item" data-target="office-panel"><span>▤</span>Office</button>
         <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
       </nav>
@@ -81,23 +82,29 @@
           </div>
           <p class="subtitle">Private Cloud · Server · Home Assistant · Arbeitsplatz</p>
         </div>
-        <div class="topbar-welcome">
-          <span id="top-welcome">Willkommen</span>
-          <strong id="desktop-clock">--:--</strong>
-          <small id="desktop-date">–</small>
-        </div>
-        <div class="command-search-wrap">
-          <div class="command-search">
-            <span>⌕</span>
-            <input id="global-search" type="search" placeholder="Dateien & Termine durchsuchen …" aria-label="Suche">
-            <kbd>⌘ K</kbd>
+
+        <div class="topbar-search-center">
+          <div class="command-search-wrap">
+            <div class="command-search">
+              <span>⌕</span>
+              <input id="global-search" type="search" placeholder="Dateien & Termine durchsuchen …" aria-label="Suche">
+              <kbd>⌘ K</kbd>
+            </div>
+            <div id="global-search-results" class="global-search-results hidden"></div>
           </div>
-          <div id="global-search-results" class="global-search-results hidden"></div>
         </div>
-        <div class="top-actions">
-          <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
-          <div class="online-pill"><span class="dot ok"></span>System läuft</div>
-          <div class="user-pill"><span id="session-user">admin</span><button id="logout">Abmelden</button></div>
+
+        <div class="topbar-right">
+          <div class="top-actions">
+            <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
+            <div class="online-pill"><span class="dot ok"></span>System läuft</div>
+            <div class="user-pill"><span id="session-user">admin</span><button id="logout">Abmelden</button></div>
+          </div>
+          <div class="topbar-welcome">
+            <span id="top-welcome">Willkommen</span>
+            <strong id="desktop-clock">--:--</strong>
+            <small id="desktop-date">–</small>
+          </div>
         </div>
       </header>
 
@@ -553,6 +560,55 @@
             </div>
           </article>
 
+          <article id="office-panel" class="panel office-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K OFFICE</p>
+                <h2>Office</h2>
+                <p>Dokumente, Tabellen und Präsentationen direkt im Browser.</p>
+              </div>
+              <span id="office-state" class="state-pill">Prüfe Editor …</span>
+            </div>
+
+            <div class="office-hero">
+              <div class="office-copy">
+                <small>MODERNES SELF-HOSTED OFFICE</small>
+                <strong>ONLYOFFICE Docs Community</strong>
+                <span>Optionale Office-Engine für N2K Drive. Keine Cloud-Pflicht.</span>
+              </div>
+              <div class="office-actions">
+                <button id="office-open" class="primary">Office öffnen</button>
+                <button id="office-install" class="secondary">Office installieren</button>
+              </div>
+            </div>
+
+            <div class="office-app-grid">
+              <button class="office-app-card" data-office-kind="document">
+                <span class="office-app-icon">D</span>
+                <div><strong>Dokument</strong><small>DOCX · ODT · RTF · TXT</small></div>
+              </button>
+              <button class="office-app-card" data-office-kind="spreadsheet">
+                <span class="office-app-icon">S</span>
+                <div><strong>Tabelle</strong><small>XLSX · ODS · CSV</small></div>
+              </button>
+              <button class="office-app-card" data-office-kind="presentation">
+                <span class="office-app-icon">P</span>
+                <div><strong>Präsentation</strong><small>PPTX · ODP</small></div>
+              </button>
+            </div>
+
+            <div class="office-info-grid">
+              <section><small>STATUS</small><strong id="office-engine-status">Nicht installiert</strong><span id="office-port">Port 8082</span></section>
+              <section><small>SYSTEMBEDARF</small><strong>4 GB RAM empfohlen</strong><span>ca. 40 GB freier Speicher</span></section>
+              <section><small>LIZENZ</small><strong>AGPL-3.0</strong><span>Community Edition</span></section>
+              <section><small>N2K DRIVE</small><strong>Integration vorbereitet</strong><span>Dateien sollen direkt aus Drive geöffnet werden</span></section>
+            </div>
+
+            <div class="office-note">
+              Die Office-Engine ist optional und wird erst auf ausdrücklichen Klick installiert. Dadurch bleibt Netfreak2k auf schwächeren Geräten leichtgewichtig.
+            </div>
+          </article>
+
           <article id="ai-panel" class="panel ai-workspace-panel section-anchor">
             <div class="panel-head">
               <div><p class="eyebrow">N2K AI WORKSPACE</p><h2>KI-Arbeitsplatz</h2><p>Vier parallele Chat-Slots. Heute ChatGPT, später zusätzlich lokale KI.</p></div>
@@ -572,6 +628,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1030"></script>
+  <script src="app.js?v=20261006-1050"></script>
 </body>
 </html>
