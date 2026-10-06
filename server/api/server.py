@@ -1885,6 +1885,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("invalid_profile")
                 if ai_provider not in {"chatgpt", "local", "none"}:
                     raise ValueError("invalid_ai_provider")
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,47}", device_name):
+                    raise ValueError("invalid_device_name")
                 create_admin(username, password)
                 set_preference(username, "device_name", device_name)
                 set_preference(username, "usage_profile", profile)
