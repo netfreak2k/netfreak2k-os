@@ -51,7 +51,7 @@ CPU utilization is calculated from host `/proc/stat` deltas.
 
 Network throughput is calculated from host `/proc/net/dev` deltas. Known Docker/libvirt bridge and virtual Ethernet interfaces are excluded when a physical/non-bridge interface is available to reduce double counting.
 
-The overview endpoint aggregates local state only. It does not enable external telemetry.
+The overview primarily aggregates local state. For the explicitly requested WAN provider display, Netfreak2k performs a cached public-IP metadata lookup against ipwho.is. The result is cached for 15 minutes. Ping is measured as outbound TCP connection latency to public Internet endpoints.
 
 ## Visual language
 
@@ -79,3 +79,16 @@ Network now presents:
 - relative traffic-volume bars
 
 The Energy placeholder module has been removed from the product navigation until there is a concrete, hardware-backed energy feature set to ship.
+
+
+## Compact desktop topbar
+
+The topbar now carries the user greeting, clock/date and update state next to the Netfreak2k Server-OS title. The overview itself uses smaller, more transparent widgets so the selected wallpaper remains visually present behind status information.
+
+Home Assistant controls live only in the VMs module. The overview keeps only a health/status shortcut that opens VMs.
+
+## AI workspace
+
+The AI module is a four-pane workspace. Each pane keeps a small local browser-side context/notebook and can launch a dedicated ChatGPT window.
+
+ChatGPT's web application cannot be reliably embedded in an iframe because the service controls its own anti-framing security headers. The pane architecture is therefore provider-neutral: cloud providers can open in dedicated browser windows today, while a future local inference endpoint can render directly inside the same four pane slots.
