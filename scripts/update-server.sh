@@ -26,7 +26,8 @@ trap "rm -rf '${tmp}' '${backup_env}'" EXIT
 cp "${N2K_DIR}/server/.env" "${backup_env}"
 
 log "Lade Update."
-curl -fL --retry 3 "${archive_url}" -o "${tmp}/netfreak2k.tar.gz"
+curl -fL --connect-timeout 8 --max-time 120 --retry 3 "${archive_url}" -o "${tmp}/netfreak2k.tar.gz"
+archive_fingerprint="$(sha256sum "${tmp}/netfreak2k.tar.gz" | awk '{print $1}')"
 mkdir -p "${tmp}/src"
 tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
 
@@ -61,7 +62,7 @@ cd "${N2K_DIR}/server"
 docker compose up -d --build
 
 mkdir -p "${STATE_DIR}"
-printf '{"repo":"%s","ref":"%s","sha":"","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "$(date +%s)" > "${STATE_DIR}/version.json"
+printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
 
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
