@@ -65,8 +65,74 @@ if [[ -z "${N2K_HTTP_PORT}" ]]; then
   fi
 fi
 
-if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123$'; then
-  die "Port 8123 ist bereits belegt. Home Assistant benötigt diesen Port auf dem Mint-Host."
+if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123
+
+log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
+tmp="$(mktemp -d)"
+# shellcheck disable=SC2064
+trap "rm -rf '${tmp}'" EXIT
+curl -fL --retry 3 "${ARCHIVE_URL}" -o "${tmp}/netfreak2k.tar.gz"
+mkdir -p "${tmp}/src"
+tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
+[[ -f "${tmp}/src/server/docker-compose.yml" ]] || die "Ungültiges Netfreak2k-Archiv."
+
+mkdir -p "${N2K_DIR}"
+find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -a "${tmp}/src/." "${N2K_DIR}/"
+printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
+
+log "Installiere eingeschränkten Netfreak2k VM-Agenten."
+install -d -m 0755 /usr/local/lib/netfreak2k /run/netfreak2k /var/lib/netfreak2k
+install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent.py
+install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
+install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/check-updates.sh
+install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/system/netfreak2k-update-check.timer
+systemctl daemon-reload
+systemctl enable --now netfreak2k-vm-agent.service
+systemctl enable --now netfreak2k-ha-proxy.service
+systemctl enable --now netfreak2k-update-check.timer
+
+log "Installiere Home Assistant OS als KVM-VM."
+bash "${N2K_DIR}/scripts/provision-haos.sh"
+
+log "Starte Netfreak2k Webplattform."
+cd "${N2K_DIR}/server"
+docker compose up -d --build
+
+for _ in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
+
+mkdir -p /var/lib/netfreak2k
+printf '{"repo":"%s","ref":"%s","sha":"","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+"${N2K_DIR}/scripts/check-updates.sh" || true
+
+host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+[[ -n "${host_ip}" ]] || host_ip="<MINT-IP>"
+
+printf '\n============================================================\n'
+printf ' Netfreak2k wurde erfolgreich installiert.\n'
+printf ' Linux Mint wurde nicht ersetzt oder neu partitioniert.\n'
+printf ' Netfreak2k: http://%s' "${host_ip}"
+if [[ "${N2K_HTTP_PORT}" != "80" ]]; then printf ':%s' "${N2K_HTTP_PORT}"; fi
+printf '/\n'
+printf ' Home Assistant OS: http://%s:8123/\n' "${host_ip}"
+printf '============================================================\n'
+printf '\nBeim ersten Netfreak2k-Aufruf legst du deinen lokalen Admin an.\n'
+printf 'HAOS kann beim ersten Start einige Minuten benötigen.\n'
+; then
+  if systemctl is-active --quiet netfreak2k-ha-proxy.service 2>/dev/null; then
+    log "Port 8123 wird bereits vom Netfreak2k Home-Assistant-Proxy verwendet; wird weiterverwendet."
+  else
+    listener="$(ss -H -ltnp 'sport = :8123' 2>/dev/null | head -n1 || true)"
+    die "Port 8123 ist durch einen anderen Dienst belegt. Bitte erst prüfen: ${listener:-unbekannter Prozess}"
+  fi
 fi
 
 log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
