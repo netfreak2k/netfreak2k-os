@@ -290,9 +290,7 @@ def parse_cpu_percent():
 def parse_network_rate():
     global _net_sample
     raw = read_text(HOST_PROC / "net/dev")
-    rx = 0
-    tx = 0
-    interfaces = []
+    samples = []
     for line in raw.splitlines()[2:]:
         if ":" not in line:
             continue
@@ -308,9 +306,16 @@ def parse_network_rate():
             current_tx = int(parts[8])
         except ValueError:
             continue
-        rx += current_rx
-        tx += current_tx
-        interfaces.append(name)
+        samples.append((name, current_rx, current_tx))
+
+    physical = [
+        sample for sample in samples
+        if not sample[0].startswith(("docker", "br-", "veth", "virbr", "tap", "vnet"))
+    ]
+    selected = physical or samples
+    rx = sum(sample[1] for sample in selected)
+    tx = sum(sample[2] for sample in selected)
+    interfaces = [sample[0] for sample in selected]
     now = time.monotonic()
     with _telemetry_lock:
         previous = _net_sample
