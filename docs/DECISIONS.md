@@ -6,7 +6,7 @@ This file records decisions that should not be casually changed without updating
 
 **Status:** Accepted
 
-Netfreak2k OS uses Debian Stable as the initial upstream base.
+Netfreak2k Server-OS uses Debian Stable as the initial upstream base.
 
 Reasons:
 
@@ -62,7 +62,7 @@ The existing host OS must remain intact. Netfreak2k must not automatically repar
 
 The initial deployment model is a self-contained Docker Compose stack accessed through the host IP address.
 
-Dedicated bootable Netfreak2k OS images, desktop environments and installer work remain valid future targets but are no longer the first delivery milestone.
+Dedicated bootable Netfreak2k Server-OS images, desktop environments and installer work remain valid future targets but are no longer the first delivery milestone.
 
 ## ADR-008 — Minimal and reversible host integration
 
@@ -77,7 +77,7 @@ Every future host-management capability must be explicit, permission-scoped and 
 
 **Status:** Accepted
 
-Home Assistant Core, deployed in its official container form, is a mandatory first-class application for Netfreak2k Server.
+Home Assistant Core, deployed in its official container form, is a mandatory first-class application for Netfreak2k Server-OS.
 
 This is not an optional community add-on. Netfreak2k must provide a supported installation and lifecycle path for Home Assistant, including persistent configuration storage, safe updates, backups and integration with the Netfreak2k energy/automation layers.
 
