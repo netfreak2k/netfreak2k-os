@@ -174,3 +174,16 @@ It may contain status widgets, recent activity, health warnings and navigation s
 This prevents the start screen from becoming a second full management console and keeps risky actions out of the glanceable overview.
 
 See `docs/DASHBOARD.md`.
+
+## ADR-018: DAV sync uses revocable app passwords and first-party endpoints
+
+**Status:** Accepted
+
+WebDAV and CalDAV are exposed by the existing Netfreak2k API and NGINX frontend rather than by adding a separate DAV server.
+
+External clients authenticate with individually revocable app passwords. The normal Netfreak2k browser password is not accepted as a DAV credential.
+
+This keeps N2K Drive and N2K Calendar as the authoritative data stores, avoids duplicate account databases and adds no new third-party runtime dependency.
+
+See `docs/SYNC.md`.
+
