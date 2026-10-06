@@ -749,3 +749,20 @@ Custom development should focus on:
 - recovery integration
 
 The system should remain lightweight enough to scale down to constrained hardware while providing richer features on stronger x86-64 and Raspberry Pi systems.
+## 30. Mandatory Home Assistant support
+
+Home Assistant is a required first-class workload in Netfreak2k Server.
+
+Requirements:
+
+- Home Assistant Core must be supported in container form
+- no requirement to replace the host with Home Assistant OS
+- persistent Home Assistant configuration storage
+- safe install/update/restart/uninstall lifecycle
+- backup and restore of Home Assistant configuration
+- LAN discovery compatibility where required by integrations
+- visibility of Home Assistant service state inside Netfreak2k
+- future integration with Netfreak2k automations
+- future integration with the energy/off-grid dashboard
+- ability to keep Home Assistant classified as a critical service during energy-saving or emergency scenarios
+
