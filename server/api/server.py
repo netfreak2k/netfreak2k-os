@@ -22,6 +22,7 @@ DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
 APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
 VM_AGENT_SOCKET = os.environ.get("N2K_VM_AGENT_SOCKET", "/run/netfreak2k/vm-agent.sock")
+UPDATE_FILE = Path(os.environ.get("N2K_UPDATE_FILE", "/host/netfreak2k/update-status.json"))
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -229,6 +230,22 @@ def vm_agent(action):
         return {"available": False, "installed": False, "state": "unavailable", "reachable": False}
 
 
+def update_payload():
+    try:
+        payload = json.loads(UPDATE_FILE.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("invalid_update_status")
+        payload["available"] = True
+        return payload
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return {
+            "available": False,
+            "ok": False,
+            "update_available": False,
+            "note": "update_status_unavailable",
+        }
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -354,6 +371,12 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.send_json(vm_agent("status"))
+            return
+
+        if self.path == "/updates":
+            if not self.require_auth():
+                return
+            self.send_json(update_payload())
             return
 
         self.send_json({"error": "not_found"}, 404)
