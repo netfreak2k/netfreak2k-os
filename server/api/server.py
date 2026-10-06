@@ -85,6 +85,32 @@ def db_connect():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS favorites (
+            username TEXT NOT NULL,
+            area TEXT NOT NULL,
+            rel_path TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (username, area, rel_path, name)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS file_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            area TEXT NOT NULL,
+            rel_path TEXT NOT NULL,
+            name TEXT NOT NULL,
+            stored_path TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+        """
+    )
     conn.commit()
     return conn
 
@@ -238,6 +264,7 @@ def ensure_workspace(username):
     for folder in WORKSPACE_AREAS.values():
         (base / folder).mkdir(exist_ok=True)
     (WORKSPACE_ROOT / "shared").mkdir(parents=True, exist_ok=True)
+    (base / ".versions").mkdir(exist_ok=True)
     return base
 
 
@@ -449,6 +476,192 @@ def share_resolve(token):
     if base not in target.parents or not target.is_file():
         raise ValueError("share_not_found")
     return target, expires_at
+
+
+def favorite_toggle(username, area, rel, name):
+    _, parent = workspace_target(username, area, rel)
+    target = (parent / name).resolve()
+    base = workspace_base(username, area).resolve()
+    if base not in target.parents or not target.exists():
+        raise ValueError("not_found")
+    rel = str(safe_relative(rel))
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM favorites WHERE username=? AND area=? AND rel_path=? AND name=?",
+            (username, area, rel, name),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM favorites WHERE username=? AND area=? AND rel_path=? AND name=?",
+                (username, area, rel, name),
+            )
+            conn.commit()
+            return {"favorite": False}
+        conn.execute(
+            "INSERT INTO favorites (username,area,rel_path,name,created_at) VALUES (?,?,?,?,?)",
+            (username, area, rel, name, int(time.time())),
+        )
+        conn.commit()
+    return {"favorite": True}
+
+
+def favorites_payload(username):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT area,rel_path,name,created_at FROM favorites WHERE username=? ORDER BY created_at DESC",
+            (username,),
+        ).fetchall()
+    items = []
+    stale = []
+    for area, rel, name, created_at in rows:
+        try:
+            _, parent = workspace_target(username, area, rel)
+            target = (parent / name).resolve()
+            if not target.exists():
+                stale.append((area, rel, name))
+                continue
+            items.append({
+                "area": area,
+                "path": rel,
+                "name": name,
+                "type": "folder" if target.is_dir() else "file",
+                "created_at": created_at,
+            })
+        except ValueError:
+            stale.append((area, rel, name))
+    if stale:
+        with db_connect() as conn:
+            for row in stale:
+                conn.execute(
+                    "DELETE FROM favorites WHERE username=? AND area=? AND rel_path=? AND name=?",
+                    (username, *row),
+                )
+            conn.commit()
+    return {"favorites": items}
+
+
+def shares_payload(username):
+    now = int(time.time())
+    with db_connect() as conn:
+        conn.execute("DELETE FROM share_links WHERE expires_at<=?", (now,))
+        rows = conn.execute(
+            "SELECT token,area,rel_path,name,expires_at,created_at FROM share_links WHERE username=? ORDER BY created_at DESC",
+            (username,),
+        ).fetchall()
+        conn.commit()
+    return {
+        "shares": [
+            {
+                "token": row[0],
+                "area": row[1],
+                "path": row[2],
+                "name": row[3],
+                "expires_at": row[4],
+                "created_at": row[5],
+            }
+            for row in rows
+        ]
+    }
+
+
+def share_revoke(username, token):
+    with db_connect() as conn:
+        cur = conn.execute("DELETE FROM share_links WHERE token=? AND username=?", (token, username))
+        conn.commit()
+    if cur.rowcount != 1:
+        raise ValueError("share_not_found")
+    return {"revoked": True}
+
+
+def version_snapshot(username, area, rel, name, source):
+    if not source.is_file():
+        return None
+    version_root = ensure_workspace(username) / ".versions"
+    bucket = version_root / secrets.token_hex(12)
+    bucket.mkdir(parents=True, exist_ok=False)
+    stored = bucket / name
+    shutil.copy2(source, stored)
+    with db_connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO file_versions (username,area,rel_path,name,stored_path,size_bytes,created_at) VALUES (?,?,?,?,?,?,?)",
+            (
+                username,
+                area,
+                str(safe_relative(rel)),
+                name,
+                str(stored.relative_to(ensure_workspace(username))),
+                stored.stat().st_size,
+                int(time.time()),
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def versions_payload(username, area, rel, name):
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,size_bytes,created_at FROM file_versions WHERE username=? AND area=? AND rel_path=? AND name=? ORDER BY created_at DESC LIMIT 30",
+            (username, area, str(safe_relative(rel)), name),
+        ).fetchall()
+    return {"versions": [{"id": r[0], "size_bytes": r[1], "created_at": r[2]} for r in rows]}
+
+
+def version_restore(username, version_id):
+    try:
+        version_id = int(version_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid_version")
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT area,rel_path,name,stored_path FROM file_versions WHERE id=? AND username=?",
+            (version_id, username),
+        ).fetchone()
+    if not row:
+        raise ValueError("version_not_found")
+    area, rel, name, stored_path = row
+    stored = (ensure_workspace(username) / stored_path).resolve()
+    user_root = ensure_workspace(username).resolve()
+    if user_root not in stored.parents or not stored.is_file():
+        raise ValueError("version_not_found")
+    _, parent = workspace_target(username, area, rel)
+    target = parent / name
+    if target.exists() and target.is_file():
+        version_snapshot(username, area, rel, name, target)
+    shutil.copy2(stored, target)
+    return {"restored": True, "name": name}
+
+
+def workspace_transfer(username, mode, source_area, source_rel, name, target_area, target_rel):
+    if mode not in {"copy", "move"}:
+        raise ValueError("invalid_mode")
+    if not name or "/" in name or "\\" in name:
+        raise ValueError("invalid_name")
+    _, source_parent = workspace_target(username, source_area, source_rel)
+    source = (source_parent / name).resolve()
+    source_base = workspace_base(username, source_area).resolve()
+    if source_base not in source.parents or not source.exists():
+        raise ValueError("not_found")
+    _, target_parent = workspace_target(username, target_area, target_rel)
+    if not target_parent.is_dir():
+        raise ValueError("folder_not_found")
+    target = target_parent / name
+    if target.exists():
+        raise ValueError("already_exists")
+    if mode == "copy":
+        if source.is_dir():
+            shutil.copytree(source, target)
+        else:
+            shutil.copy2(source, target)
+    else:
+        shutil.move(str(source), str(target))
+        with db_connect() as conn:
+            conn.execute(
+                "DELETE FROM favorites WHERE username=? AND area=? AND rel_path=? AND name=?",
+                (username, source_area, str(safe_relative(source_rel)), name),
+            )
+            conn.commit()
+    return {"transferred": True, "mode": mode, "name": name, "area": target_area, "path": str(safe_relative(target_rel))}
 
 
 def calendar_payload(username):
@@ -815,6 +1028,35 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(workspace_search(session["username"], (query.get("q") or [""])[0]))
             return
 
+        if path == "/favorites":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(favorites_payload(session["username"]))
+            return
+
+        if path == "/shares":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(shares_payload(session["username"]))
+            return
+
+        if path == "/workspace/versions":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                self.send_json(versions_payload(
+                    session["username"],
+                    (query.get("area") or ["documents"])[0],
+                    (query.get("path") or [""])[0],
+                    (query.get("name") or [""])[0],
+                ))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
         if path == "/calendar":
             session = self.require_auth()
             if not session:
@@ -878,11 +1120,14 @@ class Handler(BaseHTTPRequestHandler):
                 if not parent.is_dir():
                     raise ValueError("folder_not_found")
                 target = parent / name
+                replace = (query.get("replace") or ["0"])[0] == "1"
                 if target.exists():
-                    raise ValueError("already_exists")
+                    if not replace or not target.is_file():
+                        raise ValueError("already_exists")
+                    version_snapshot(session["username"], area, rel, name, target)
                 payload = self.read_binary()
                 target.write_bytes(payload)
-                self.send_json({"uploaded": True, "name": name, "size_bytes": len(payload)}, 201)
+                self.send_json({"uploaded": True, "name": name, "size_bytes": len(payload), "replaced": replace}, 201)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
@@ -1005,6 +1250,71 @@ class Handler(BaseHTTPRequestHandler):
                     str(data.get("name", "")).strip(),
                     data.get("hours", 24),
                 ), 201)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/favorites/toggle":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(favorite_toggle(
+                    session["username"],
+                    str(data.get("area", "documents")),
+                    str(data.get("path", "")),
+                    str(data.get("name", "")),
+                ))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/shares/revoke":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(share_revoke(session["username"], str(data.get("token", ""))))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/transfer":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(workspace_transfer(
+                    session["username"],
+                    str(data.get("mode", "")),
+                    str(data.get("source_area", "documents")),
+                    str(data.get("source_path", "")),
+                    str(data.get("name", "")),
+                    str(data.get("target_area", "documents")),
+                    str(data.get("target_path", "")),
+                ))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/workspace/version/restore":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                self.send_json(version_restore(session["username"], data.get("id")))
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
