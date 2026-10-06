@@ -78,10 +78,13 @@
           <h1>Netfreak2k Server-OS</h1>
           <p class="subtitle">Private Cloud · Server · Home Assistant · Arbeitsplatz</p>
         </div>
-        <div class="command-search">
-          <span>⌕</span>
-          <input id="global-search" type="search" placeholder="Netfreak2k durchsuchen …" aria-label="Suche">
-          <kbd>⌘ K</kbd>
+        <div class="command-search-wrap">
+          <div class="command-search">
+            <span>⌕</span>
+            <input id="global-search" type="search" placeholder="Dateien & Termine durchsuchen …" aria-label="Suche">
+            <kbd>⌘ K</kbd>
+          </div>
+          <div id="global-search-results" class="global-search-results hidden"></div>
         </div>
         <div class="top-actions">
           <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
