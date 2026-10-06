@@ -1,0 +1,15 @@
+services:
+  netfreak2k-web:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    container_name: netfreak2k-web
+    restart: unless-stopped
+    ports:
+      - "${N2K_HTTP_PORT:-80}:80"
+    networks:
+      - netfreak2k
+
+networks:
+  netfreak2k:
+    name: netfreak2k
