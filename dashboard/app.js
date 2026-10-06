@@ -281,12 +281,97 @@ function drawNetworkChart() {
   draw(networkHistoryUp, 0.45);
 }
 
+function drawNetworkDetailChart() {
+  const canvas = document.getElementById("network-detail-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const all = [...networkHistoryDown, ...networkHistoryUp];
+  const max = Math.max(1, ...all);
+  const plotTop = 24;
+  const plotBottom = height - 30;
+  const plotHeight = plotBottom - plotTop;
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,.055)";
+  for (let i = 0; i <= 4; i += 1) {
+    const y = plotTop + (plotHeight * i / 4);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  const drawArea = (history, stroke, fill) => {
+    if (history.length < 2) return;
+    const points = history.map((value, index) => ({
+      x: (index / Math.max(history.length - 1, 1)) * width,
+      y: plotBottom - ((value / max) * plotHeight)
+    }));
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, plotBottom);
+    points.forEach(point => ctx.lineTo(point.x, point.y));
+    ctx.lineTo(points[points.length - 1].x, plotBottom);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, plotTop, 0, plotBottom);
+    gradient.addColorStop(0, fill);
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    ctx.beginPath();
+    points.forEach((point, index) => index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y));
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  };
+
+  drawArea(networkHistoryDown, "rgba(235,201,112,.95)", "rgba(235,201,112,.20)");
+  drawArea(networkHistoryUp, "rgba(112,174,235,.9)", "rgba(112,174,235,.13)");
+
+  const maxLabel = document.getElementById("network-detail-max");
+  if (maxLabel) maxLabel.textContent = `${formatRate(max)} Spitze`;
+}
+
+function updateNetworkDetail(network) {
+  const down = Number(network.down_bps) || 0;
+  const up = Number(network.up_bps) || 0;
+  const rx = Number(network.rx_bytes) || 0;
+  const tx = Number(network.tx_bytes) || 0;
+  const totalTraffic = Math.max(rx + tx, 1);
+
+  const setText = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  };
+  setText("network-detail-down", formatRate(down));
+  setText("network-detail-up", formatRate(up));
+  setText("network-detail-rx", `Empfangen: ${formatBytes(rx)}`);
+  setText("network-detail-tx", `Gesendet: ${formatBytes(tx)}`);
+  setText("network-volume-rx", formatBytes(rx));
+  setText("network-volume-tx", formatBytes(tx));
+  setText(
+    "network-detail-interfaces",
+    Array.isArray(network.interfaces) && network.interfaces.length ? network.interfaces.join(" · ") : "–"
+  );
+
+  const rxFill = document.getElementById("network-volume-rx-fill");
+  const txFill = document.getElementById("network-volume-tx-fill");
+  if (rxFill) rxFill.style.width = `${(rx / totalTraffic) * 100}%`;
+  if (txFill) txFill.style.width = `${(tx / totalTraffic) * 100}%`;
+  drawNetworkDetailChart();
+}
+
 function pushNetworkHistory(down, up) {
   networkHistoryDown.push(Number(down) || 0);
   networkHistoryUp.push(Number(up) || 0);
   while (networkHistoryDown.length > 36) networkHistoryDown.shift();
   while (networkHistoryUp.length > 36) networkHistoryUp.shift();
   drawNetworkChart();
+  drawNetworkDetailChart();
 }
 
 function renderOverviewList(containerId, items, renderer, emptyText) {
@@ -394,6 +479,7 @@ async function loadOverview() {
         ? network.interfaces.join(" · ")
         : "Netzwerk";
     pushNetworkHistory(network.down_bps, network.up_bps);
+    updateNetworkDetail(network);
 
     renderOverviewList("overview-calendar", data.upcoming || [], eventItemNode, "Keine kommenden Termine.");
     renderOverviewList("overview-recent", data.recent || [], recentItemNode, "Noch keine Dateien.");
@@ -634,16 +720,50 @@ async function loadStorage() {
   try {
     const data = await request("/api/storage", {headers: {}});
     const host = data.host || {};
-    main.textContent = host.used_percent == null
-      ? "Host-Speicher"
-      : `${host.used_percent}% belegt`;
-    detail.textContent = host.total_bytes
-      ? `${formatBytes(host.used_bytes)} von ${formatBytes(host.total_bytes)} · ${formatBytes(host.free_bytes)} frei`
+    const used = Number(host.used_bytes) || 0;
+    const free = Number(host.free_bytes) || 0;
+    const total = Number(host.total_bytes) || 0;
+    const percent = Number.isFinite(host.used_percent) ? Math.max(0, Math.min(100, host.used_percent)) : 0;
+    const haosBytes = Number(data.haos_disk_bytes) || 0;
+    const haosShare = total > 0 ? Math.min(100, (haosBytes / total) * 100) : 0;
+
+    main.textContent = total ? `${Math.round(percent)}% belegt` : "Host-Speicher";
+    detail.textContent = total
+      ? `${formatBytes(used)} von ${formatBytes(total)} · ${formatBytes(free)} frei`
       : "Speicherdaten nicht verfügbar";
-    meter.style.width = host.used_percent == null ? "0%" : `${Math.min(100, host.used_percent)}%`;
-    haos.textContent = data.haos_disk_bytes
-      ? `${formatBytes(data.haos_disk_bytes)} HAOS-Disk`
-      : "HAOS-Disk nicht gefunden";
+    meter.style.width = `${percent}%`;
+    haos.textContent = haosBytes ? `${formatBytes(haosBytes)} HAOS-Disk` : "HAOS-Disk nicht gefunden";
+
+    const ring = document.getElementById("storage-detail-ring");
+    if (ring) ring.style.setProperty("--storage-ring", `${percent * 3.6}deg`);
+    const detailPercent = document.getElementById("storage-detail-percent");
+    if (detailPercent) detailPercent.textContent = total ? `${Math.round(percent)}%` : "–";
+    const usedValue = document.getElementById("storage-used-value");
+    const freeValue = document.getElementById("storage-free-value");
+    const totalValue = document.getElementById("storage-total-value");
+    if (usedValue) usedValue.textContent = total ? formatBytes(used) : "–";
+    if (freeValue) freeValue.textContent = total ? formatBytes(free) : "–";
+    if (totalValue) totalValue.textContent = total ? formatBytes(total) : "–";
+
+    const haosFill = document.getElementById("storage-haos-fill");
+    if (haosFill) haosFill.style.width = `${haosShare}%`;
+    const haosShareText = document.getElementById("storage-haos-share");
+    if (haosShareText) haosShareText.textContent = haosBytes && total
+      ? `${haosShare.toFixed(1)}% der Host-Gesamtkapazität`
+      : "Virtuelle Disk nicht verfügbar";
+
+    const freeFill = document.getElementById("storage-free-visual-fill");
+    if (freeFill) freeFill.style.width = `${Math.max(0, 100 - percent)}%`;
+    const freeMain = document.getElementById("storage-free-main");
+    if (freeMain) freeMain.textContent = total ? `${formatBytes(free)} frei` : "–";
+    const health = document.getElementById("storage-health-text");
+    if (health) {
+      health.textContent = percent >= 90 ? "Kritisch wenig freier Speicher" :
+        percent >= 80 ? "Speicher wird knapp" :
+        percent >= 65 ? "Kapazität im Blick behalten" :
+        "Ausreichend freie Kapazität";
+      health.dataset.level = percent >= 90 ? "critical" : percent >= 80 ? "warning" : "ok";
+    }
   } catch (error) {
     console.error(error);
     main.textContent = "Speicherstatus nicht erreichbar";
@@ -1819,7 +1939,6 @@ const viewGroups = {
   "backups-panel": ["backups-panel"],
   "network-panel": ["network-panel"],
   "ai-panel": ["ai-panel"],
-  "energy-panel": ["energy-panel"],
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
@@ -1884,7 +2003,7 @@ setInterval(loadApps, 30000);
 setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
 setInterval(loadCatalog, 60000);
-setInterval(loadStorage, 30000);
+setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadWorkspace, 30000);
