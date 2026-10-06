@@ -43,6 +43,9 @@ USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
 
 _sessions = {}
 _sessions_lock = threading.Lock()
+_telemetry_lock = threading.Lock()
+_cpu_sample = None
+_net_sample = None
 
 
 def db_connect():
@@ -256,6 +259,76 @@ def parse_load():
         return {"1m": float(parts[0]), "5m": float(parts[1]), "15m": float(parts[2])}
     except ValueError:
         return {"1m": None, "5m": None, "15m": None}
+
+
+def parse_cpu_percent():
+    global _cpu_sample
+    raw = read_text(HOST_PROC / "stat")
+    first = raw.splitlines()[0].split() if raw else []
+    if len(first) < 5 or first[0] != "cpu":
+        return None
+    try:
+        values = [int(value) for value in first[1:]]
+    except ValueError:
+        return None
+    total = sum(values)
+    idle = values[3] + (values[4] if len(values) > 4 else 0)
+    now = time.monotonic()
+    with _telemetry_lock:
+        previous = _cpu_sample
+        _cpu_sample = (total, idle, now)
+    if not previous:
+        return None
+    total_delta = total - previous[0]
+    idle_delta = idle - previous[1]
+    if total_delta <= 0:
+        return None
+    busy = max(total_delta - idle_delta, 0)
+    return round((busy / total_delta) * 100, 1)
+
+
+def parse_network_rate():
+    global _net_sample
+    raw = read_text(HOST_PROC / "net/dev")
+    rx = 0
+    tx = 0
+    interfaces = []
+    for line in raw.splitlines()[2:]:
+        if ":" not in line:
+            continue
+        name, values = line.split(":", 1)
+        name = name.strip()
+        if name == "lo":
+            continue
+        parts = values.split()
+        if len(parts) < 9:
+            continue
+        try:
+            current_rx = int(parts[0])
+            current_tx = int(parts[8])
+        except ValueError:
+            continue
+        rx += current_rx
+        tx += current_tx
+        interfaces.append(name)
+    now = time.monotonic()
+    with _telemetry_lock:
+        previous = _net_sample
+        _net_sample = (rx, tx, now)
+    down_bps = 0
+    up_bps = 0
+    if previous:
+        elapsed = now - previous[2]
+        if elapsed > 0:
+            down_bps = max(0, int((rx - previous[0]) / elapsed))
+            up_bps = max(0, int((tx - previous[1]) / elapsed))
+    return {
+        "down_bps": down_bps,
+        "up_bps": up_bps,
+        "rx_bytes": rx,
+        "tx_bytes": tx,
+        "interfaces": interfaces,
+    }
 
 
 def ensure_workspace(username):
@@ -801,6 +874,120 @@ def update_payload():
         }
 
 
+def recent_workspace_items(username, limit=6):
+    items = []
+    roots = [(area, workspace_base(username, area)) for area in WORKSPACE_AREAS if area != "trash"]
+    roots.append(("shared", workspace_base(username, "shared")))
+    for area, root in roots:
+        if not root.exists():
+            continue
+        for item in root.rglob("*"):
+            if item.name.startswith(".") or any(part.startswith(".") for part in item.relative_to(root).parts):
+                continue
+            if not item.is_file():
+                continue
+            try:
+                stat = item.stat()
+                rel = item.relative_to(root)
+            except (OSError, ValueError):
+                continue
+            items.append({
+                "area": area,
+                "path": str(rel.parent) if str(rel.parent) != "." else "",
+                "name": item.name,
+                "size_bytes": stat.st_size,
+                "modified_at": int(stat.st_mtime),
+            })
+    items.sort(key=lambda item: item["modified_at"], reverse=True)
+    return items[:limit]
+
+
+def upcoming_events_payload(username, limit=4):
+    now = int(time.time())
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT id,title,start_at,end_at FROM calendar_events WHERE username=? AND start_at>=? ORDER BY start_at ASC LIMIT ?",
+            (username, now, limit),
+        ).fetchall()
+    return [
+        {"id": row[0], "title": row[1], "start_at": row[2], "end_at": row[3]}
+        for row in rows
+    ]
+
+
+def overview_payload(username):
+    memory = parse_meminfo()
+    network = parse_network_rate()
+    apps = apps_payload()
+    containers = apps.get("containers", []) if isinstance(apps, dict) else []
+    running_apps = sum(1 for app in containers if app.get("state") == "running")
+    stopped_apps = max(len(containers) - running_apps, 0)
+
+    ha = vm_agent("status")
+    storage = vm_agent("storage_status")
+    backups = vm_agent("backup_list")
+    updates = update_payload()
+    favorites = favorites_payload(username)
+    shares = shares_payload(username)
+
+    backup_items = backups.get("backups", []) if backups.get("available") else []
+    latest_backup = backup_items[0] if backup_items else None
+    host_storage = storage.get("host", {}) if storage.get("available") else {}
+
+    warnings = []
+    used_percent = host_storage.get("used_percent")
+    if isinstance(used_percent, (int, float)) and used_percent >= 80:
+        warnings.append({
+            "kind": "storage",
+            "level": "warning" if used_percent < 90 else "critical",
+            "title": "Speicher wird knapp",
+            "detail": f"{used_percent}% des Host-Speichers sind belegt.",
+            "target": "storage-panel",
+        })
+    if ha.get("available") and (ha.get("state") != "running" or not ha.get("reachable")):
+        warnings.append({
+            "kind": "homeassistant",
+            "level": "warning",
+            "title": "Home Assistant prüfen",
+            "detail": "HAOS ist nicht vollständig erreichbar.",
+            "target": "home-assistant-panel",
+        })
+    if updates.get("available") and updates.get("update_available"):
+        warnings.append({
+            "kind": "update",
+            "level": "info",
+            "title": "Update verfügbar",
+            "detail": "Ein neuer Netfreak2k-Stand ist verfügbar.",
+            "target": "updates-panel",
+        })
+
+    healthy = not any(item["level"] in {"warning", "critical"} for item in warnings)
+    return {
+        "cpu_percent": parse_cpu_percent(),
+        "memory": memory,
+        "network": network,
+        "storage": host_storage,
+        "uptime_seconds": parse_uptime(),
+        "recent": recent_workspace_items(username, 6),
+        "upcoming": upcoming_events_payload(username, 4),
+        "favorites_count": len(favorites.get("favorites", [])),
+        "shares_count": len(shares.get("shares", [])),
+        "apps": {"running": running_apps, "stopped": stopped_apps, "total": len(containers)},
+        "homeassistant": {
+            "state": ha.get("state"),
+            "reachable": bool(ha.get("reachable")),
+            "available": bool(ha.get("available")),
+        },
+        "backup": latest_backup,
+        "update": {
+            "available": bool(updates.get("available")),
+            "update_available": bool(updates.get("update_available")),
+            "ok": bool(updates.get("ok")),
+        },
+        "health": {"ok": healthy, "warnings": warnings},
+    }
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -814,6 +1001,8 @@ def status_payload():
             "uptime_seconds": parse_uptime(),
             "memory": parse_meminfo(),
             "load": parse_load(),
+            "cpu_percent": parse_cpu_percent(),
+            "network": parse_network_rate(),
         },
     }
 
@@ -956,6 +1145,13 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.send_json(status_payload())
+            return
+
+        if path == "/overview":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(overview_payload(session["username"]))
             return
 
         if path == "/apps":
