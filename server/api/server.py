@@ -1,13 +1,123 @@
 #!/usr/bin/env python3
+import base64
+import hashlib
+import hmac
 import json
 import os
 import platform
+import re
+import secrets
+import sqlite3
+import threading
+import time
+from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
+DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
+DB_PATH = DATA_DIR / "netfreak2k.db"
+SESSION_TTL = 12 * 60 * 60
+MAX_BODY = 16 * 1024
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
+
+_sessions = {}
+_sessions_lock = threading.Lock()
+
+
+def db_connect():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+        """
+    )
+    conn.commit()
+    return conn
+
+
+def is_configured():
+    with db_connect() as conn:
+        row = conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
+    return row is not None
+
+
+def hash_password(password, salt):
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 310000, dklen=32)
+
+
+def create_admin(username, password):
+    if not USERNAME_RE.fullmatch(username):
+        raise ValueError("invalid_username")
+    if len(password) < 10:
+        raise ValueError("password_too_short")
+
+    salt = secrets.token_bytes(16)
+    digest = hash_password(password, salt)
+
+    with db_connect() as conn:
+        if conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+            raise ValueError("already_configured")
+        conn.execute(
+            "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+            (
+                username,
+                base64.b64encode(digest).decode("ascii"),
+                base64.b64encode(salt).decode("ascii"),
+                int(time.time()),
+            ),
+        )
+        conn.commit()
+
+
+def verify_login(username, password):
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT password_hash,salt FROM users WHERE username=?",
+            (username,),
+        ).fetchone()
+    if not row:
+        return False
+    stored = base64.b64decode(row[0])
+    salt = base64.b64decode(row[1])
+    supplied = hash_password(password, salt)
+    return hmac.compare_digest(stored, supplied)
+
+
+def new_session(username):
+    token = secrets.token_urlsafe(32)
+    csrf = secrets.token_urlsafe(24)
+    expires = int(time.time()) + SESSION_TTL
+    with _sessions_lock:
+        _sessions[token] = {"username": username, "csrf": csrf, "expires": expires}
+    return token, csrf, expires
+
+
+def get_session(token):
+    if not token:
+        return None
+    now = int(time.time())
+    with _sessions_lock:
+        stale = [key for key, value in _sessions.items() if value["expires"] <= now]
+        for key in stale:
+            _sessions.pop(key, None)
+        return _sessions.get(token)
+
+
+def delete_session(token):
+    if not token:
+        return
+    with _sessions_lock:
+        _sessions.pop(token, None)
 
 
 def read_text(path, default=""):
@@ -96,23 +206,154 @@ def status_payload():
 
 
 class Handler(BaseHTTPRequestHandler):
-    def send_json(self, payload, status=200):
+    def send_json(self, payload, status=200, extra_headers=None):
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Length", str(len(body)))
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def read_json(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raise ValueError("invalid_length")
+        if length <= 0 or length > MAX_BODY:
+            raise ValueError("invalid_body")
+        raw = self.rfile.read(length)
+        try:
+            value = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise ValueError("invalid_json")
+        if not isinstance(value, dict):
+            raise ValueError("invalid_json")
+        return value
+
+    def session_token(self):
+        raw = self.headers.get("Cookie", "")
+        jar = cookies.SimpleCookie()
+        try:
+            jar.load(raw)
+        except cookies.CookieError:
+            return None
+        morsel = jar.get("n2k_session")
+        return morsel.value if morsel else None
+
+    def session(self):
+        return get_session(self.session_token())
+
+    def require_auth(self):
+        session = self.session()
+        if not session:
+            self.send_json({"error": "authentication_required"}, 401)
+            return None
+        return session
+
+    def require_csrf(self, session):
+        provided = self.headers.get("X-CSRF-Token", "")
+        if not provided or not hmac.compare_digest(provided, session["csrf"]):
+            self.send_json({"error": "csrf_required"}, 403)
+            return False
+        return True
+
+    def set_session_response(self, username):
+        token, csrf, _ = new_session(username)
+        cookie = (
+            f"n2k_session={token}; Path=/; HttpOnly; SameSite=Strict; "
+            f"Max-Age={SESSION_TTL}"
+        )
+        self.send_json(
+            {"authenticated": True, "username": username, "csrf": csrf},
+            200,
+            {"Set-Cookie": cookie},
+        )
 
     def do_GET(self):
         if self.path == "/healthz":
             self.send_json({"status": "ok"})
             return
+
+        if self.path == "/setup":
+            self.send_json({"configured": is_configured()})
+            return
+
+        if self.path == "/session":
+            session = self.session()
+            if not session:
+                self.send_json({"authenticated": False}, 200)
+                return
+            self.send_json(
+                {
+                    "authenticated": True,
+                    "username": session["username"],
+                    "csrf": session["csrf"],
+                }
+            )
+            return
+
         if self.path == "/status":
+            if not self.require_auth():
+                return
             self.send_json(status_payload())
             return
+
+        self.send_json({"error": "not_found"}, 404)
+
+    def do_POST(self):
+        if self.path == "/setup":
+            if is_configured():
+                self.send_json({"error": "already_configured"}, 409)
+                return
+            try:
+                data = self.read_json()
+                username = str(data.get("username", "")).strip()
+                password = str(data.get("password", ""))
+                create_admin(username, password)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            self.set_session_response(username)
+            return
+
+        if self.path == "/login":
+            if not is_configured():
+                self.send_json({"error": "setup_required"}, 409)
+                return
+            try:
+                data = self.read_json()
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            username = str(data.get("username", "")).strip()
+            password = str(data.get("password", ""))
+            if not verify_login(username, password):
+                time.sleep(0.35)
+                self.send_json({"error": "invalid_credentials"}, 401)
+                return
+            self.set_session_response(username)
+            return
+
+        if self.path == "/logout":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            token = self.session_token()
+            delete_session(token)
+            self.send_json(
+                {"authenticated": False},
+                200,
+                {"Set-Cookie": "n2k_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"},
+            )
+            return
+
         self.send_json({"error": "not_found"}, 404)
 
     def log_message(self, fmt, *args):
@@ -120,5 +361,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    db_connect().close()
     server = ThreadingHTTPServer(("0.0.0.0", 8080), Handler)
     server.serve_forever()
