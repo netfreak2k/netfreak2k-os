@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1105">
+  <link rel="stylesheet" href="styles.css?v=20261006-1115">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -198,6 +198,22 @@
                 <button data-target-view="terminal-panel"><span>&gt;_</span>Terminal</button>
               </div>
             </div>
+
+            <button class="widget usenext-widget" data-target-view="privacy-panel">
+              <div class="widget-head"><div><small>USENEXT</small><h3>Usenet Zugang</h3></div><span>›</span></div>
+              <div class="usenext-widget-body">
+                <span class="usenext-mark">U</span>
+                <div>
+                  <strong>UseNeXT</strong>
+                  <span>Newsserver · SSL · Member Area</span>
+                </div>
+              </div>
+              <div class="widget-detail-lines">
+                <span><b>SSL</b><strong>Port 563</strong></span>
+                <span><b>Highspeed</b><strong>high.usenext.de</strong></span>
+                <span><b>Flat</b><strong>flat.usenext.de</strong></span>
+              </div>
+            </button>
 
             <button class="widget matrix-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="360" height="150" aria-label="Matrix Simulation"></canvas>
@@ -657,13 +673,21 @@
             </div>
 
             <div class="privacy-grid">
-              <section class="privacy-card usenet-card">
+              <section class="privacy-card usenet-card usenext-panel">
                 <div class="privacy-icon">U</div>
-                <div>
-                  <small>USENET</small>
-                  <strong>Provider-Zugang</strong>
-                  <p>Für klassische Usenet-Anbieter wie UseNeXT. Newsreader und Providerdaten bleiben separat konfigurierbar.</p>
-                  <button id="usenet-info" class="secondary compact">Usenet-Bereich</button>
+                <div class="usenext-panel-body">
+                  <small>USENEXT</small>
+                  <strong>UseNeXT Zugang</strong>
+                  <p>Separates N2K-Fenster für Mitgliederbereich und Newsserver-Daten. Deine Zugangsdaten bleiben bei UseNeXT bzw. im gewählten Newsreader.</p>
+                  <div class="usenext-server-grid">
+                    <span><b>Highspeed</b><strong>high.usenext.de</strong></span>
+                    <span><b>Flatrate</b><strong>flat.usenext.de</strong></span>
+                    <span><b>SSL</b><strong>Port 563</strong></span>
+                  </div>
+                  <div class="usenext-actions">
+                    <button id="usenext-login" class="primary compact">UseNeXT öffnen</button>
+                    <button id="usenext-help" class="secondary compact">Newsreader-Infos</button>
+                  </div>
                 </div>
               </section>
 
@@ -709,6 +733,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1105"></script>
+  <script src="app.js?v=20261006-1115"></script>
 </body>
 </html>
