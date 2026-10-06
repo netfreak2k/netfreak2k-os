@@ -72,6 +72,19 @@
       </section>
 
       <section class="grid" id="dashboard">
+        <article class="card glass ha-card">
+          <div class="card-head">
+            <div><h2>Home Assistant OS</h2><p>Vollständiges HAOS mit Supervisor und Apps/Add-ons.</p></div>
+            <span id="ha-state" class="state-pill">lädt</span>
+          </div>
+          <p id="ha-detail" class="apps-summary">Prüfe virtuelle Maschine …</p>
+          <div class="ha-actions">
+            <button id="ha-open">Öffnen</button>
+            <button id="ha-start" class="button-quiet">Starten</button>
+            <button id="ha-restart" class="button-quiet">Neustart</button>
+            <button id="ha-shutdown" class="button-danger">Herunterfahren</button>
+          </div>
+        </article>
         <article class="card glass app-card">
   <div class="card-head"><div><h2>Apps</h2><p>Erkannte Docker-Container auf diesem Host.</p></div><button id="refresh-apps" class="button-quiet">Neu laden</button></div>
   <div id="apps-summary" class="apps-summary">Lade Container …</div>
