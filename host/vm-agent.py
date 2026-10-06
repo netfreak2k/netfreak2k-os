@@ -36,16 +36,6 @@ APP_CATALOG = {
         "volume": "netfreak2k-app-uptime-kuma-data",
         "mount": "/app/data",
     },
-    "file-browser": {
-        "name": "File Browser",
-        "description": "Einfacher Dateimanager im Browser mit eigenem Netfreak2k-Datenbereich.",
-        "image": "filebrowser/filebrowser:v2",
-        "container": "netfreak2k-app-file-browser",
-        "host_port": 8081,
-        "container_port": 80,
-        "volume": "netfreak2k-app-file-browser-data",
-        "mount": "/srv",
-    },
 }
 
 
