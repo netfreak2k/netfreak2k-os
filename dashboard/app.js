@@ -535,6 +535,24 @@ async function loadOverview() {
     document.getElementById("overview-health-copy").textContent =
       healthOk ? "Alle wichtigen Dienste sehen gut aus." : "Ein Bereich benötigt deine Aufmerksamkeit.";
 
+    setText("v1-hw-cpu", Number.isFinite(cpu) ? `${Math.round(cpu)}%` : "–");
+    setText("v1-hw-ram", Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–");
+    setText("v1-hw-uptime", formatUptime(data.uptime_seconds));
+    setText("v1-hw-health", healthOk ? "OK" : "Prüfen");
+
+    const servicesSummary = document.getElementById("v1-services-summary");
+    if (servicesSummary) {
+      servicesSummary.textContent = `${apps.running || 0} aktiv${apps.stopped ? ` · ${apps.stopped} gestoppt` : ""}`;
+    }
+
+    const v1UpdateDot = document.getElementById("v1-update-dot");
+    const v1UpdateCopy = document.getElementById("v1-update-copy");
+    if (v1UpdateDot && v1UpdateCopy) {
+      v1UpdateCopy.textContent = updateAvailable ? "Update verfügbar" : "System aktuell";
+      v1UpdateDot.classList.toggle("ok", !updateAvailable);
+      v1UpdateDot.classList.toggle("info", updateAvailable);
+    }
+
     const warningBox = document.getElementById("overview-warning");
     const warnings = data.health?.warnings || [];
     if (warnings.length) {
