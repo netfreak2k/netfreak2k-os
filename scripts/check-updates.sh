@@ -12,11 +12,11 @@ mkdir -p "${STATE_DIR}"
 
 installed_sha=""
 if [[ -f "${VERSION_FILE}" ]]; then
-  installed_sha="$(sed -n 's/.*"sha":"\([^"]*\)".*/\1/p' "${VERSION_FILE}" | head -n1)"
+  installed_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("sha",""))' "${VERSION_FILE}")"
 fi
 
 remote_json="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' "${API_URL}")"
-remote_sha="$(printf '%s' "${remote_json}" | sed -n 's/.*"sha":"\([0-9a-f]\{40\}\)".*/\1/p' | head -n1)"
+remote_sha="$(printf '%s' "${remote_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
 
 [[ -n "${remote_sha}" ]] || {
   printf '{"ok":false,"error":"remote_sha_unavailable"}\n' > "${STATUS_FILE}"
