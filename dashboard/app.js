@@ -327,6 +327,29 @@ async function loadUpdates() {
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-updates")?.addEventListener("click", loadUpdates);
+document.getElementById("install-update")?.addEventListener("click", async () => {
+  const button = document.getElementById("install-update");
+  if (!confirm("Netfreak2k Server-OS jetzt aus GitHub aktualisieren? Die Weboberfläche wird dabei kurz neu gestartet.")) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Update wird gestartet …";
+  try {
+    await request("/api/updates/install", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    document.getElementById("update-title").textContent = "Update läuft";
+    document.getElementById("update-detail").textContent =
+      "Netfreak2k lädt den aktuellen GitHub-Stand. Die Oberfläche kann kurz nicht erreichbar sein.";
+    setTimeout(() => window.location.reload(), 15000);
+  } catch (error) {
+    console.error(error);
+    button.disabled = false;
+    button.textContent = original;
+    alert("Update konnte nicht gestartet werden.");
+  }
+});
 document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
