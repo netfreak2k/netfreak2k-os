@@ -222,8 +222,12 @@ async function loadApps() {
           <small></small>
         </div>
         <div class="app-meta">
-          <span class="state-pill"></span>
+          <div class="app-state-line">
+            <span class="state-pill"></span>
+            <span class="app-role"></span>
+          </div>
           <small class="app-ports"></small>
+          <div class="app-actions"></div>
         </div>`;
       row.querySelector("strong").textContent = item.name || item.id || "Container";
       row.querySelector("small").textContent = item.image || "unbekanntes Image";
@@ -231,6 +235,24 @@ async function loadApps() {
       pill.textContent = item.state || "unknown";
       pill.classList.toggle("running", item.state === "running");
       row.querySelector(".app-ports").textContent = ports || "keine veröffentlichten Ports";
+      const role = row.querySelector(".app-role");
+      role.textContent = item.core ? "System" : (item.managed ? "verwaltet" : "");
+      const actions = row.querySelector(".app-actions");
+      if (item.managed) {
+        const makeButton = (label, action) => {
+          const button = document.createElement("button");
+          button.className = "mini-action";
+          button.textContent = label;
+          button.addEventListener("click", () => appAction(item.name, action));
+          return button;
+        };
+        if (item.state === "running") {
+          actions.appendChild(makeButton("Stop", "stop"));
+          actions.appendChild(makeButton("↻", "restart"));
+        } else {
+          actions.appendChild(makeButton("Start", "start"));
+        }
+      }
       list.appendChild(row);
     }
     if (!containers.length) {
@@ -245,6 +267,21 @@ async function loadApps() {
     console.error(error);
     summary.textContent = "Containerliste konnte nicht geladen werden.";
     list.innerHTML = "";
+  }
+}
+
+async function appAction(name, action) {
+  if (!confirm(`${name}: ${action} wirklich ausführen?`)) return;
+  try {
+    await request("/api/apps/action", {
+      method: "POST",
+      body: JSON.stringify({name, action}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    setTimeout(loadApps, 800);
+  } catch (error) {
+    console.error(error);
+    alert("App-Aktion konnte nicht ausgeführt werden.");
   }
 }
 
