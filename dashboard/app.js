@@ -1503,7 +1503,10 @@ async function loadUpdates() {
   }
 }
 
-document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
+document.getElementById("refresh-status")?.addEventListener("click", () => {
+  loadStatus();
+  loadOverview();
+});
 
 document.querySelectorAll(".drive-area").forEach(button => {
   button.addEventListener("click", () => {
