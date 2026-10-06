@@ -386,6 +386,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(update_payload())
             return
 
+        if self.path == "/catalog":
+            if not self.require_auth():
+                return
+            result = vm_agent("app_catalog")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
+        if self.path == "/storage":
+            if not self.require_auth():
+                return
+            result = vm_agent("storage_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self):
@@ -442,6 +462,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if self.path == "/catalog/install":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+                return
+            app_id = str(data.get("app_id", ""))
+            result = vm_agent("app_install", {"app_id": app_id})
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result, 201)
             return
 
         if self.path == "/apps/action":
