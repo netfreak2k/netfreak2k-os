@@ -87,11 +87,13 @@ def vm_state():
 
 
 def ha_reachable():
-    try:
-        with socket.create_connection((HA_IP, 8123), timeout=0.8):
-            return True
-    except OSError:
-        return False
+    for port in (80, 8123):
+        try:
+            with socket.create_connection((HA_IP, port), timeout=0.8):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def network_state():
