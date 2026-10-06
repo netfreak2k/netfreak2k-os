@@ -107,7 +107,7 @@ No host-changing control is enabled before authentication is implemented.
 - local-AI energy analysis
 - generator integration with mandatory safety controls
 
-## Phase 7 — Dedicated Netfreak2k OS / Desktop
+## Phase 7 — Dedicated Netfreak2k Server-OS / Desktop
 
 Only after the server platform is mature:
 
