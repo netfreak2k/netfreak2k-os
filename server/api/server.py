@@ -673,6 +673,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
         if path == "/setup":
             if is_configured():
                 self.send_json({"error": "already_configured"}, 409)
