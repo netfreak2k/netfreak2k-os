@@ -197,3 +197,15 @@ The empty Energy placeholder is removed from navigation until Netfreak2k has a r
 
 See `docs/DASHBOARD.md`.
 
+## ADR-020: HAOS controls belong to VMs; AI uses a provider-neutral four-pane workspace
+
+**Status:** Accepted
+
+Home Assistant OS is a managed virtual machine. Its lifecycle controls therefore belong in the VMs module rather than a duplicate first-class Home Assistant module.
+
+The overview may show Home Assistant health but routes management to VMs.
+
+The AI module uses four independent workspace panes. Cloud AI web applications that prevent iframe embedding open in dedicated browser windows, while the pane abstraction remains ready for future local inference endpoints that can render directly inside Netfreak2k.
+
+The topbar carries greeting, time/date and update state so the overview can remain smaller and more wallpaper-forward.
+
