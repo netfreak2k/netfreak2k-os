@@ -53,3 +53,23 @@ Unknown-license assets must not be committed.
 Documentation may describe the UX as "macOS-inspired" for comparison, but the product itself must not present as macOS, Apple software, or an Apple product.
 
 "Golden Gate" is treated only as a user-supplied design reference. The product design name used in this repository is **N2K Golden Glass**.
+
+
+## Wallpaper collection
+
+Netfreak2k Server-OS ships an original ten-image N2K wallpaper collection. The themes intentionally cover different moods instead of imitating a specific operating system:
+
+- Golden Bay
+- Aurora
+- Golden Dunes
+- Misty Forest
+- Cosmic Nebula
+- Glass Waves
+- Server Geometry
+- Golden Coast
+- Cyber City
+- Mountain Lake
+
+The browser UI exposes the collection under **Einstellungen -> Wallpaper**. The selected wallpaper is stored as a per-user Netfreak2k preference.
+
+Wallpaper assets must remain original project artwork. Do not replace them with Apple/macOS, Microsoft/Windows or other proprietary vendor wallpapers, stock images without redistribution rights, trademarked artwork or copied screenshots.
