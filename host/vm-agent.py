@@ -37,6 +37,19 @@ APP_CATALOG = {
         "volume": "netfreak2k-app-uptime-kuma-data",
         "mount": "/app/data",
     },
+    "onlyoffice-docs": {
+        "name": "ONLYOFFICE Docs Community",
+        "description": "Browserbasierte Office-Engine für Dokumente, Tabellen und Präsentationen.",
+        "image": "onlyoffice/documentserver:9.4.0.1",
+        "container": "netfreak2k-app-onlyoffice-docs",
+        "host_port": 8082,
+        "container_port": 80,
+        "volume": "netfreak2k-app-onlyoffice-data",
+        "mount": "/var/lib/onlyoffice",
+        "shm_size": "2g",
+        "requirements": "Empfohlen: 4 GB RAM und 40 GB freier Speicher",
+        "license": "AGPL-3.0",
+    },
 }
 
 
@@ -234,6 +247,8 @@ def catalog_payload():
             "installed": state is not None,
             "state": state or "not_installed",
             "url_path": "/",
+            "requirements": spec.get("requirements"),
+            "license": spec.get("license"),
         })
     return {"apps": apps}
 
@@ -261,7 +276,7 @@ def install_catalog_app(app_id):
 
     run("docker", "pull", spec["image"], check=True, timeout=300)
     run("docker", "volume", "create", spec["volume"], check=True)
-    run(
+    docker_args = [
         "docker", "run", "-d",
         "--name", spec["container"],
         "--restart", "unless-stopped",
@@ -269,10 +284,11 @@ def install_catalog_app(app_id):
         "--label", f"netfreak2k.app={app_id}",
         "-p", f'{spec["host_port"]}:{spec["container_port"]}',
         "-v", f'{spec["volume"]}:{spec["mount"]}',
-        spec["image"],
-        check=True,
-        timeout=120,
-    )
+    ]
+    if spec.get("shm_size"):
+        docker_args.extend(["--shm-size", str(spec["shm_size"])])
+    docker_args.append(spec["image"])
+    run(*docker_args, check=True, timeout=600)
     return {
         "installed": True,
         "name": spec["container"],
