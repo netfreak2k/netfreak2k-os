@@ -1,4 +1,8 @@
 let csrfToken = "";
+let workspaceArea = "documents";
+let workspacePath = "";
+let calendarCursor = new Date();
+let calendarEvents = [];
 
 function show(element, visible = true) {
   element.classList.toggle("hidden", !visible);
@@ -82,6 +86,8 @@ function enterApp(username) {
   loadStorage();
   loadVms();
   loadBackups();
+  loadWorkspace();
+  loadCalendar();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -514,6 +520,288 @@ async function restoreBackup(backupId) {
   }
 }
 
+const workspaceAreaNames = {
+  documents: "Dokumente",
+  media: "Bilder & Videos",
+  audio: "Audio",
+  downloads: "Downloads",
+  personal: "Persönlich",
+  shared: "Shared",
+  trash: "Papierkorb"
+};
+
+function workspaceQuery(extra = {}) {
+  const params = new URLSearchParams({
+    area: workspaceArea,
+    path: workspacePath,
+    ...extra
+  });
+  return params.toString();
+}
+
+async function loadWorkspace() {
+  const list = document.getElementById("workspace-list");
+  const crumbs = document.getElementById("workspace-breadcrumbs");
+  const summary = document.getElementById("workspace-summary");
+  if (!list || !crumbs || !summary) return;
+
+  try {
+    const data = await request(`/api/workspace?${workspaceQuery()}`, {headers: {}});
+    const items = Array.isArray(data.items) ? data.items : [];
+    crumbs.textContent = workspacePath
+      ? `${workspaceAreaNames[workspaceArea]} / ${workspacePath}`
+      : workspaceAreaNames[workspaceArea];
+    summary.textContent = `${items.length} Elemente`;
+    list.innerHTML = "";
+
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "workspace-row";
+      row.innerHTML = `
+        <div class="file-icon"></div>
+        <div class="file-copy"><strong></strong><small></small></div>
+        <div class="file-actions"></div>`;
+      row.querySelector(".file-icon").textContent = item.type === "folder" ? "▤" : "·";
+      row.querySelector("strong").textContent = item.name;
+      row.querySelector("small").textContent = item.type === "folder"
+        ? "Ordner"
+        : `${formatBytes(item.size_bytes)} · ${formatDateTime(item.modified_at)}`;
+
+      if (item.type === "folder") {
+        row.classList.add("is-folder");
+        row.addEventListener("dblclick", () => {
+          workspacePath = workspacePath ? `${workspacePath}/${item.name}` : item.name;
+          loadWorkspace();
+        });
+        const open = document.createElement("button");
+        open.className = "mini-action";
+        open.textContent = "Öffnen";
+        open.addEventListener("click", () => {
+          workspacePath = workspacePath ? `${workspacePath}/${item.name}` : item.name;
+          loadWorkspace();
+        });
+        row.querySelector(".file-actions").appendChild(open);
+      } else {
+        const open = document.createElement("button");
+        open.className = "mini-action";
+        open.textContent = "Öffnen";
+        open.addEventListener("click", () => {
+          window.open(`/api/workspace/file?${workspaceQuery({name: item.name})}`, "_blank", "noopener");
+        });
+        const download = document.createElement("button");
+        download.className = "mini-action";
+        download.textContent = "↓";
+        download.title = "Herunterladen";
+        download.addEventListener("click", () => {
+          window.location.href = `/api/workspace/file?${workspaceQuery({name: item.name, download: "1"})}`;
+        });
+        row.querySelector(".file-actions").append(open, download);
+      }
+
+      const remove = document.createElement("button");
+      remove.className = workspaceArea === "trash" ? "mini-action danger-mini" : "mini-action";
+      remove.textContent = workspaceArea === "trash" ? "Endgültig löschen" : "Papierkorb";
+      remove.addEventListener("click", () => deleteWorkspaceItem(item.name));
+      row.querySelector(".file-actions").appendChild(remove);
+      list.appendChild(row);
+    }
+
+    if (!items.length) {
+      list.innerHTML = '<div class="workspace-empty">Dieser Bereich ist leer. Dateien einfach hier hochladen.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="workspace-empty">Arbeitsplatz konnte nicht geladen werden.</div>';
+  }
+}
+
+async function uploadWorkspaceFiles(files) {
+  for (const file of files) {
+    try {
+      const response = await fetch(
+        `/api/workspace/upload?${workspaceQuery({name: file.name})}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "X-CSRF-Token": csrfToken
+          },
+          body: file
+        }
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      console.error(error);
+      alert(`${file.name} konnte nicht hochgeladen werden.`);
+      break;
+    }
+  }
+  await loadWorkspace();
+}
+
+async function createWorkspaceFolder() {
+  const name = prompt("Name des neuen Ordners:");
+  if (!name) return;
+  try {
+    await request("/api/workspace/mkdir", {
+      method: "POST",
+      body: JSON.stringify({area: workspaceArea, path: workspacePath, name}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+  } catch (error) {
+    console.error(error);
+    alert("Ordner konnte nicht erstellt werden.");
+  }
+}
+
+async function deleteWorkspaceItem(name) {
+  const permanent = workspaceArea === "trash";
+  const text = permanent
+    ? `${name} endgültig löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.`
+    : `${name} in den Papierkorb verschieben?`;
+  if (!confirm(text)) return;
+  try {
+    await request("/api/workspace/delete", {
+      method: "POST",
+      body: JSON.stringify({area: workspaceArea, path: workspacePath, name}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+  } catch (error) {
+    console.error(error);
+    alert("Aktion konnte nicht ausgeführt werden.");
+  }
+}
+
+function monthStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("calendar-grid");
+  const label = document.getElementById("calendar-month");
+  if (!grid || !label) return;
+
+  const first = monthStart(calendarCursor);
+  label.textContent = first.toLocaleDateString("de-DE", {month: "long", year: "numeric"});
+  grid.innerHTML = "";
+
+  const startOffset = (first.getDay() + 6) % 7;
+  const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+
+  for (let i = 0; i < startOffset; i++) {
+    const blank = document.createElement("div");
+    blank.className = "calendar-day empty";
+    grid.appendChild(blank);
+  }
+
+  const now = new Date();
+  for (let day = 1; day <= days; day++) {
+    const cell = document.createElement("div");
+    cell.className = "calendar-day";
+    const date = new Date(first.getFullYear(), first.getMonth(), day);
+    if (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      day === now.getDate()
+    ) cell.classList.add("today");
+
+    const number = document.createElement("strong");
+    number.textContent = day;
+    cell.appendChild(number);
+
+    const dayStart = Math.floor(date.getTime() / 1000);
+    const dayEnd = dayStart + 86400;
+    const events = calendarEvents.filter(event => event.start_at >= dayStart && event.start_at < dayEnd);
+    for (const event of events.slice(0, 3)) {
+      const badge = document.createElement("button");
+      badge.className = "calendar-event";
+      badge.textContent = event.title;
+      badge.title = "Termin löschen";
+      badge.addEventListener("click", () => deleteCalendarEvent(event.id, event.title));
+      cell.appendChild(badge);
+    }
+    grid.appendChild(cell);
+  }
+
+  renderUpcomingEvents();
+}
+
+function renderUpcomingEvents() {
+  const wrap = document.getElementById("upcoming-events");
+  if (!wrap) return;
+  const now = Math.floor(Date.now() / 1000);
+  const upcoming = calendarEvents.filter(e => e.start_at >= now).slice(0, 5);
+  wrap.innerHTML = '<h3>Nächste Termine</h3>';
+  if (!upcoming.length) {
+    wrap.innerHTML += '<div class="app-empty">Keine kommenden Termine.</div>';
+    return;
+  }
+  for (const event of upcoming) {
+    const row = document.createElement("div");
+    row.className = "upcoming-row";
+    row.innerHTML = "<strong></strong><small></small>";
+    row.querySelector("strong").textContent = event.title;
+    row.querySelector("small").textContent = formatDateTime(event.start_at);
+    wrap.appendChild(row);
+  }
+}
+
+async function loadCalendar() {
+  try {
+    const data = await request("/api/calendar", {headers: {}});
+    calendarEvents = Array.isArray(data.events) ? data.events : [];
+    renderCalendar();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function createCalendarEvent() {
+  const title = document.getElementById("event-title").value.trim();
+  const startValue = document.getElementById("event-start").value;
+  const endValue = document.getElementById("event-end").value;
+  const notes = document.getElementById("event-notes").value;
+  if (!title || !startValue) {
+    alert("Titel und Beginn sind erforderlich.");
+    return;
+  }
+  try {
+    await request("/api/calendar/create", {
+      method: "POST",
+      body: JSON.stringify({
+        title,
+        start_at: Math.floor(new Date(startValue).getTime() / 1000),
+        end_at: endValue ? Math.floor(new Date(endValue).getTime() / 1000) : null,
+        notes
+      }),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    document.getElementById("event-title").value = "";
+    document.getElementById("event-notes").value = "";
+    await loadCalendar();
+  } catch (error) {
+    console.error(error);
+    alert("Termin konnte nicht gespeichert werden.");
+  }
+}
+
+async function deleteCalendarEvent(id, title) {
+  if (!confirm(`Termin „${title}“ löschen?`)) return;
+  try {
+    await request("/api/calendar/delete", {
+      method: "POST",
+      body: JSON.stringify({id}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadCalendar();
+  } catch (error) {
+    console.error(error);
+    alert("Termin konnte nicht gelöscht werden.");
+  }
+}
+
 async function loadHomeAssistant() {
   const state = document.getElementById("ha-state");
   const detail = document.getElementById("ha-detail");
@@ -591,6 +879,40 @@ async function loadUpdates() {
 }
 
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
+
+document.querySelectorAll(".drive-area").forEach(button => {
+  button.addEventListener("click", () => {
+    workspaceArea = button.dataset.area;
+    workspacePath = "";
+    document.querySelectorAll(".drive-area").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    loadWorkspace();
+  });
+});
+document.getElementById("workspace-up")?.addEventListener("click", () => {
+  const parts = workspacePath.split("/").filter(Boolean);
+  parts.pop();
+  workspacePath = parts.join("/");
+  loadWorkspace();
+});
+document.getElementById("workspace-upload")?.addEventListener("click", () => {
+  document.getElementById("workspace-upload-input")?.click();
+});
+document.getElementById("workspace-upload-input")?.addEventListener("change", event => {
+  uploadWorkspaceFiles(Array.from(event.target.files || []));
+  event.target.value = "";
+});
+document.getElementById("workspace-new-folder")?.addEventListener("click", createWorkspaceFolder);
+
+document.getElementById("calendar-prev")?.addEventListener("click", () => {
+  calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById("calendar-next")?.addEventListener("click", () => {
+  calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1);
+  renderCalendar();
+});
+document.getElementById("event-create")?.addEventListener("click", createCalendarEvent);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
 document.getElementById("create-backup")?.addEventListener("click", createBackup);
@@ -639,6 +961,20 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     alert("Update konnte nicht gestartet werden.");
   }
 });
+const globalSearch = document.getElementById("global-search");
+globalSearch?.addEventListener("input", () => {
+  const q = globalSearch.value.trim().toLowerCase();
+  document.querySelectorAll(".workspace-row").forEach(row => {
+    row.classList.toggle("search-hidden", q && !row.textContent.toLowerCase().includes(q));
+  });
+});
+document.addEventListener("keydown", event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    globalSearch?.focus();
+  }
+});
+
 document.querySelectorAll(".nav-item[data-target]").forEach(btn => {
   btn.addEventListener("click", () => {
     const target = document.getElementById(btn.dataset.target);
@@ -668,3 +1004,5 @@ setInterval(loadCatalog, 60000);
 setInterval(loadStorage, 30000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
+setInterval(loadWorkspace, 30000);
+setInterval(loadCalendar, 60000);
