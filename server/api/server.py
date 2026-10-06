@@ -19,6 +19,7 @@ HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
 DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
+APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -188,6 +189,21 @@ def parse_load():
         return {"1m": None, "5m": None, "15m": None}
 
 
+def apps_payload():
+    try:
+        payload = json.loads(APPS_FILE.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("invalid_inventory")
+        return payload
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return {
+            "available": False,
+            "updated_at": None,
+            "error": "inventory_unavailable",
+            "containers": [],
+        }
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -301,6 +317,12 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.send_json(status_payload())
+            return
+
+        if self.path == "/apps":
+            if not self.require_auth():
+                return
+            self.send_json(apps_payload())
             return
 
         self.send_json({"error": "not_found"}, 404)
