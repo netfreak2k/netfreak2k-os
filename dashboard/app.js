@@ -103,6 +103,7 @@ function enterApp(username) {
   loadHomeAssistant();
   loadUpdates();
   loadCatalog();
+  loadOfficeStatus();
   loadStorage();
   loadVms();
   loadBackups();
@@ -715,6 +716,7 @@ async function installCatalogApp(appId, name) {
     setTimeout(() => {
       loadCatalog();
       loadApps();
+      loadOfficeStatus();
     }, 1200);
   } catch (error) {
     console.error(error);
@@ -725,6 +727,59 @@ async function installCatalogApp(appId, name) {
     }
   }
 }
+
+async function loadOfficeStatus() {
+  const state = document.getElementById("office-state");
+  const engine = document.getElementById("office-engine-status");
+  const install = document.getElementById("office-install");
+  const open = document.getElementById("office-open");
+  if (!state || !engine || !install || !open) return;
+
+  try {
+    const data = await request("/api/catalog", {headers: {}});
+    const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "onlyoffice-docs");
+    const installed = Boolean(app?.installed);
+    const running = app?.state === "running";
+
+    state.textContent = running ? "● Bereit" : installed ? "Installiert · gestoppt" : "Optional";
+    state.classList.toggle("running", running);
+    engine.textContent = running ? "Editor läuft" : installed ? "Editor gestoppt" : "Nicht installiert";
+    install.classList.toggle("hidden", installed);
+    open.disabled = !running;
+    open.textContent = running ? "Office öffnen" : "Office nicht aktiv";
+  } catch (error) {
+    console.error(error);
+    state.textContent = "Status nicht verfügbar";
+    engine.textContent = "Katalog nicht erreichbar";
+    open.disabled = true;
+  }
+}
+
+function openOffice() {
+  window.open(`${window.location.protocol}//${window.location.hostname}:8082/`, "_blank", "noopener");
+}
+
+document.getElementById("office-open")?.addEventListener("click", openOffice);
+document.getElementById("office-install")?.addEventListener("click", async () => {
+  await installCatalogApp("onlyoffice-docs", "ONLYOFFICE Docs Community");
+  setTimeout(loadOfficeStatus, 1400);
+});
+document.querySelectorAll("[data-office-kind]").forEach(button => {
+  button.addEventListener("click", async () => {
+    try {
+      const data = await request("/api/catalog", {headers: {}});
+      const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "onlyoffice-docs");
+      if (app?.state === "running") {
+        openOffice();
+      } else {
+        switchView("office-panel");
+        alert("Installiere zuerst die optionale Office-Engine.");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  });
+});
 
 async function loadStorage() {
   const main = document.getElementById("storage-host-main");
@@ -2050,6 +2105,7 @@ const viewGroups = {
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
   "network-panel": ["network-panel"],
+  "office-panel": ["office-panel"],
   "ai-panel": ["ai-panel"],
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
@@ -2180,6 +2236,7 @@ setInterval(loadApps, 30000);
 setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
 setInterval(loadCatalog, 60000);
+setInterval(loadOfficeStatus, 30000);
 setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
