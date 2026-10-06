@@ -1026,10 +1026,10 @@ async function loadUpdates() {
     }
     if (data.update_available) {
       title.textContent = "Neue Version verfügbar";
-      const sha = data.remote_sha ? data.remote_sha.slice(0, 12) : "GitHub";
-      detail.textContent = `Neuer Stand ${sha} erkannt. Installation erfolgt bewusst per Update-Befehl.`;
-    } else if (data.note === "github_api_unavailable") {
-      title.textContent = "GitHub-Prüfung momentan nicht möglich";
+      const fingerprint = data.remote_fingerprint ? data.remote_fingerprint.slice(0, 12) : "GitHub";
+      detail.textContent = `Neuer Stand ${fingerprint} erkannt. Installation erfolgt erst nach deiner Bestätigung.`;
+    } else if (data.note === "github_archive_unavailable") {
+      title.textContent = "GitHub momentan nicht erreichbar";
       detail.textContent = "Netfreak2k läuft weiter; die nächste Prüfung erfolgt automatisch.";
     } else {
       title.textContent = "Netfreak2k ist aktuell";
