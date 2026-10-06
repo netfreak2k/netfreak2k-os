@@ -24,13 +24,15 @@ services:
     container_name: netfreak2k-api
     restart: unless-stopped
     environment:
-      N2K_VERSION: "0.1.0-dev"
+      N2K_VERSION: "0.2.0-dev"
       N2K_DATA_DIR: "/data"
       N2K_APPS_FILE: "/inventory/apps.json"
+      N2K_VM_AGENT_SOCKET: "/run/netfreak2k/vm-agent.sock"
     volumes:
       - /proc:/host/proc:ro
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/hostname:/host/etc/hostname:ro
+      - /run/netfreak2k:/run/netfreak2k
       - netfreak2k-data:/data
       - netfreak2k-inventory:/inventory:ro
     healthcheck:
