@@ -71,6 +71,16 @@ jobs:
             http://127.0.0.1:18080/api/status \
             | grep -q '"product":"Netfreak2k Server"'
 
+          for i in {1..20}; do
+            APPS_JSON="$(curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/apps)"
+            if grep -q '"available":true' <<<"$APPS_JSON"; then
+              grep -q '"containers":' <<<"$APPS_JSON"
+              break
+            fi
+            sleep 1
+          done
+          grep -q '"available":true' <<<"$APPS_JSON"
+
           curl -fsS \
             -b /tmp/n2k-cookies.txt \
             -H "X-CSRF-Token: $CSRF" \
