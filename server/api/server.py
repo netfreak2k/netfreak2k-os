@@ -2081,6 +2081,302 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json({"error": "not_found"}, 404)
 
+    def do_OPTIONS(self):
+        path = urlparse(self.path).path
+        if path.startswith("/dav/"):
+            if not self.require_sync_auth():
+                return
+            self.send_response(200)
+            self.send_header("DAV", "1, 2, calendar-access")
+            self.send_header("Allow", "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, PROPFIND, MOVE, COPY, REPORT")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_response(204)
+        self.send_header("Allow", "GET, POST, OPTIONS")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_HEAD(self):
+        path = urlparse(self.path).path
+        if path.startswith("/dav/files/") or path.startswith("/dav/calendars/"):
+            self.do_GET()
+            return
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_PROPFIND(self):
+        path = urlparse(self.path).path
+        username = self.require_sync_auth()
+        if not username:
+            return
+        depth = self.headers.get("Depth", "0")
+
+        if path.startswith("/dav/files/"):
+            try:
+                rel = unquote(path[len("/dav/files/"):]).strip("/")
+                _, target, roots = dav_resolve(username, rel)
+                responses = []
+                if not rel:
+                    responses.append(dav_prop_response("/dav/files/", collection=True, display_name="N2K Drive"))
+                    if depth != "0":
+                        for name, root in roots.items():
+                            responses.append(dav_prop_response(dav_href(name) + "/", root, True, name))
+                else:
+                    if target is None or not target.exists():
+                        raise ValueError("dav_not_found")
+                    is_collection = target.is_dir()
+                    href = dav_href(rel) + ("/" if is_collection else "")
+                    responses.append(dav_prop_response(href, target, is_collection, target.name))
+                    if is_collection and depth != "0":
+                        for child in sorted(target.iterdir(), key=lambda item: item.name.lower()):
+                            if child.name.startswith("."):
+                                continue
+                            child_rel = f"{rel}/{child.name}"
+                            child_href = dav_href(child_rel) + ("/" if child.is_dir() else "")
+                            responses.append(dav_prop_response(child_href, child, child.is_dir(), child.name))
+                xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:">' + "".join(responses) + "</d:multistatus>"
+                self.send_xml(xml)
+            except ValueError:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            return
+
+        if path.startswith("/dav/calendars/"):
+            parts = self.caldav_parts() or []
+            esc = xml.sax.saxutils.escape
+            responses = []
+            if not parts:
+                responses.append(
+                    '<d:response><d:href>/dav/calendars/</d:href><d:propstat><d:prop>'
+                    '<d:displayname>N2K Calendar</d:displayname>'
+                    '<d:resourcetype><d:collection/></d:resourcetype>'
+                    '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
+                )
+            elif parts == [username] or parts == [username, "default"]:
+                href = f"/dav/calendars/{quote(username)}/" + ("default/" if len(parts) == 2 else "")
+                resource = '<d:collection/><c:calendar/>' if len(parts) == 2 else '<d:collection/>'
+                responses.append(
+                    f'<d:response><d:href>{esc(href)}</d:href><d:propstat><d:prop>'
+                    f'<d:displayname>{"Kalender" if len(parts)==2 else esc(username)}</d:displayname>'
+                    f'<d:resourcetype>{resource}</d:resourcetype>'
+                    '<c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>'
+                    '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
+                )
+                if len(parts) == 2 and depth != "0":
+                    with db_connect() as conn:
+                        rows = conn.execute(
+                            "SELECT uid,title,start_at,end_at,notes,raw_ics,updated_at FROM calendar_events WHERE username=? ORDER BY start_at",
+                            (username,),
+                        ).fetchall()
+                    for row in rows:
+                        uid = row[0] or f"event-{row[2]}"
+                        href = f"/dav/calendars/{quote(username)}/default/{quote(uid)}.ics"
+                        responses.append(
+                            f'<d:response><d:href>{esc(href)}</d:href><d:propstat><d:prop>'
+                            '<d:resourcetype/>'
+                            f'<d:getetag>"{(row[6] or row[2]):x}"</d:getetag>'
+                            '<d:getcontenttype>text/calendar; charset=utf-8</d:getcontenttype>'
+                            '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
+                        )
+            else:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
+            self.send_xml(xml)
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_REPORT(self):
+        path = urlparse(self.path).path
+        username = self.require_sync_auth()
+        if not username:
+            return
+        parts = self.caldav_parts() or []
+        if not (path.startswith("/dav/calendars/") and parts == [username, "default"]):
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        with db_connect() as conn:
+            rows = conn.execute(
+                "SELECT uid,title,start_at,end_at,notes,raw_ics,updated_at FROM calendar_events WHERE username=? ORDER BY start_at",
+                (username,),
+            ).fetchall()
+        esc = xml.sax.saxutils.escape
+        responses = []
+        for row in rows:
+            uid = row[0] or f"event-{row[2]}"
+            ics = row[5] or build_ics_event(uid, row[1], row[2], row[3], row[4])
+            href = f"/dav/calendars/{quote(username)}/default/{quote(uid)}.ics"
+            responses.append(
+                f'<d:response><d:href>{esc(href)}</d:href><d:propstat><d:prop>'
+                f'<d:getetag>"{(row[6] or row[2]):x}"</d:getetag>'
+                f'<c:calendar-data>{esc(ics)}</c:calendar-data>'
+                '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
+            )
+        xml = '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">' + "".join(responses) + "</d:multistatus>"
+        self.send_xml(xml)
+
+    def do_MKCOL(self):
+        path = urlparse(self.path).path
+        username = self.require_sync_auth()
+        if not username:
+            return
+        if not path.startswith("/dav/files/"):
+            self.send_response(405)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        try:
+            _, target, _ = self.dav_file_path(username)
+            if target is None or target.exists() or not target.parent.is_dir():
+                raise ValueError("invalid_collection")
+            target.mkdir()
+            self.send_response(201)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        except (ValueError, OSError):
+            self.send_response(409)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    def do_PUT(self):
+        path = urlparse(self.path).path
+        username = self.require_sync_auth()
+        if not username:
+            return
+
+        if path.startswith("/dav/files/"):
+            try:
+                _, target, _ = self.dav_file_path(username)
+                if target is None or not target.parent.is_dir():
+                    raise ValueError("invalid_target")
+                existed = target.exists()
+                if existed and not target.is_file():
+                    raise ValueError("invalid_target")
+                payload = self.read_body(MAX_UPLOAD)
+                target.write_bytes(payload)
+                self.send_response(204 if existed else 201)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            except (ValueError, OSError):
+                self.send_response(409)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            return
+
+        if path.startswith("/dav/calendars/"):
+            parts = self.caldav_parts() or []
+            if len(parts) == 3 and parts[0] == username and parts[1] == "default" and parts[2].endswith(".ics"):
+                uid = unquote(parts[2][:-4])
+                try:
+                    existed = calendar_event_by_uid(username, uid) is not None
+                    ics = self.read_body(MAX_BODY * 8).decode("utf-8")
+                    upsert_caldav_event(username, uid, ics)
+                    self.send_response(204 if existed else 201)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                except (ValueError, UnicodeDecodeError):
+                    self.send_response(400)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_DELETE(self):
+        path = urlparse(self.path).path
+        username = self.require_sync_auth()
+        if not username:
+            return
+
+        if path.startswith("/dav/files/"):
+            try:
+                _, target, _ = self.dav_file_path(username)
+                if target is None or not target.exists():
+                    raise ValueError("not_found")
+                if target.is_dir():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            except ValueError:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            return
+
+        if path.startswith("/dav/calendars/"):
+            parts = self.caldav_parts() or []
+            if len(parts) == 3 and parts[0] == username and parts[1] == "default" and parts[2].endswith(".ics"):
+                uid = unquote(parts[2][:-4])
+                with db_connect() as conn:
+                    cur = conn.execute("DELETE FROM calendar_events WHERE username=? AND uid=?", (username, uid))
+                    conn.commit()
+                self.send_response(204 if cur.rowcount else 404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _dav_transfer(self, move=False):
+        username = self.require_sync_auth()
+        if not username:
+            return
+        source_path = urlparse(self.path).path
+        if not source_path.startswith("/dav/files/"):
+            self.send_response(405)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        destination = self.headers.get("Destination", "")
+        dest_path = urlparse(destination).path
+        if not dest_path.startswith("/dav/files/"):
+            self.send_response(400)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        try:
+            _, source, _ = self.dav_file_path(username)
+            rel = unquote(dest_path[len("/dav/files/"):])
+            _, target, _ = dav_resolve(username, rel)
+            if source is None or target is None or not source.exists() or target.exists() or not target.parent.is_dir():
+                raise ValueError("invalid_transfer")
+            if move:
+                shutil.move(str(source), str(target))
+            elif source.is_dir():
+                shutil.copytree(source, target)
+            else:
+                shutil.copy2(source, target)
+            self.send_response(201)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        except (ValueError, OSError):
+            self.send_response(409)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    def do_MOVE(self):
+        self._dav_transfer(move=True)
+
+    def do_COPY(self):
+        self._dav_transfer(move=False)
+
     def log_message(self, fmt, *args):
         return
 
