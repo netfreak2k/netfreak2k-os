@@ -87,6 +87,8 @@ function enterApp(username) {
   loadVms();
   loadBackups();
   loadWorkspace();
+  loadFavorites();
+  loadShares();
   loadCalendar();
 }
 
@@ -552,6 +554,7 @@ async function loadWorkspace() {
       ? `${workspaceAreaNames[workspaceArea]} / ${workspacePath}`
       : workspaceAreaNames[workspaceArea];
     summary.textContent = `${items.length} Elemente`;
+    list.classList.toggle("gallery-mode", workspaceArea === "media");
     list.innerHTML = "";
 
     for (const item of items) {
@@ -615,10 +618,34 @@ async function loadWorkspace() {
           share.textContent = "Teilen";
           share.addEventListener("click", () => shareWorkspaceItem(item.name));
           row.querySelector(".file-actions").appendChild(share);
+
+          const versions = document.createElement("button");
+          versions.className = "mini-action";
+          versions.textContent = "Versionen";
+          versions.addEventListener("click", () => showFileVersions(item.name));
+          row.querySelector(".file-actions").appendChild(versions);
         }
       }
 
       if (workspaceArea !== "trash") {
+        const favorite = document.createElement("button");
+        favorite.className = "mini-action";
+        favorite.textContent = "★";
+        favorite.title = "Favorit umschalten";
+        favorite.addEventListener("click", () => toggleFavorite(workspaceArea, workspacePath, item.name));
+        row.querySelector(".file-actions").appendChild(favorite);
+
+        const copy = document.createElement("button");
+        copy.className = "mini-action";
+        copy.textContent = "Kopieren";
+        copy.addEventListener("click", () => transferWorkspaceItem("copy", item.name));
+        row.querySelector(".file-actions").appendChild(copy);
+
+        const move = document.createElement("button");
+        move.className = "mini-action";
+        move.textContent = "Verschieben";
+        move.addEventListener("click", () => transferWorkspaceItem("move", item.name));
+        row.querySelector(".file-actions").appendChild(move);
         const rename = document.createElement("button");
         rename.className = "mini-action";
         rename.textContent = "Umbenennen";
@@ -649,25 +676,50 @@ async function loadWorkspace() {
   }
 }
 
+async function uploadWorkspaceFile(file, replace = false) {
+  const response = await fetch(
+    `/api/workspace/upload?${workspaceQuery({name: file.name, replace: replace ? "1" : "0"})}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "X-CSRF-Token": csrfToken
+      },
+      body: file
+    }
+  );
+  let data = {};
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok) {
+    const error = new Error(data.error || `HTTP ${response.status}`);
+    error.code = data.error;
+    throw error;
+  }
+  return data;
+}
+
 async function uploadWorkspaceFiles(files) {
   for (const file of files) {
     try {
-      const response = await fetch(
-        `/api/workspace/upload?${workspaceQuery({name: file.name})}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "X-CSRF-Token": csrfToken
-          },
-          body: file
-        }
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await uploadWorkspaceFile(file, false);
     } catch (error) {
-      console.error(error);
-      alert(`${file.name} konnte nicht hochgeladen werden.`);
-      break;
+      if (error.code === "already_exists") {
+        const replace = confirm(
+          `${file.name} existiert bereits. Ersetzen und die bisherige Datei als Version sichern?`
+        );
+        if (!replace) continue;
+        try {
+          await uploadWorkspaceFile(file, true);
+        } catch (replaceError) {
+          console.error(replaceError);
+          alert(`${file.name} konnte nicht ersetzt werden.`);
+          break;
+        }
+      } else {
+        console.error(error);
+        alert(`${file.name} konnte nicht hochgeladen werden.`);
+        break;
+      }
     }
   }
   await loadWorkspace();
@@ -770,6 +822,7 @@ async function shareWorkspaceItem(name) {
     } catch (_) {
       prompt("Freigabelink:", url);
     }
+    await loadShares();
   } catch (error) {
     console.error(error);
     alert("Freigabelink konnte nicht erstellt werden.");
@@ -835,6 +888,191 @@ async function performGlobalSearch() {
   } catch (error) {
     console.error(error);
     box.classList.add("hidden");
+  }
+}
+
+async function toggleFavorite(area, path, name) {
+  try {
+    await request("/api/favorites/toggle", {
+      method: "POST",
+      body: JSON.stringify({area, path, name}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadFavorites();
+  } catch (error) {
+    console.error(error);
+    alert("Favorit konnte nicht geändert werden.");
+  }
+}
+
+async function loadFavorites() {
+  const list = document.getElementById("favorites-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/favorites", {headers: {}});
+    const items = Array.isArray(data.favorites) ? data.favorites : [];
+    list.innerHTML = "";
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "cloud-row";
+      row.innerHTML = '<div><strong></strong><small></small></div><div class="cloud-actions"></div>';
+      row.querySelector("strong").textContent = item.name;
+      row.querySelector("small").textContent =
+        `${workspaceAreaNames[item.area] || item.area}${item.path ? " / " + item.path : ""}`;
+      const open = document.createElement("button");
+      open.className = "mini-action";
+      open.textContent = "Öffnen";
+      open.addEventListener("click", () => {
+        workspaceArea = item.area;
+        workspacePath = item.path || "";
+        document.querySelectorAll(".drive-area").forEach(button => {
+          button.classList.toggle("active", button.dataset.area === workspaceArea);
+        });
+        document.getElementById("workspace-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+        loadWorkspace();
+      });
+      const remove = document.createElement("button");
+      remove.className = "mini-action";
+      remove.textContent = "★ Entfernen";
+      remove.addEventListener("click", () => toggleFavorite(item.area, item.path || "", item.name));
+      row.querySelector(".cloud-actions").append(open, remove);
+      list.appendChild(row);
+    }
+    if (!items.length) list.innerHTML = '<div class="app-empty">Noch keine Favoriten.</div>';
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">Favoriten konnten nicht geladen werden.</div>';
+  }
+}
+
+async function loadShares() {
+  const list = document.getElementById("shares-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/shares", {headers: {}});
+    const shares = Array.isArray(data.shares) ? data.shares : [];
+    list.innerHTML = "";
+    for (const share of shares) {
+      const row = document.createElement("div");
+      row.className = "cloud-row";
+      row.innerHTML = '<div><strong></strong><small></small></div><div class="cloud-actions"></div>';
+      row.querySelector("strong").textContent = share.name;
+      row.querySelector("small").textContent =
+        `bis ${formatDateTime(share.expires_at)} · ${workspaceAreaNames[share.area] || share.area}`;
+      const copy = document.createElement("button");
+      copy.className = "mini-action";
+      copy.textContent = "Link kopieren";
+      copy.addEventListener("click", async () => {
+        const url = `${window.location.origin}/api/share?token=${encodeURIComponent(share.token)}`;
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch (_) {
+          prompt("Freigabelink:", url);
+        }
+      });
+      const revoke = document.createElement("button");
+      revoke.className = "mini-action danger-mini";
+      revoke.textContent = "Widerrufen";
+      revoke.addEventListener("click", () => revokeShare(share.token));
+      row.querySelector(".cloud-actions").append(copy, revoke);
+      list.appendChild(row);
+    }
+    if (!shares.length) list.innerHTML = '<div class="app-empty">Keine aktiven Freigaben.</div>';
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">Freigaben konnten nicht geladen werden.</div>';
+  }
+}
+
+async function revokeShare(token) {
+  if (!confirm("Diesen Freigabelink sofort ungültig machen?")) return;
+  try {
+    await request("/api/shares/revoke", {
+      method: "POST",
+      body: JSON.stringify({token}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadShares();
+  } catch (error) {
+    console.error(error);
+    alert("Freigabe konnte nicht widerrufen werden.");
+  }
+}
+
+async function transferWorkspaceItem(mode, name) {
+  const area = prompt(
+    "Zielbereich: documents, media, audio, downloads, personal oder shared",
+    workspaceArea === "trash" ? "documents" : workspaceArea
+  );
+  if (!area) return;
+  const allowed = ["documents","media","audio","downloads","personal","shared"];
+  if (!allowed.includes(area)) {
+    alert("Ungültiger Zielbereich.");
+    return;
+  }
+  const path = prompt("Zielordner innerhalb des Bereichs (leer = Hauptordner):", "");
+  if (path === null) return;
+  try {
+    await request("/api/workspace/transfer", {
+      method: "POST",
+      body: JSON.stringify({
+        mode,
+        source_area: workspaceArea,
+        source_path: workspacePath,
+        name,
+        target_area: area,
+        target_path: path
+      }),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+    await loadFavorites();
+  } catch (error) {
+    console.error(error);
+    alert(`${mode === "copy" ? "Kopieren" : "Verschieben"} nicht möglich.`);
+  }
+}
+
+async function showFileVersions(name) {
+  const list = document.getElementById("versions-list");
+  const title = document.getElementById("versions-title");
+  if (!list || !title) return;
+  title.textContent = `Versionen · ${name}`;
+  document.getElementById("drive-management-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+  try {
+    const params = new URLSearchParams({area: workspaceArea, path: workspacePath, name});
+    const data = await request(`/api/workspace/versions?${params.toString()}`, {headers: {}});
+    const versions = Array.isArray(data.versions) ? data.versions : [];
+    list.innerHTML = "";
+    for (const version of versions) {
+      const row = document.createElement("div");
+      row.className = "cloud-row";
+      row.innerHTML = '<div><strong></strong><small></small></div><button class="mini-action">Wiederherstellen</button>';
+      row.querySelector("strong").textContent = formatDateTime(version.created_at);
+      row.querySelector("small").textContent = formatBytes(version.size_bytes);
+      row.querySelector("button").addEventListener("click", () => restoreFileVersion(version.id, name));
+      list.appendChild(row);
+    }
+    if (!versions.length) list.innerHTML = '<div class="app-empty">Noch keine ältere Version vorhanden.</div>';
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">Versionen konnten nicht geladen werden.</div>';
+  }
+}
+
+async function restoreFileVersion(id, name) {
+  if (!confirm(`Eine ältere Version von ${name} wiederherstellen? Die aktuelle Datei wird vorher ebenfalls versioniert.`)) return;
+  try {
+    await request("/api/workspace/version/restore", {
+      method: "POST",
+      body: JSON.stringify({id}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadWorkspace();
+    await showFileVersions(name);
+  } catch (error) {
+    console.error(error);
+    alert("Version konnte nicht wiederhergestellt werden.");
   }
 }
 
@@ -1080,6 +1318,8 @@ document.getElementById("event-create")?.addEventListener("click", createCalenda
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
 document.getElementById("create-backup")?.addEventListener("click", createBackup);
+document.getElementById("refresh-favorites")?.addEventListener("click", loadFavorites);
+document.getElementById("refresh-shares")?.addEventListener("click", loadShares);
 document.getElementById("refresh-updates")?.addEventListener("click", async () => {
   const button = document.getElementById("refresh-updates");
   const original = button.textContent;
@@ -1188,4 +1428,6 @@ setInterval(loadStorage, 30000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadWorkspace, 30000);
+setInterval(loadFavorites, 60000);
+setInterval(loadShares, 60000);
 setInterval(loadCalendar, 60000);
