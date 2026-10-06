@@ -80,6 +80,8 @@ function enterApp(username) {
   loadUpdates();
   loadCatalog();
   loadStorage();
+  loadVms();
+  loadBackups();
 }
 
 document.getElementById("setup-form").addEventListener("submit", async event => {
@@ -154,6 +156,14 @@ function formatUptime(seconds) {
   if (days > 0) return `${days} T ${hours} Std`;
   if (hours > 0) return `${hours} Std ${minutes} Min`;
   return `${minutes} Min`;
+}
+
+function formatDateTime(epochSeconds) {
+  if (!Number.isFinite(epochSeconds)) return "unbekannt";
+  return new Date(epochSeconds * 1000).toLocaleString("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
 }
 
 function setConnection(ok, text) {
@@ -394,6 +404,116 @@ async function loadStorage() {
   }
 }
 
+async function loadVms() {
+  const list = document.getElementById("vm-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/vms", {headers: {}});
+    const vms = Array.isArray(data.vms) ? data.vms : [];
+    list.innerHTML = "";
+    for (const vm of vms) {
+      const row = document.createElement("div");
+      row.className = "vm-row";
+      row.innerHTML = `
+        <div class="app-icon small"></div>
+        <div class="vm-copy"><strong></strong><span></span></div>
+        <div class="vm-badge"></div>`;
+      row.querySelector(".app-icon").textContent = vm.managed ? "HA" : "VM";
+      row.querySelector("strong").textContent = vm.managed ? "Home Assistant OS" : vm.name;
+      row.querySelector(".vm-copy span").textContent = vm.name;
+      const badge = row.querySelector(".vm-badge");
+      badge.className = "state-pill" + (vm.state === "running" ? " running" : "");
+      badge.textContent = vm.state || "unknown";
+      list.appendChild(row);
+    }
+    if (!vms.length) {
+      list.innerHTML = '<div class="app-empty">Keine KVM-VMs gefunden.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">VM-Liste konnte nicht geladen werden.</div>';
+  }
+}
+
+async function loadBackups() {
+  const list = document.getElementById("backup-list");
+  if (!list) return;
+  try {
+    const data = await request("/api/backups", {headers: {}});
+    const backups = Array.isArray(data.backups) ? data.backups : [];
+    list.innerHTML = "";
+    for (const backup of backups) {
+      const row = document.createElement("div");
+      row.className = "backup-row";
+      row.innerHTML = `
+        <div>
+          <strong></strong>
+          <small class="backup-meta"></small>
+        </div>
+        <button class="secondary compact">Wiederherstellen</button>`;
+      row.querySelector("strong").textContent = backup.id;
+      const appText = Array.isArray(backup.apps) && backup.apps.length
+        ? ` · Apps: ${backup.apps.join(", ")}`
+        : "";
+      row.querySelector(".backup-meta").textContent =
+        `${formatDateTime(backup.created_at)} · ${formatBytes(backup.size_bytes)}${appText}`;
+      row.querySelector("button").addEventListener("click", () => restoreBackup(backup.id));
+      list.appendChild(row);
+    }
+    if (!backups.length) {
+      list.innerHTML = '<div class="app-empty">Noch kein Netfreak2k-Backup vorhanden.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = '<div class="app-empty">Backup-Liste konnte nicht geladen werden.</div>';
+  }
+}
+
+async function createBackup() {
+  const button = document.getElementById("create-backup");
+  if (!button) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Sichere …";
+  try {
+    await request("/api/backups/create", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    alert("Backup konnte nicht erstellt werden.");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+async function restoreBackup(backupId) {
+  const first = confirm(
+    `Backup ${backupId} wiederherstellen? Netfreak2k und betroffene Apps werden dabei neu gestartet.`
+  );
+  if (!first) return;
+  const second = confirm(
+    "Vorhandene Netfreak2k-Admin- und App-Daten werden durch den Backup-Stand ersetzt. Wirklich fortfahren?"
+  );
+  if (!second) return;
+  try {
+    await request("/api/backups/restore", {
+      method: "POST",
+      body: JSON.stringify({backup_id: backupId}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    alert("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
+    setTimeout(() => window.location.reload(), 12000);
+  } catch (error) {
+    console.error(error);
+    alert("Wiederherstellung konnte nicht gestartet werden.");
+  }
+}
+
 async function loadHomeAssistant() {
   const state = document.getElementById("ha-state");
   const detail = document.getElementById("ha-detail");
@@ -473,6 +593,7 @@ async function loadUpdates() {
 document.getElementById("refresh-status")?.addEventListener("click", loadStatus);
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
+document.getElementById("create-backup")?.addEventListener("click", createBackup);
 document.getElementById("refresh-updates")?.addEventListener("click", loadUpdates);
 document.getElementById("install-update")?.addEventListener("click", async () => {
   const button = document.getElementById("install-update");
@@ -497,6 +618,16 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     alert("Update konnte nicht gestartet werden.");
   }
 });
+document.querySelectorAll(".nav-item[data-target]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const target = document.getElementById(btn.dataset.target);
+    if (!target) return;
+    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    btn.classList.add("active");
+    target.scrollIntoView({behavior: "smooth", block: "start"});
+  });
+});
+
 document.querySelectorAll("[data-url]").forEach(btn => {
   btn.addEventListener("click", () => window.open(btn.dataset.url, "_blank", "noopener"));
 });
@@ -514,3 +645,5 @@ setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
 setInterval(loadCatalog, 60000);
 setInterval(loadStorage, 30000);
+setInterval(loadVms, 20000);
+setInterval(loadBackups, 60000);
