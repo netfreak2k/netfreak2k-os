@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 60 if action in {"update_channel_set"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -1872,12 +1872,19 @@ def update_payload():
         }
 
     status["available"] = bool(status)
+    release = vm_agent("update_release_status")
     status["installed"] = {
         "repo": version.get("repo"),
         "ref": version.get("ref"),
+        "version": version.get("version") or status.get("installed_version") or VERSION,
+        "channel": version.get("channel") or status.get("channel") or release.get("channel") or "development",
         "fingerprint": version.get("fingerprint") or status.get("installed_fingerprint"),
         "installed_at": version.get("installed_at"),
     }
+    status["channel"] = status.get("channel") or release.get("channel") or status["installed"]["channel"]
+    status["remote_version"] = status.get("remote_version")
+    status["rollback_available"] = bool(release.get("rollback_available"))
+    status["rollback"] = release.get("rollback") or {}
     status["progress"] = progress or {
         "state": "idle",
         "progress": 0,
@@ -3777,6 +3784,37 @@ class Handler(BaseHTTPRequestHandler):
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
+            self.send_json(result, 202)
+            return
+
+        if path == "/updates/channel":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                channel = str(data.get("channel", "")).strip().lower()
+                if channel not in {"stable", "beta", "development"}:
+                    raise ValueError("invalid_update_channel")
+                result = vm_agent("update_channel_set", {"channel": channel})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "update_channel", channel, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/updates/rollback":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            result = vm_agent("update_rollback")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            audit_event(session["username"], "update_rollback", "Rollback gestartet", self.client_ip())
             self.send_json(result, 202)
             return
 
