@@ -1,0 +1,11 @@
+[Unit]
+Description=Renew Netfreak2k HTTPS certificates daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1800
+Unit=netfreak2k-cert-renew.service
+
+[Install]
+WantedBy=timers.target
