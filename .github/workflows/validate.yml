@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Update Recovery 2.0 sanity
+        run: |
+          grep -q 'update-safety-card' dashboard/index.html
+          grep -q 'loadUpdatePreflight' dashboard/app.js
+          grep -q '/updates/preflight' server/api/server.py
+          grep -q 'update_safe_netfreak2k' server/api/server.py
+          grep -q 'update_preflight_payload' host/vm-agent.py
+          grep -q 'safe_trigger_update' host/vm-agent.py
+          grep -q 'update-preflight-row' dashboard/styles.css
+
       - name: Virtualization 2.0 sanity
         run: |
           grep -q 'vm-kpi-grid' dashboard/index.html
