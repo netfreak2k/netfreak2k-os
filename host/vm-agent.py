@@ -1481,6 +1481,16 @@ def backup_list_payload():
     return {"backups": backups[:60], "policy": backup_policy_payload()}
 
 
+def backup_target_is_mounted(path):
+    current = Path(path)
+    for candidate in [current, *current.parents]:
+        if str(candidate) == "/":
+            break
+        if candidate.exists() and os.path.ismount(candidate):
+            return True
+    return False
+
+
 def replicate_backup(target, policy):
     if policy.get("target") != "mounted":
         return False
@@ -1488,6 +1498,8 @@ def replicate_backup(target, policy):
     if not raw:
         return False
     root = Path(raw)
+    if not backup_target_is_mounted(root):
+        raise RuntimeError("backup_target_not_mounted")
     root.mkdir(parents=True, exist_ok=True)
     destination = root / target.name
     if destination.exists():
@@ -1562,6 +1574,13 @@ def backup_create(reason="manual"):
     except (OSError, json.JSONDecodeError):
         pass
 
+    if replicated and policy.get("target") == "mounted":
+        try:
+            replica_meta = Path(policy.get("target_path")) / backup_id / "meta.json"
+            shutil.copy2(target / "meta.json", replica_meta)
+        except OSError:
+            pass
+
     backup_prune()
     current = backup_list_payload()["backups"][0]
     return {"created": True, "backup": current, "verification": verification}
@@ -1583,7 +1602,22 @@ def backup_prune():
             removed.append(backup_id)
         except OSError:
             continue
-    return {"removed": removed, "retention": retention}
+
+    replica_removed = []
+    if policy.get("target") == "mounted" and policy.get("target_path"):
+        try:
+            root = Path(normalize_backup_target_path(policy.get("target_path")))
+            if backup_target_is_mounted(root) and root.is_dir():
+                replicas = sorted(
+                    [item for item in root.iterdir() if item.is_dir() and BACKUP_ID_RE.fullmatch(item.name)],
+                    reverse=True,
+                )
+                for item in replicas[retention:]:
+                    shutil.rmtree(item)
+                    replica_removed.append(item.name)
+        except (OSError, RuntimeError):
+            pass
+    return {"removed": removed, "replica_removed": replica_removed, "retention": retention}
 
 
 def backup_schedule_due(policy, now=None):
