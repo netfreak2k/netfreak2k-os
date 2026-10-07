@@ -1855,7 +1855,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
+        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2954,6 +2954,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(system_health_payload(period))
             return
 
+        if path == "/scheduler":
+            if not self.require_auth():
+                return
+            result = vm_agent("scheduler_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/security/host":
             if not self.require_auth():
                 return
@@ -3312,6 +3322,27 @@ class Handler(BaseHTTPRequestHandler):
         viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
         if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
             self.send_json({"error": "read_only_role"}, 403)
+            return
+
+        if path == "/scheduler/run":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                job_id = str(data.get("job_id", "")).strip()
+                if job_id not in {"backup-schedule", "update-check", "network-scan", "health-check"}:
+                    raise ValueError("invalid_scheduler_job")
+                if job_id == "backup-schedule" and not self.require_admin(session):
+                    return
+                result = vm_agent("scheduler_run", {"job_id": job_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "scheduler_run", job_id, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/power/action":
