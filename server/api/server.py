@@ -1634,7 +1634,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action == "backup_create" else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action == "backup_create" else 90 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2244,6 +2244,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/network/devices":
+            if not self.require_auth():
+                return
+            result = vm_agent("network_inventory")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/vms":
             if not self.require_auth():
                 return
@@ -2464,6 +2474,64 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             self.set_session_response(username)
+            return
+
+        if path == "/network/scan":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("network_scan")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
+        if path == "/network/device/analyze":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                device_id = str(data.get("device_id", "")).strip()
+                if not re.fullmatch(r"[0-9a-f]{20}", device_id):
+                    raise ValueError("invalid_device_id")
+                result = vm_agent("network_device_analyze", {"device_id": device_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/network/device/update":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                device_id = str(data.get("device_id", "")).strip()
+                fields = data.get("fields")
+                if not re.fullmatch(r"[0-9a-f]{20}", device_id) or not isinstance(fields, dict):
+                    raise ValueError("invalid_device_update")
+                allowed = {"custom_name", "notes", "trusted", "device_type"}
+                clean = {key: value for key, value in fields.items() if key in allowed}
+                if not clean:
+                    raise ValueError("invalid_device_update")
+                result = vm_agent("network_device_update", {"device_id": device_id, "fields": clean})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/media/output":
