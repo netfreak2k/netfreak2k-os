@@ -162,6 +162,9 @@ jobs:
           grep -q 'MutagenFile' server/api/server.py
           grep -q 'mutagen==1.47.0' server/api/Dockerfile
           grep -q 'media-section-tabs' dashboard/index.html
+          grep -q 'data-media-section="settings"' dashboard/index.html
+          grep -q 'top-media-subtitle' dashboard/index.html
+          grep -q 'data-media-group="settings"' dashboard/index.html
           grep -q 'N2K_SEARCH_COMMANDS' dashboard/app.js
           grep -q 'renderMediaQueue' dashboard/app.js
           grep -q 'n2k-toast-stack' dashboard/index.html
