@@ -1965,3 +1965,11 @@ body::after{
   .network-device-edit-grid .wide{grid-column:auto}
   .network-device-modal{padding:8px}.network-device-modal-card{padding:14px;border-radius:14px}
 }
+
+.network-device-history{margin-top:13px;padding-top:12px;border-top:1px solid rgba(255,255,255,.05)}
+.network-history-list{display:grid;gap:5px;margin-top:8px}
+.network-history-row{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.018)}
+.network-history-row strong{font-size:7px}.network-history-row small{font-size:6px;color:#6f7d89}
+.network-history-dot{width:7px;height:7px;border-radius:50%;background:#65717d}
+.network-history-dot.online,.network-history-dot.discovered{background:#5ed8a2;box-shadow:0 0 7px rgba(94,216,162,.35)}
+.network-history-dot.offline{background:#d17c7c}
