@@ -519,6 +519,21 @@
               <span data-update-stage="verify">Abschluss</span>
             </div>
 
+            <section class="update-safety-card">
+              <div class="health-card-head">
+                <div><small>UPDATE SAFETY</small><strong>Preflight & Recovery</strong></div>
+                <span id="update-preflight-badge" class="health-badge">PRÜFE</span>
+              </div>
+              <div class="update-safety-summary">
+                <div><small>PFLICHTPRÜFUNGEN</small><strong id="update-preflight-score">–</strong><span id="update-preflight-time">–</span></div>
+                <div><small>SICHERUNG</small><strong id="update-backup-mode">Automatisch</strong><span>Verifiziertes Backup vor Installation</span></div>
+                <div><small>LETZTER UPDATE-PUNKT</small><strong id="update-last-backup">–</strong><span id="update-last-backup-meta">–</span></div>
+              </div>
+              <div id="update-preflight-list" class="update-preflight-list">
+                <div class="health-empty">Preflight wird geladen …</div>
+              </div>
+            </section>
+
             <div class="panel-actions update-actions">
               <button id="refresh-updates" class="secondary">Neu prüfen</button>
               <button id="install-update" class="primary">Jetzt aktualisieren</button>
