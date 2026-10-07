@@ -1368,6 +1368,15 @@ function localGlobalSearchResults(query) {
     if (results.length > 60) break;
   }
 
+  document.querySelectorAll("#apps-list .app-row strong").forEach(node => {
+    const name = node.textContent?.trim();
+    if (name && matches(name)) results.push({kind:"command", name, detail:"Installierte App", target:"apps-panel", keywords:"app"});
+  });
+  document.querySelectorAll("#vm-list .vm-row strong").forEach(node => {
+    const name = node.textContent?.trim();
+    if (name && matches(name)) results.push({kind:"command", name, detail:"Virtuelle Maschine", target:"vms-panel", keywords:"vm"});
+  });
+
   const radioPool = [...getMediaFavoriteStations(), ...mediaStations];
   const seen = new Set();
   for (const station of radioPool) {
@@ -3200,16 +3209,8 @@ function updateMediaSessionMetadata() {
 function setupMediaSessionControls() {
   if (!("mediaSession" in navigator)) return;
   const actions = {
-    play: async () => {
-      const audio = ensureMediaAudio();
-      if (!audio.src) {
-        const first = filteredMediaStations()[0];
-        if (first) await playMediaStation(first.index);
-      } else {
-        await audio.play();
-      }
-    },
-    pause: () => ensureMediaAudio().pause(),
+    play: () => playMediaPlayback(),
+    pause: () => pauseMediaPlayback(),
     previoustrack: () => stepMediaStation(-1),
     nexttrack: () => stepMediaStation(1)
   };
@@ -4305,7 +4306,7 @@ function stopMediaPlayback() {
   const title = document.getElementById("media-title");
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Wiedergabe gestoppt";
-  if (subtitle) subtitle.textContent = "Wähle einen Sender oder Streaming-Dienst.";
+  if (subtitle) subtitle.textContent = "Wähle Radio, eigene Musik oder einen Streaming-Dienst.";
   updateMediaArtwork(null);
   clearSpectrumUi();
   updateMediaPlaybackUi();
