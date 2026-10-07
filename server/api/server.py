@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount"} else 30 if action == "app_update_check" else 15 if action == "app_diagnostics" else 12 if action in {"service_logs","hardware_status","storage_status","app_logs"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 15 if action in {"app_diagnostics","vm_list"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -3102,6 +3102,43 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 audit_event(session["username"], "host_power_action", operation, self.client_ip())
                 self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/vms/action":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                name = str(data.get("name", "")).strip()
+                operation = str(data.get("operation", "")).strip().lower()
+                if operation not in {"start", "shutdown", "restart"}:
+                    raise ValueError("invalid_vm_action")
+                result = vm_agent("vm_action", {"name": name, "operation": operation})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "vm_action", f"{operation}:{name}"[:500], self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/vms/snapshot":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                name = str(data.get("name", "")).strip()
+                result = vm_agent("vm_snapshot_create", {"name": name})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "vm_snapshot_create", name[:300], self.client_ip())
+                self.send_json(result, 201)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
