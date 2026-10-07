@@ -2803,6 +2803,46 @@ function setMediaStatus(text) {
   if (subtitle && text) subtitle.textContent = text;
 }
 
+function updateMediaSessionMetadata() {
+  const station = mediaCurrentStation();
+  if (!("mediaSession" in navigator) || !station) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: station.name,
+      artist: station.genre || "Internet Radio",
+      album: "N2K Media Center",
+      artwork: station.favicon ? [
+        {src: station.favicon, sizes: "96x96"},
+        {src: station.favicon, sizes: "256x256"}
+      ] : []
+    });
+    navigator.mediaSession.playbackState = ensureMediaAudio().paused ? "paused" : "playing";
+  } catch (error) {
+    console.debug("Media Session metadata unavailable", error);
+  }
+}
+
+function setupMediaSessionControls() {
+  if (!("mediaSession" in navigator)) return;
+  const actions = {
+    play: async () => {
+      const audio = ensureMediaAudio();
+      if (!audio.src) {
+        const first = filteredMediaStations()[0];
+        if (first) await playMediaStation(first.index);
+      } else {
+        await audio.play();
+      }
+    },
+    pause: () => ensureMediaAudio().pause(),
+    previoustrack: () => stepMediaStation(-1),
+    nexttrack: () => stepMediaStation(1)
+  };
+  Object.entries(actions).forEach(([action,handler]) => {
+    try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+  });
+}
+
 function updateMediaPlaybackUi() {
   const audio = ensureMediaAudio();
   const playing = !audio.paused && Boolean(audio.src);
@@ -2820,6 +2860,7 @@ function updateMediaPlaybackUi() {
   if (visualizer) visualizer.classList.toggle("is-playing", playing);
 
   if (station) {
+    updateMediaSessionMetadata();
     const title = document.getElementById("media-title");
     const subtitle = document.getElementById("media-subtitle");
     if (title) title.textContent = station.name;
@@ -3046,6 +3087,7 @@ function initMediaCenter() {
   if (mediaInitialized) return;
   mediaInitialized = true;
   ensureMediaAudio();
+  setupMediaSessionControls();
   renderMediaStations();
   loadMediaRadioDirectory();
   refreshMediaDevices();
@@ -3091,7 +3133,12 @@ function initMediaCenter() {
   });
   document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
   document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
-    window.open(button.dataset.mediaService, "_blank", "noopener,noreferrer");
+    const url = button.dataset.mediaService;
+    const name = button.querySelector("strong")?.textContent || "Streaming";
+    localStorage.setItem("n2k-media-last-service", JSON.stringify({name, url}));
+    window.open(url, "n2k-media-streaming", "noopener,noreferrer");
+    const topTitle = document.getElementById("top-media-title");
+    if (topTitle && ensureMediaAudio().paused) topTitle.textContent = name;
   }));
   document.querySelectorAll(".media-eq-presets button").forEach(button => button.addEventListener("click", () => applyEqPreset(button.dataset.eqPreset)));
   document.getElementById("media-eq-reset")?.addEventListener("click", () => applyEqPreset("flat"));
