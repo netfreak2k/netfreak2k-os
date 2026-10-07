@@ -3372,10 +3372,120 @@ async function playMediaStation(index) {
   updateMediaPlaybackUi();
 }
 
+function localTrackIndexById(id) {
+  return mediaLocalTracks.findIndex(track => String(track.id) === String(id));
+}
+
+function enqueueLocalTrack(index) {
+  const track = mediaLocalTracks[index];
+  if (!track) return;
+  mediaQueue.push(track.id);
+  renderMediaQueue();
+  showN2KToast(`${track.title || track.name} zur Warteschlange hinzugefügt.`, "success");
+  saveMediaSession();
+}
+
+function renderMediaQueue() {
+  const list = document.getElementById("media-queue-list");
+  const count = document.getElementById("media-queue-count");
+  if (count) count.textContent = String(mediaQueue.length);
+  if (!list) return;
+  list.innerHTML = "";
+  mediaQueue.forEach((id,queueIndex) => {
+    const trackIndex = localTrackIndexById(id);
+    const track = mediaLocalTracks[trackIndex];
+    if (!track) return;
+    const row = document.createElement("div");
+    row.className = "media-queue-row";
+    row.innerHTML = '<span></span><div><strong></strong><small></small></div><button title="Entfernen">×</button>';
+    row.querySelector("span").textContent = String(queueIndex + 1).padStart(2, "0");
+    row.querySelector("strong").textContent = track.title || track.name;
+    row.querySelector("small").textContent = [track.artist, track.album].filter(Boolean).join(" · ") || "Eigene Musik";
+    row.querySelector("button").addEventListener("click", () => {
+      mediaQueue.splice(queueIndex, 1);
+      renderMediaQueue();
+      saveMediaSession();
+    });
+    row.addEventListener("dblclick", () => {
+      mediaQueue.splice(queueIndex, 1);
+      playLocalTrack(trackIndex);
+      renderMediaQueue();
+    });
+    list.appendChild(row);
+  });
+  if (!list.children.length) list.innerHTML = '<div class="media-empty compact-empty">Queue ist leer.</div>';
+}
+
+function clearMediaQueue() {
+  mediaQueue = [];
+  renderMediaQueue();
+  saveMediaSession();
+  showN2KToast("Warteschlange geleert.", "info");
+}
+
+function updateMediaPlayModes() {
+  const shuffle = document.getElementById("media-shuffle");
+  const repeat = document.getElementById("media-repeat");
+  if (shuffle) {
+    shuffle.textContent = mediaShuffle ? "Zufall an" : "Zufall aus";
+    shuffle.classList.toggle("active", mediaShuffle);
+  }
+  if (repeat) {
+    const labels = {off:"Repeat aus", all:"Repeat alle", one:"Repeat Titel"};
+    repeat.textContent = labels[mediaRepeat] || labels.off;
+    repeat.classList.toggle("active", mediaRepeat !== "off");
+  }
+}
+
+function nextLocalTrack(direction = 1, fromEnded = false) {
+  if (!mediaLocalTracks.length) return false;
+  if (direction > 0 && mediaQueue.length) {
+    const id = mediaQueue.shift();
+    const index = localTrackIndexById(id);
+    renderMediaQueue();
+    if (index >= 0) {
+      playLocalTrack(index);
+      return true;
+    }
+  }
+  if (mediaRepeat === "one" && fromEnded && mediaLocalIndex >= 0) {
+    playLocalTrack(mediaLocalIndex);
+    return true;
+  }
+  if (mediaShuffle && mediaLocalTracks.length > 1) {
+    let next = mediaLocalIndex;
+    while (next === mediaLocalIndex) next = Math.floor(Math.random() * mediaLocalTracks.length);
+    playLocalTrack(next);
+    return true;
+  }
+  if (mediaLocalIndex < 0) {
+    playLocalTrack(direction > 0 ? 0 : mediaLocalTracks.length - 1);
+    return true;
+  }
+  const candidate = mediaLocalIndex + direction;
+  if (candidate >= 0 && candidate < mediaLocalTracks.length) {
+    playLocalTrack(candidate);
+    return true;
+  }
+  if (mediaRepeat === "all") {
+    playLocalTrack(direction > 0 ? 0 : mediaLocalTracks.length - 1);
+    return true;
+  }
+  if (fromEnded) stopMediaPlayback();
+  return false;
+}
+
+function handleMediaEnded() {
+  if (mediaLocalIndex >= 0) {
+    nextLocalTrack(1, true);
+  } else if (mediaStationIndex >= 0) {
+    stepMediaStation(1);
+  }
+}
+
 function stepMediaStation(direction) {
   if (mediaLocalIndex >= 0 && mediaLocalTracks.length) {
-    const next = (mediaLocalIndex + direction + mediaLocalTracks.length) % mediaLocalTracks.length;
-    playLocalTrack(next);
+    nextLocalTrack(direction, false);
     return;
   }
   const candidates = mediaStations
@@ -3392,6 +3502,8 @@ async function loadMediaRadioDirectory() {
   const status = document.getElementById("media-radio-status");
   const search = (document.getElementById("media-radio-search")?.value || "").trim();
   if (status) status.textContent = `Lade ${mediaCountry}-Sender …`;
+  const list = document.getElementById("media-station-list");
+  if (list) list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   try {
     const params = new URLSearchParams({country: mediaCountry, search, limit: "80"});
     const data = await request(`/api/media/radio?${params.toString()}`, {headers: {}});
@@ -3399,7 +3511,7 @@ async function loadMediaRadioDirectory() {
     const stations = Array.isArray(data.stations) ? data.stations : [];
     if (stations.length) {
       mediaStations = stations;
-      mediaStationIndex = -1;
+      if (mediaLocalIndex < 0) mediaStationIndex = -1;
       if (status) status.textContent = `${stations.length} Sender · Radio Browser Verzeichnis`;
     } else {
       mediaStations = N2K_RADIO_STATIONS.filter(station => station.country === mediaCountry);
@@ -3413,6 +3525,7 @@ async function loadMediaRadioDirectory() {
   }
   renderMediaStations();
   renderMediaFavorites();
+  restoreMediaCurrentItem();
 }
 
 function renderMediaLibrary() {
@@ -3420,20 +3533,47 @@ function renderMediaLibrary() {
   const count = document.getElementById("media-library-count");
   if (!list) return;
   const query = (document.getElementById("media-library-search")?.value || "").trim().toLowerCase();
+  const favorites = new Set(getMediaFavoriteStations().map(item => String(item.id)));
   const visible = mediaLocalTracks
     .map((track,index) => ({track,index}))
-    .filter(({track}) => !query || `${track.title} ${track.name} ${track.path}`.toLowerCase().includes(query));
+    .filter(({track}) => !query || `${track.title} ${track.name} ${track.artist} ${track.album} ${track.genre} ${track.path}`.toLowerCase().includes(query));
   if (count) count.textContent = `${mediaLocalTracks.length} Titel`;
   list.innerHTML = "";
+
   for (const {track,index} of visible) {
-    const row = document.createElement("button");
+    const row = document.createElement("div");
     row.className = "media-library-row";
     if (index === mediaLocalIndex) row.classList.add("active");
-    row.innerHTML = '<span class="media-library-icon">♪</span><div><strong></strong><small></small></div><em></em><span class="media-library-play">▶</span>';
+    row.innerHTML = '<span class="media-library-icon">♪</span><div class="media-library-copy"><strong></strong><small></small></div><em class="media-library-duration"></em><div class="media-library-row-actions"><button class="fav" title="Meine Medien">♡</button><button class="queue" title="Zur Warteschlange">＋</button><button class="play" title="Abspielen">▶</button></div>';
+    const icon = row.querySelector(".media-library-icon");
+    if (track.artwork_url) {
+      icon.textContent = "";
+      const image = document.createElement("img");
+      image.src = track.artwork_url;
+      image.alt = "";
+      image.loading = "lazy";
+      image.addEventListener("error", () => { icon.textContent = "♪"; image.remove(); });
+      icon.appendChild(image);
+    }
     row.querySelector("strong").textContent = track.title || track.name;
-    row.querySelector("small").textContent = [track.path || "Audio", track.extension?.toUpperCase()].filter(Boolean).join(" · ");
-    row.querySelector("em").textContent = formatBytes(track.size_bytes || 0);
-    row.addEventListener("click", () => playLocalTrack(index));
+    row.querySelector("small").textContent =
+      [track.artist || "Unbekannter Interpret", track.album, track.genre, track.extension?.toUpperCase()].filter(Boolean).join(" · ");
+    row.querySelector(".media-library-duration").textContent = formatMediaDuration(track.duration_seconds);
+    const fav = row.querySelector(".fav");
+    fav.textContent = favorites.has(String(track.id)) ? "♥" : "♡";
+    fav.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleMediaFavorite(track);
+    });
+    row.querySelector(".queue").addEventListener("click", event => {
+      event.stopPropagation();
+      enqueueLocalTrack(index);
+    });
+    row.querySelector(".play").addEventListener("click", event => {
+      event.stopPropagation();
+      playLocalTrack(index);
+    });
+    row.addEventListener("dblclick", () => playLocalTrack(index));
     list.appendChild(row);
   }
   if (!visible.length) {
@@ -3443,20 +3583,25 @@ function renderMediaLibrary() {
 
 async function loadMediaLibrary() {
   const list = document.getElementById("media-library-list");
-  if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner wird geladen …</div>';
+  if (list) list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   try {
     const data = await request("/api/media/library", {headers:{}});
     mediaLocalTracks = (Array.isArray(data.tracks) ? data.tracks : []).map(track => ({
       ...track,
       source: "local",
-      genre: "Lokale Musik",
+      genre: track.genre || "Lokale Musik",
       country: "N2K AUDIO",
       bitrate: track.extension ? track.extension.toUpperCase() : "Audio"
     }));
+    mediaQueue = mediaQueue.filter(id => localTrackIndexById(id) >= 0);
     renderMediaLibrary();
+    renderMediaQueue();
+    renderMediaFavorites();
+    restoreMediaCurrentItem();
   } catch (error) {
     console.error("Local media library unavailable", error);
     if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner konnte nicht geladen werden.</div>';
+    showN2KToast("Lokale Musikbibliothek konnte nicht geladen werden.", "error");
   }
 }
 
@@ -3470,24 +3615,25 @@ async function playLocalTrack(index) {
   }
   mediaStationIndex = -1;
   mediaLocalIndex = index;
-  if (audio.src !== new URL(track.url, window.location.href).href) {
+  const targetUrl = new URL(track.url, window.location.href).href;
+  if (audio.src !== targetUrl) {
     audio.src = track.url;
     audio.load();
   }
-  const title = document.getElementById("media-title");
-  const subtitle = document.getElementById("media-subtitle");
-  if (title) title.textContent = track.title || track.name;
-  if (subtitle) subtitle.textContent = `Lokale Musik · ${track.path || "Audio"} · ${track.bitrate}`;
   updateMediaFavoriteButton();
   renderMediaLibrary();
+  updateMediaArtwork(track);
   try {
     await audio.play();
   } catch (error) {
     console.error(error);
     setMediaStatus("Lokale Audiodatei konnte nicht abgespielt werden.");
+    showN2KToast("Lokale Audiodatei konnte nicht abgespielt werden.", "error");
   }
   updateMediaPlaybackUi();
+  saveMediaSession();
 }
+
 
 function renderMediaServiceDirectory() {
   const list = document.getElementById("media-service-directory-list");
