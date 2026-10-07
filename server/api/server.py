@@ -1855,7 +1855,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
+        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 15 if action == "event_logs" else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2348,6 +2348,42 @@ def sync_system_notifications():
         cutoff = now - 30 * 86400
         conn.execute("DELETE FROM notifications WHERE active=0 AND COALESCE(resolved_at,last_seen)<?", (cutoff,))
         conn.commit()
+
+
+def event_center_payload(lines=240):
+    host = vm_agent("event_logs", {"lines": lines})
+    events = list(host.get("events") or []) if host.get("available") else []
+    with db_connect() as conn:
+        rows = conn.execute(
+            """SELECT username,action,detail,remote_addr,created_at
+               FROM audit_log ORDER BY created_at DESC LIMIT 160"""
+        ).fetchall()
+    for row in rows:
+        detail = str(row[2] or "")
+        remote = str(row[3] or "")
+        events.append({
+            "source": "audit",
+            "timestamp": int(row[4]),
+            "priority": 5,
+            "level": "info",
+            "identifier": str(row[1] or "audit")[:120],
+            "unit": "",
+            "message": f"{row[0]} · {detail or remote or 'Audit-Ereignis'}"[:1800],
+        })
+    events.sort(key=lambda item: int(item.get("timestamp") or 0), reverse=True)
+    events = events[:500]
+    return {
+        "events": events,
+        "summary": {
+            "total": len(events),
+            "critical": sum(1 for item in events if item.get("level") == "critical"),
+            "errors": sum(1 for item in events if item.get("level") == "error"),
+            "warnings": sum(1 for item in events if item.get("level") == "warning"),
+            "audit": sum(1 for item in events if item.get("source") == "audit"),
+        },
+        "sampled_at": int(time.time()),
+        "host_available": bool(host.get("available")),
+    }
 
 
 def notifications_payload():
@@ -2952,6 +2988,16 @@ class Handler(BaseHTTPRequestHandler):
             if period not in {"24h", "7d"}:
                 period = "24h"
             self.send_json(system_health_payload(period))
+            return
+
+        if path == "/events":
+            if not self.require_auth():
+                return
+            try:
+                lines = int((query.get("lines") or ["240"])[0])
+            except (TypeError, ValueError):
+                lines = 240
+            self.send_json(event_center_payload(lines))
             return
 
         if path == "/scheduler":
