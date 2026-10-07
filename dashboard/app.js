@@ -2788,6 +2788,31 @@ const N2K_GERMANY_MEDIA_SERVICES = [
   {rank:24, category:"Video", name:"Crunchyroll", detail:"Anime · Serien · Filme", url:"https://www.crunchyroll.com/de/"}
 ];
 
+const N2K_SEARCH_COMMANDS = [
+  {kind:"command", name:"Übersicht", detail:"N2K Desktop", target:"dashboard-top", keywords:"home start dashboard"},
+  {kind:"command", name:"Arbeitsplatz", detail:"Dateien & N2K Drive", target:"workspace-panel", keywords:"drive dateien cloud"},
+  {kind:"command", name:"Kalender", detail:"Termine", target:"calendar-panel", keywords:"termine kalender"},
+  {kind:"command", name:"Apps", detail:"Apps & App Store", target:"apps-panel", keywords:"docker apps store"},
+  {kind:"command", name:"Virtuelle Maschinen", detail:"VMs & Home Assistant", target:"vms-panel", keywords:"vm haos home assistant"},
+  {kind:"command", name:"Speicher", detail:"Datenträger & Kapazität", target:"storage-panel", keywords:"storage disk"},
+  {kind:"command", name:"Backups", detail:"Sichern & Wiederherstellen", target:"backups-panel", keywords:"backup restore"},
+  {kind:"command", name:"Netzwerk", detail:"Provider · Ping · Interfaces", target:"network-panel", keywords:"network internet ping provider"},
+  {kind:"command", name:"Media Center", detail:"Radio · Musik · Streaming", target:"media-center-panel", keywords:"audio radio musik streaming player"},
+  {kind:"command", name:"Office", detail:"Dokumente · Tabellen · Präsentationen", target:"office-panel", keywords:"onlyoffice writer calc"},
+  {kind:"command", name:"Terminal", detail:"N2K Terminal", target:"terminal-panel", keywords:"shell konsole cli"},
+  {kind:"command", name:"Underground", detail:"Privacy & Tor", target:"privacy-panel", keywords:"tor darknet privacy"},
+  {kind:"command", name:"KI", detail:"KI Arbeitsbereich", target:"ai-panel", keywords:"ai ki chatgpt"},
+  {kind:"command", name:"Einstellungen & Updates", detail:"Systemeinstellungen", target:"updates-panel", keywords:"settings update wallpaper sync"}
+];
+
+const N2K_PRIMARY_MEDIA_SERVICES = [
+  {kind:"service", name:"Apple Music", detail:"Streaming · Musik", url:"https://music.apple.com/de/"},
+  {kind:"service", name:"Spotify", detail:"Streaming · Musik & Podcasts", url:"https://open.spotify.com/"},
+  {kind:"service", name:"Amazon Music", detail:"Streaming · Musik", url:"https://music.amazon.de/"},
+  {kind:"service", name:"Netflix", detail:"Streaming · Filme & Serien", url:"https://www.netflix.com/de/"},
+  {kind:"service", name:"YouTube", detail:"Streaming · Video & Live", url:"https://www.youtube.com/"}
+];
+
 const N2K_MEDIA_FAVORITES_KEY = "n2k-media-favorite-stations";
 const N2K_MEDIA_FAVORITE_IDS_KEY = "n2k-media-favorites";
 
@@ -2808,6 +2833,11 @@ let mediaCountry = "DE";
 let mediaStationIndex = -1;
 let mediaLocalTracks = [];
 let mediaLocalIndex = -1;
+let mediaQueue = [];
+let mediaShuffle = false;
+let mediaRepeat = "off";
+let mediaActiveSection = "all";
+let mediaSessionRestored = false;
 let mediaInitialized = false;
 let mediaAudioContext = null;
 let mediaEqFilters = [];
@@ -2816,6 +2846,73 @@ let mediaAnalyser = null;
 let mediaSpectrumFrame = null;
 let mediaSpectrumData = null;
 let mediaTimeData = null;
+
+function showN2KToast(message, tone = "info", timeout = 3200) {
+  const stack = document.getElementById("n2k-toast-stack");
+  if (!stack || !message) return;
+  const toast = document.createElement("div");
+  toast.className = `n2k-toast ${tone}`;
+  toast.innerHTML = "<span></span><strong></strong>";
+  toast.querySelector("span").textContent = tone === "success" ? "✓" : tone === "error" ? "!" : "•";
+  toast.querySelector("strong").textContent = message;
+  stack.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 220);
+  }, timeout);
+}
+
+function formatMediaDuration(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return "–:––";
+  const minutes = Math.floor(value / 60);
+  const secs = Math.floor(value % 60);
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+function mediaSessionSnapshot() {
+  const current = mediaCurrentStation();
+  return {
+    volume: Math.round((mediaAudio?.volume ?? 0.72) * 100),
+    muted: Boolean(mediaAudio?.muted),
+    eq: Array.from(document.querySelectorAll("#media-equalizer input[data-eq]")).map(input => Number(input.value) || 0),
+    country: mediaCountry,
+    section: mediaActiveSection,
+    shuffle: mediaShuffle,
+    repeat: mediaRepeat,
+    current: current ? {
+      id: current.id,
+      source: current.source || "radio",
+      name: current.name,
+      title: current.title,
+      artist: current.artist,
+      album: current.album,
+      genre: current.genre,
+      bitrate: current.bitrate,
+      country: current.country,
+      url: current.url,
+      favicon: current.favicon,
+      artwork_url: current.artwork_url,
+      path: current.path
+    } : null
+  };
+}
+
+function saveMediaSession() {
+  try {
+    localStorage.setItem("n2k-media-session", JSON.stringify(mediaSessionSnapshot()));
+  } catch (_) {}
+}
+
+function loadMediaSession() {
+  try {
+    const data = JSON.parse(localStorage.getItem("n2k-media-session") || "{}");
+    return data && typeof data === "object" ? data : {};
+  } catch (_) {
+    return {};
+  }
+}
 
 function ensureMediaAudio() {
   if (mediaAudio) return mediaAudio;
