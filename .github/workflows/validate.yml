@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Network 2.0 sanity
+        run: |
+          grep -q 'network-device-wake' dashboard/index.html
+          grep -q 'wakeNetworkDevice' dashboard/app.js
+          grep -q 'network-traffic-mode' dashboard/index.html
+          grep -q '/network/device/wake' server/api/server.py
+          grep -q 'network_device_wake' host/vm-agent.py
+          grep -q 'online_since' host/vm-agent.py
+          grep -q 'ip_change' host/vm-agent.py
+
       - name: Docker Apps 2.0 sanity
         run: |
           grep -q 'apps-kpi-grid' dashboard/index.html
