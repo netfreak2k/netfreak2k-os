@@ -2266,3 +2266,44 @@ body::after{
 .security-audit-row em{font-style:normal;font-size:6px;color:#687580}
 @media(max-width:900px){.security-summary-grid{grid-template-columns:repeat(2,1fr)}.security-grid{grid-template-columns:1fr}.security-user-create{grid-template-columns:1fr 1fr}.security-user-row{grid-template-columns:30px minmax(0,1fr)}.security-role-select,.security-enable{grid-column:auto}}
 @media(max-width:600px){.security-summary-grid{grid-template-columns:1fr}.security-user-create{grid-template-columns:1fr}.security-list-row{grid-template-columns:28px minmax(0,1fr)}.security-list-row button{grid-column:1/-1;justify-self:end}.security-user-row{grid-template-columns:28px minmax(0,1fr)}}
+
+/* N2K Remote Access & HTTPS */
+.remote-panel{grid-column:1/-1}
+.remote-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.remote-summary-grid section{min-width:0;padding:12px;border-radius:13px;background:linear-gradient(145deg,rgba(255,255,255,.03),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.05)}
+.remote-summary-grid small,.remote-summary-grid strong,.remote-summary-grid span{display:block}
+.remote-summary-grid small{font-size:5px;letter-spacing:.1em;color:#65727e}
+.remote-summary-grid strong{font-size:11px;margin-top:4px}
+.remote-summary-grid span{font-size:6px;color:#74818d;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.remote-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:10px}
+.remote-card,.remote-options{padding:13px;border-radius:15px;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.045)}
+.remote-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.remote-card-head small,.remote-card-head strong{display:block}
+.remote-card-head small{font-size:5px;letter-spacing:.1em;color:#65727f}
+.remote-card-head strong{font-size:9px;margin-top:2px}
+.remote-url-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.035)}
+.remote-url-row:last-of-type{border-bottom:0}
+.remote-url-row small,.remote-url-row code{display:block}
+.remote-url-row small{font-size:5px;letter-spacing:.08em;color:#677582}
+.remote-url-row code{font-size:7px;color:#b8cef1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.remote-note{margin-top:9px;padding:9px;border-radius:9px;background:rgba(82,133,219,.04);border:1px solid rgba(94,149,239,.06);font-size:6px;line-height:1.55;color:#768592}
+.remote-cert-detail{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.035)}
+.remote-cert-detail small,.remote-cert-detail strong,.remote-cert-detail code{display:block}
+.remote-cert-detail small{font-size:5px;letter-spacing:.08em;color:#667481}
+.remote-cert-detail strong{font-size:8px;margin-top:3px}
+.remote-cert-detail code{font-size:6px;line-height:1.5;color:#99afd0;margin-top:3px;word-break:break-all}
+.remote-card>#remote-copy-fingerprint{margin-top:10px}
+.remote-options{margin-top:10px}
+.remote-option-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.remote-option{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:9px;align-items:start;padding:10px;border-radius:11px;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.04)}
+.remote-option>span{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:rgba(84,137,224,.08);color:#a8c6f3;font-size:8px;font-weight:800}
+.remote-option strong,.remote-option small{display:block}
+.remote-option strong{font-size:7px}.remote-option small{font-size:6px;line-height:1.5;color:#74818c;margin-top:2px}
+.remote-option em{font-style:normal;font-size:5px;letter-spacing:.07em;color:#7087a8}
+.remote-option.recommended{border-color:rgba(88,201,147,.09);background:rgba(53,151,103,.025)}
+.remote-option.recommended>span{background:rgba(67,174,119,.09);color:#94deb7}
+.remote-option.recommended em{color:#83d8ad}
+.remote-option.danger{border-color:rgba(211,89,89,.08);background:rgba(183,61,61,.02)}
+.remote-option.danger>span{background:rgba(204,72,72,.08);color:#e59898}.remote-option.danger em{color:#d88888}
+@media(max-width:1000px){.remote-summary-grid{grid-template-columns:repeat(2,1fr)}.remote-grid{grid-template-columns:1fr}.remote-option-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.remote-summary-grid{grid-template-columns:1fr}.remote-url-row{grid-template-columns:1fr}.remote-url-row button{justify-self:start}}
