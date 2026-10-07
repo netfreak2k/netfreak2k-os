@@ -20,8 +20,12 @@ VM_NAME = "netfreak2k-homeassistant"
 HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
+ROLLBACK_COMMAND = "/usr/local/sbin/netfreak2k-rollback"
+UPDATE_CHANNEL_FILE = Path("/var/lib/netfreak2k/update-channel")
+ROLLBACK_DIR = Path("/var/lib/netfreak2k/rollback")
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
+    "update_release_status", "update_channel_set", "update_rollback",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
@@ -543,6 +547,70 @@ def check_updates_now():
         return json.loads(status_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {"ok": False, "note": "update_status_unavailable"}
+
+
+def update_release_status_payload():
+    channel = "development"
+    try:
+        saved = UPDATE_CHANNEL_FILE.read_text(encoding="utf-8").strip()
+        if saved in {"stable", "beta", "development"}:
+            channel = saved
+    except OSError:
+        pass
+    rollback_meta = {}
+    try:
+        rollback_meta = json.loads((ROLLBACK_DIR / "meta.json").read_text(encoding="utf-8"))
+        if not isinstance(rollback_meta, dict):
+            rollback_meta = {}
+    except (OSError, json.JSONDecodeError):
+        rollback_meta = {}
+    return {
+        "channel": channel,
+        "rollback_available": (ROLLBACK_DIR / "source.tar.gz").is_file() and (ROLLBACK_DIR / "server.env").is_file(),
+        "rollback": rollback_meta,
+    }
+
+
+def update_channel_set(channel):
+    channel = str(channel or "").strip().lower()
+    if channel not in {"stable", "beta", "development"}:
+        raise RuntimeError("invalid_update_channel")
+    UPDATE_CHANNEL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = UPDATE_CHANNEL_FILE.with_suffix(".tmp")
+    tmp.write_text(channel + "\n", encoding="utf-8")
+    os.replace(tmp, UPDATE_CHANNEL_FILE)
+    os.chmod(UPDATE_CHANNEL_FILE, 0o600)
+    status = check_updates_now()
+    return {"channel": channel, "status": status}
+
+
+def trigger_rollback():
+    if not (ROLLBACK_DIR / "source.tar.gz").is_file():
+        raise RuntimeError("rollback_snapshot_missing")
+    target = Path(ROLLBACK_COMMAND)
+    if not target.is_file():
+        target = Path("/opt/netfreak2k/scripts/rollback-server.sh")
+    if not target.is_file():
+        raise RuntimeError("rollback_script_missing")
+    result = subprocess.run(
+        [
+            "systemd-run",
+            "--unit=netfreak2k-web-rollback",
+            "--collect",
+            "--property=Type=exec",
+            str(target),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if result.returncode != 0:
+        if "already exists" in result.stderr.lower():
+            return {"accepted": True, "already_running": True}
+        raise RuntimeError(result.stderr.strip() or "rollback_start_failed")
+    return {"accepted": True, "already_running": False}
 
 
 def trigger_update():
@@ -1890,6 +1958,15 @@ def execute(action, request):
 
     if action == "check_updates":
         return check_updates_now()
+
+    if action == "update_release_status":
+        return update_release_status_payload()
+
+    if action == "update_channel_set":
+        return update_channel_set(request.get("channel"))
+
+    if action == "update_rollback":
+        return trigger_rollback()
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
