@@ -7,6 +7,7 @@ import os
 import pwd
 import re
 import secrets
+import sqlite3
 import socket
 import subprocess
 import shutil
@@ -23,7 +24,7 @@ ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
-    "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
+    "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
@@ -1474,6 +1475,8 @@ def backup_list_payload():
             "verified_at": meta.get("verified_at"),
             "target": meta.get("target", "local"),
             "replicated": bool(meta.get("replicated")),
+            "restore_ready": meta.get("restore_ready"),
+            "restore_tested_at": meta.get("restore_tested_at"),
         })
     return {"backups": backups[:60], "policy": backup_policy_payload()}
 
@@ -1626,6 +1629,67 @@ def backup_scheduled_tick():
         raise
 
 
+def backup_test_restore(backup_id):
+    if not BACKUP_ID_RE.fullmatch(str(backup_id or "")):
+        raise RuntimeError("invalid_backup_id")
+    source = BACKUP_DIR / backup_id
+    if not source.is_dir():
+        raise RuntimeError("backup_not_found")
+
+    verification = backup_verify(backup_id)
+    checks = [{"name": "checksums", "ok": bool(verification.get("ok")), "detail": f"{verification.get('files_checked', 0)} Dateien geprüft"}]
+
+    db_file = source / "netfreak2k.db"
+    db_ok = False
+    db_detail = "Admin-Datenbank fehlt"
+    if db_file.is_file():
+        try:
+            conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            conn.close()
+            db_ok = bool(row and str(row[0]).lower() == "ok")
+            db_detail = "SQLite integrity_check: ok" if db_ok else f"SQLite integrity_check: {row[0] if row else 'unknown'}"
+        except sqlite3.Error as exc:
+            db_detail = f"SQLite Fehler: {str(exc)[:160]}"
+    checks.append({"name": "database", "ok": db_ok, "detail": db_detail})
+
+    env_ok = (source / "server.env").is_file()
+    checks.append({"name": "server_config", "ok": env_ok, "detail": "Server-Konfiguration vorhanden" if env_ok else "server.env fehlt"})
+
+    try:
+        meta = json.loads((source / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        meta = {}
+    missing_apps = []
+    for app_id in meta.get("apps") or []:
+        if not (source / "apps" / str(app_id)).is_dir():
+            missing_apps.append(str(app_id))
+    apps_ok = not missing_apps
+    checks.append({
+        "name": "app_data",
+        "ok": apps_ok,
+        "detail": "App-Daten vollständig" if apps_ok else "Fehlend: " + ", ".join(missing_apps[:8]),
+    })
+
+    ready = all(item["ok"] for item in checks)
+    result = {
+        "ok": ready,
+        "tested_at": int(time.time()),
+        "backup_id": backup_id,
+        "checks": checks,
+    }
+    try:
+        test_file = source / "restore-test.json"
+        test_file.write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
+        meta_file = source / "meta.json"
+        meta["restore_tested_at"] = result["tested_at"]
+        meta["restore_ready"] = ready
+        meta_file.write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
+    except OSError:
+        pass
+    return result
+
+
 def backup_restore(backup_id):
     if not BACKUP_ID_RE.fullmatch(backup_id):
         raise RuntimeError("invalid_backup_id")
@@ -1709,6 +1773,9 @@ def execute(action, request):
 
     if action == "backup_verify":
         return backup_verify(str(request.get("backup_id", "")))
+
+    if action == "backup_test_restore":
+        return backup_test_restore(str(request.get("backup_id", "")))
 
     if action == "backup_policy_get":
         return backup_policy_payload()
