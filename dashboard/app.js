@@ -3015,6 +3015,56 @@ async function setBluetoothConnection(mac, connect) {
   }
 }
 
+function renderMediaRooms(routing = {}) {
+  const grid = document.getElementById("media-room-grid");
+  if (!grid) return;
+  const sinks = Array.isArray(routing.pipewire?.sinks) ? routing.pipewire.sinks : [];
+  const bluetooth = Array.isArray(routing.bluetooth?.devices) ? routing.bluetooth.devices : [];
+  const endpoints = [
+    ...sinks.filter(sink => ["airplay","dlna","bluetooth"].includes(sink.kind)).map(sink => ({
+      type: sink.kind,
+      id: sink.id,
+      name: sink.name,
+      active: Boolean(sink.default),
+      detail: sink.kind === "airplay" ? "AirPlay / RAOP" : sink.kind === "dlna" ? "DLNA / UPnP" : "Bluetooth / PipeWire",
+      action: sink.default ? null : () => setHostAudioOutput(sink.id)
+    })),
+    ...bluetooth.filter(device => device.connected).filter(device =>
+      !sinks.some(sink => sink.kind === "bluetooth" && (sink.name || "").toLowerCase().includes((device.name || "").toLowerCase()))
+    ).map(device => ({
+      type: "bluetooth",
+      id: device.mac,
+      name: device.name || device.mac,
+      active: true,
+      detail: "Bluetooth verbunden",
+      action: null
+    }))
+  ];
+
+  grid.innerHTML = "";
+  if (!endpoints.length) {
+    const empty = document.createElement("div");
+    empty.className = "media-room-empty";
+    empty.innerHTML = "<strong>Noch keine Netzwerk-Lautsprecher aktiv</strong><small>AirPlay-, DLNA- oder Bluetooth-Ausgänge erscheinen hier automatisch, sobald PipeWire sie bereitstellt.</small>";
+    grid.appendChild(empty);
+    return;
+  }
+
+  endpoints.forEach(endpoint => {
+    const button = document.createElement("button");
+    button.className = endpoint.active ? "active-room" : "";
+    button.innerHTML = "<span></span><strong></strong><small></small>";
+    button.querySelector("span").textContent =
+      endpoint.type === "airplay" ? "◉" : endpoint.type === "dlna" ? "⌂" : "BT";
+    button.querySelector("strong").textContent = endpoint.name;
+    button.querySelector("small").textContent =
+      endpoint.active ? `${endpoint.detail} · aktiv` : `${endpoint.detail} · auswählen`;
+    if (endpoint.action) button.addEventListener("click", endpoint.action);
+    else button.disabled = endpoint.active;
+    grid.appendChild(button);
+  });
+}
+
 async function refreshMediaDevices() {
   const list = document.getElementById("media-device-list");
   if (!list) return;
@@ -3050,6 +3100,7 @@ async function refreshMediaDevices() {
     const routing = host.routing || {};
     const pipewire = routing.pipewire || {};
     const bluetooth = routing.bluetooth || {};
+    renderMediaRooms(routing);
 
     hostDevices.forEach(device => {
       const icons = {hdmi:"▣",usb:"USB",bluetooth:"BT",local:"◉",audio:"♪"};
