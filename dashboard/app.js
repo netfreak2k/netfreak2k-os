@@ -2034,6 +2034,36 @@ async function appAction(name, action) {
   }
 }
 
+async function checkCatalogContainerUpdate(name, button, badge) {
+  if (!name || currentRole === "viewer") return;
+  const original = button?.textContent || "Update prüfen";
+  if (button) { button.disabled = true; button.textContent = "Prüfe …"; }
+  try {
+    const data = await request("/api/apps/update-check", {
+      method:"POST",
+      body:JSON.stringify({name}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    if (badge) {
+      badge.textContent = data.update_available === true ? "Update verfügbar" :
+        data.update_available === false ? "Aktuell" : "Unklar";
+      badge.className = `status-chip ${data.update_available === false ? "good" : data.update_available === true ? "warn" : ""}`;
+    }
+    showN2KToast(data.update_available === true ? "Für diese App ist ein neuer Image-Stand verfügbar." :
+      data.update_available === false ? "Die App ist auf dem aktuellen Image-Stand." :
+      "Der Registry-Stand konnte nicht eindeutig verglichen werden.", "info");
+  } catch (error) {
+    console.error(error);
+    if (badge) {
+      badge.textContent = "Prüfung fehlgeschlagen";
+      badge.className = "status-chip";
+    }
+    showN2KToast("Update-Prüfung konnte nicht durchgeführt werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function loadCatalog() {
   const list = document.getElementById("catalog-list");
   if (!list) return;
@@ -2064,6 +2094,13 @@ async function loadCatalog() {
         badge.className = "status-chip good";
         badge.textContent = app.state === "running" ? "● Installiert" : "Installiert";
         action.appendChild(badge);
+        if (currentRole !== "viewer" && app.container) {
+          const check = document.createElement("button");
+          check.className = "mini-action";
+          check.textContent = "Update prüfen";
+          check.addEventListener("click", () => checkCatalogContainerUpdate(app.container, check, badge));
+          action.appendChild(check);
+        }
         if (app.host_port) {
           const open = document.createElement("button");
           open.className = "mini-action";
