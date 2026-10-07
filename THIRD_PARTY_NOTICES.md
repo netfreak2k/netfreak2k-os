@@ -6,9 +6,7 @@ It is a compliance inventory, not a replacement for the upstream license texts. 
 
 ## Netfreak2k project code
 
-The repository currently does **not** declare a final project-wide public license. Until a project license is explicitly selected and committed, do not assume permission to redistribute Netfreak2k-owned source code beyond the permissions granted by applicable law.
-
-A final project license must be selected before a public stable release.
+Netfreak2k-owned source code is licensed under **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. The canonical license text is committed as `LICENSE`. Third-party components remain under their own upstream licenses and are not relicensed by Netfreak2k.
 
 ## Runtime / platform dependencies
 
@@ -94,7 +92,7 @@ They are not sourced from Apple, Microsoft, Linux Mint, commercial wallpaper pac
 
 No third-party logo, proprietary operating-system wallpaper, proprietary font or copied UI asset is intentionally included in this collection.
 
-The collection is treated as Netfreak2k project artwork rather than a third-party runtime dependency. The repository-wide public license is still to be selected separately before a stable public release.
+The collection is treated as Netfreak2k project artwork rather than a third-party runtime dependency. Netfreak2k project artwork is distributed as part of the Netfreak2k project under the repository's AGPL-3.0-only licensing unless a specific asset notice states otherwise.
 
 
 ## ipwho.is network metadata
