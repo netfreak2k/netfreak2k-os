@@ -2849,3 +2849,70 @@ body::after{
 @media(max-width:560px){
   .remote-connectivity-grid{grid-template-columns:1fr}
 }
+
+
+/* Jobs Scheduler 2.0 */
+.scheduler-kpi-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:12px 0
+}
+.scheduler-kpi-grid section{
+  padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.024);
+  border:1px solid rgba(255,255,255,.045)
+}
+.scheduler-kpi-grid small,.scheduler-kpi-grid strong,.scheduler-kpi-grid span{display:block}
+.scheduler-kpi-grid small{font-size:7px;letter-spacing:.1em;color:#8d8165}
+.scheduler-kpi-grid strong{font-size:18px;margin-top:3px}
+.scheduler-kpi-grid span{font-size:7px;color:#78848f;margin-top:2px}
+.scheduler-card{
+  margin-top:10px;padding:12px;border-radius:14px;background:rgba(7,14,22,.48);
+  border:1px solid rgba(255,255,255,.045)
+}
+.scheduler-section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px
+}
+.scheduler-section-head small,.scheduler-section-head strong{display:block}
+.scheduler-section-head small{font-size:6px;color:#83795f;letter-spacing:.08em}
+.scheduler-section-head strong{font-size:9px;margin-top:2px}
+.scheduler-section-head>span{font-size:6px;color:#69747e}
+.scheduler-job-list,.scheduler-timer-list{display:grid;gap:7px}
+.scheduler-job-row{
+  display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(130px,.7fr) auto;
+  gap:10px;align-items:center;padding:10px;border-radius:10px;background:rgba(255,255,255,.018)
+}
+.scheduler-job-main{display:grid;grid-template-columns:38px minmax(0,1fr);gap:9px;align-items:center;min-width:0}
+.scheduler-job-icon{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:6px;font-weight:900;
+  color:#d9c27e;background:rgba(216,180,90,.07);border:1px solid rgba(236,202,110,.09)
+}
+.scheduler-job-main strong,.scheduler-job-main small,.scheduler-job-meta span,.scheduler-job-state small{display:block}
+.scheduler-job-main strong{font-size:8px}
+.scheduler-job-main small{font-size:6px;color:#74808b;line-height:1.4;margin-top:2px}
+.scheduler-job-meta span{font-size:6px;color:#7b8792;line-height:1.5}
+.scheduler-job-state{min-width:0}
+.scheduler-job-state small{
+  margin-top:3px;font-size:6px;color:#74808b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.scheduler-timer-row{
+  display:grid;grid-template-columns:10px minmax(0,1.3fr) minmax(0,1fr) auto;
+  gap:9px;align-items:center;padding:8px 9px;border-radius:9px;background:rgba(255,255,255,.018)
+}
+.scheduler-timer-dot{width:7px;height:7px;border-radius:50%;background:#68737d}
+.scheduler-timer-dot.active{background:#70d39d;box-shadow:0 0 0 3px rgba(112,211,157,.06)}
+.scheduler-timer-main strong,.scheduler-timer-main small,.scheduler-timer-times span,.scheduler-timer-times small{display:block}
+.scheduler-timer-main strong{font-size:7px}
+.scheduler-timer-main small,.scheduler-timer-times span,.scheduler-timer-times small{
+  font-size:6px;color:#74808b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.scheduler-timer-times span{color:#84909a}
+.scheduler-timer-row em{font-size:6px;font-style:normal;color:#7b8792}
+@media(max-width:1000px){
+  .scheduler-job-row{grid-template-columns:1fr 1fr}
+  .scheduler-job-row .scheduler-run{justify-self:start}
+}
+@media(max-width:760px){
+  .scheduler-kpi-grid{grid-template-columns:1fr 1fr}
+  .scheduler-job-row,.scheduler-timer-row{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .scheduler-kpi-grid{grid-template-columns:1fr}
+}
