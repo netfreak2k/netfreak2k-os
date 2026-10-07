@@ -108,6 +108,7 @@ function enterApp(username) {
   loadStorage();
   loadVms();
   loadBackups();
+  loadNetworkInventory();
   loadWorkspace();
   loadFavorites();
   loadShares();
@@ -339,6 +340,293 @@ function drawNetworkDetailChart() {
 
   const maxLabel = document.getElementById("network-detail-max");
   if (maxLabel) maxLabel.textContent = `${formatRate(max)} Spitze`;
+}
+
+let networkInventoryDevices = [];
+let networkInventoryFilter = "all";
+let networkInventorySelectedId = null;
+
+const networkDeviceTypeLabels = {
+  router:"Router", network:"Netzwerk", server:"Server", nas:"NAS", computer:"Computer",
+  mobile:"Smartphone / Tablet", tv:"TV / Streaming", printer:"Drucker", iot:"Smart Home / IoT", unknown:"Unbekannt"
+};
+
+const networkDeviceTypeIcons = {
+  router:"⌂", network:"⌁", server:"▣", nas:"▤", computer:"▰", mobile:"▯", tv:"▱", printer:"▧", iot:"◈", unknown:"?"
+};
+
+function formatNetworkSeen(epoch) {
+  if (!Number.isFinite(Number(epoch))) return "–";
+  const seconds = Math.max(0, Math.floor(Date.now() / 1000 - Number(epoch)));
+  if (seconds < 20) return "gerade eben";
+  if (seconds < 60) return `vor ${seconds} Sek.`;
+  if (seconds < 3600) return `vor ${Math.floor(seconds / 60)} Min.`;
+  if (seconds < 86400) return `vor ${Math.floor(seconds / 3600)} Std.`;
+  return formatDateTime(Number(epoch));
+}
+
+function networkDeviceSearchText(device) {
+  const deepPorts = Array.isArray(device.deep_scan?.ports)
+    ? device.deep_scan.ports.map(port => `${port.port} ${port.service} ${port.product || ""}`).join(" ")
+    : "";
+  return [
+    device.name, device.custom_name, device.hostname, device.ip, device.mac, device.vendor,
+    device.device_type, ...(device.services || []), deepPorts, device.notes
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderNetworkInventory(payload = {}) {
+  networkInventoryDevices = Array.isArray(payload.devices) ? payload.devices : networkInventoryDevices;
+  const summary = payload.summary || {};
+  const setText = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  };
+
+  setText("network-count-known", summary.known ?? networkInventoryDevices.length);
+  setText("network-count-online", summary.online ?? networkInventoryDevices.filter(d => d.online).length);
+  setText("network-count-new", summary.new ?? networkInventoryDevices.filter(d => d.online && d.new).length);
+  setText("network-count-offline", summary.offline ?? networkInventoryDevices.filter(d => !d.online).length);
+  setText("network-topology-gateway", payload.gateway || "–");
+  setText("network-topology-subnet", payload.subnet || "–");
+  setText("network-topology-devices", `${summary.online ?? networkInventoryDevices.filter(d => d.online).length} online`);
+  const provider = document.getElementById("network-detail-provider")?.textContent;
+  setText("network-topology-provider", provider && provider !== "–" ? provider : "Internet");
+  setText("network-last-scan", Number.isFinite(Number(payload.last_scan)) ? `Letzter Scan: ${formatDateTime(Number(payload.last_scan))}` : "Noch kein Scan");
+  const scanState = document.getElementById("network-scan-state");
+  if (scanState) {
+    scanState.textContent = Number.isFinite(Number(payload.last_scan))
+      ? `${summary.online ?? 0} online · ${payload.subnet || "Heimnetz"}`
+      : "Noch nicht gescannt";
+    scanState.classList.toggle("good", Boolean(payload.last_scan));
+  }
+  renderNetworkDeviceList();
+}
+
+function renderNetworkDeviceList() {
+  const body = document.getElementById("network-device-list");
+  if (!body) return;
+  const query = (document.getElementById("network-device-search")?.value || "").trim().toLowerCase();
+  const type = document.getElementById("network-device-type-filter")?.value || "all";
+  const items = networkInventoryDevices.filter(device => {
+    if (networkInventoryFilter === "online" && !device.online) return false;
+    if (networkInventoryFilter === "offline" && device.online) return false;
+    if (networkInventoryFilter === "new" && !(device.online && device.new)) return false;
+    if (type !== "all" && device.device_type !== type) return false;
+    if (query && !networkDeviceSearchText(device).includes(query)) return false;
+    return true;
+  });
+
+  body.innerHTML = "";
+  for (const device of items) {
+    const row = document.createElement("tr");
+    row.className = "network-device-row";
+    if (device.new && device.online) row.classList.add("new");
+    if (!device.online) row.classList.add("offline");
+    row.innerHTML = `
+      <td><span class="network-device-status"></span></td>
+      <td><div class="network-device-name"><span class="network-device-icon"></span><div><strong></strong><small></small></div></div></td>
+      <td><div class="network-device-address"><strong></strong><small></small></div></td>
+      <td><span class="network-device-vendor"></span></td>
+      <td><span class="network-device-type-chip"></span></td>
+      <td><span class="network-device-latency"></span></td>
+      <td><span class="network-device-seen"></span></td>
+      <td><button class="secondary compact network-device-open">Details</button></td>`;
+    const status = row.querySelector(".network-device-status");
+    status.textContent = device.online ? (device.new ? "NEU" : "ONLINE") : "OFFLINE";
+    status.classList.toggle("online", Boolean(device.online));
+    status.classList.toggle("new", Boolean(device.new && device.online));
+    row.querySelector(".network-device-icon").textContent = networkDeviceTypeIcons[device.device_type] || "?";
+    row.querySelector(".network-device-name strong").textContent = device.name || device.hostname || device.ip || "Unbekannt";
+    row.querySelector(".network-device-name small").textContent =
+      [device.hostname && device.hostname !== device.name ? device.hostname : "", device.trusted ? "bekannt" : ""].filter(Boolean).join(" · ") || "lokales Gerät";
+    row.querySelector(".network-device-address strong").textContent = device.ip || "–";
+    row.querySelector(".network-device-address small").textContent = device.mac || "MAC nicht verfügbar";
+    row.querySelector(".network-device-vendor").textContent = device.vendor || "Hersteller unbekannt";
+    row.querySelector(".network-device-type-chip").textContent = networkDeviceTypeLabels[device.device_type] || "Unbekannt";
+    row.querySelector(".network-device-latency").textContent = Number.isFinite(Number(device.latency_ms)) ? `${device.latency_ms} ms` : "–";
+    row.querySelector(".network-device-seen").textContent = formatNetworkSeen(device.last_seen);
+    row.querySelector(".network-device-open").addEventListener("click", () => openNetworkDevice(device.id));
+    row.addEventListener("dblclick", () => openNetworkDevice(device.id));
+    body.appendChild(row);
+  }
+  if (!body.children.length) {
+    body.innerHTML = '<tr><td colspan="8" class="network-device-empty">Keine Geräte für diesen Filter.</td></tr>';
+  }
+}
+
+async function loadNetworkInventory() {
+  const root = document.getElementById("network-device-inventory");
+  if (!root) return;
+  try {
+    const data = await request("/api/network/devices", {headers:{}});
+    renderNetworkInventory(data);
+  } catch (error) {
+    console.error(error);
+    const state = document.getElementById("network-scan-state");
+    if (state) state.textContent = "Inventar nicht verfügbar";
+  }
+}
+
+async function scanNetworkInventory() {
+  const button = document.getElementById("network-scan");
+  const state = document.getElementById("network-scan-state");
+  if (!button) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Scanne Heimnetz …";
+  if (state) state.textContent = "ARP · Ping · mDNS werden geprüft …";
+  try {
+    const data = await request("/api/network/scan", {
+      method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}
+    });
+    renderNetworkInventory(data);
+    const newlyFound = (data.devices || []).filter(device => device.online && device.new).length;
+    showN2KToast(
+      newlyFound ? `${newlyFound} neue Geräte im Heimnetz erkannt.` : `${data.summary?.online || 0} Geräte online.`,
+      newlyFound ? "info" : "success"
+    );
+  } catch (error) {
+    console.error(error);
+    if (state) state.textContent = "Scan fehlgeschlagen";
+    showN2KToast("Heimnetz konnte nicht vollständig gescannt werden.", "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+function renderNetworkDeviceModal(device) {
+  if (!device) return;
+  const setText = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  };
+  setText("network-device-modal-title", device.name || device.hostname || device.ip || "Gerät");
+  setText("network-device-modal-status", device.online ? (device.new ? "NEUES GERÄT · ONLINE" : "GERÄT · ONLINE") : "GERÄT · OFFLINE");
+  setText("network-device-modal-subtitle", [device.vendor, networkDeviceTypeLabels[device.device_type]].filter(Boolean).join(" · ") || "Lokales Netzwerkgerät");
+  setText("network-device-ip", device.ip || "–");
+  setText("network-device-mac", device.mac || "–");
+  setText("network-device-vendor", device.vendor || "unbekannt");
+  setText("network-device-hostname", device.hostname || "–");
+  setText("network-device-ping", Number.isFinite(Number(device.latency_ms)) ? `${device.latency_ms} ms` : "–");
+  setText("network-device-first-seen", Number.isFinite(Number(device.first_seen)) ? formatDateTime(Number(device.first_seen)) : "–");
+  setText("network-device-last-seen", Number.isFinite(Number(device.last_seen)) ? formatDateTime(Number(device.last_seen)) : "–");
+  setText("network-device-online", device.online ? "Online" : "Offline");
+
+  const nameInput = document.getElementById("network-device-custom-name");
+  const typeInput = document.getElementById("network-device-type");
+  const trustedInput = document.getElementById("network-device-trusted");
+  const notesInput = document.getElementById("network-device-notes");
+  if (nameInput) nameInput.value = device.custom_name || "";
+  if (typeInput) typeInput.value = device.device_type || "unknown";
+  if (trustedInput) trustedInput.checked = Boolean(device.trusted);
+  if (notesInput) notesInput.value = device.notes || "";
+
+  const services = document.getElementById("network-device-services");
+  if (services) {
+    services.innerHTML = "";
+    const list = Array.isArray(device.services) ? device.services : [];
+    if (list.length) {
+      list.forEach(service => {
+        const chip = document.createElement("span");
+        chip.textContent = service;
+        services.appendChild(chip);
+      });
+    } else {
+      services.innerHTML = "<span>Keine mDNS-/Bonjour-Dienste erkannt.</span>";
+    }
+  }
+
+  const deep = device.deep_scan || {};
+  const ports = document.getElementById("network-device-ports");
+  if (ports) {
+    ports.innerHTML = "";
+    const rows = Array.isArray(deep.ports) ? deep.ports : [];
+    if (rows.length) {
+      rows.forEach(port => {
+        const row = document.createElement("div");
+        row.className = "network-port-row";
+        row.innerHTML = "<strong></strong><span></span><small></small>";
+        row.querySelector("strong").textContent = `${port.port}/${port.protocol || "tcp"}`;
+        row.querySelector("span").textContent = port.service || "Dienst";
+        row.querySelector("small").textContent = port.product || "offen";
+        ports.appendChild(row);
+      });
+    } else {
+      ports.innerHTML = '<div class="network-device-empty">Noch keine Detailanalyse für dieses Gerät.</div>';
+    }
+  }
+  setText("network-device-analysis-time", Number.isFinite(Number(deep.scanned_at)) ? `Analyse: ${formatDateTime(Number(deep.scanned_at))}` : "Noch nicht ausgeführt");
+  setText("network-device-os-hint", deep.os_hint ? `Service-Hinweis: ${deep.os_hint}` : "");
+}
+
+function openNetworkDevice(deviceId) {
+  const device = networkInventoryDevices.find(item => item.id === deviceId);
+  if (!device) return;
+  networkInventorySelectedId = deviceId;
+  renderNetworkDeviceModal(device);
+  document.getElementById("network-device-modal")?.classList.remove("hidden");
+}
+
+function closeNetworkDevice() {
+  document.getElementById("network-device-modal")?.classList.add("hidden");
+  networkInventorySelectedId = null;
+}
+
+async function saveNetworkDevice() {
+  if (!networkInventorySelectedId) return;
+  const fields = {
+    custom_name: document.getElementById("network-device-custom-name")?.value || "",
+    device_type: document.getElementById("network-device-type")?.value || "unknown",
+    trusted: Boolean(document.getElementById("network-device-trusted")?.checked),
+    notes: document.getElementById("network-device-notes")?.value || ""
+  };
+  try {
+    const updated = await request("/api/network/device/update", {
+      method:"POST",
+      body:JSON.stringify({device_id:networkInventorySelectedId, fields}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    const index = networkInventoryDevices.findIndex(item => item.id === networkInventorySelectedId);
+    if (index >= 0) networkInventoryDevices[index] = {...networkInventoryDevices[index], ...updated};
+    renderNetworkDeviceList();
+    renderNetworkDeviceModal(networkInventoryDevices[index]);
+    showN2KToast("Geräteinformationen gespeichert.", "success");
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Geräteinformationen konnten nicht gespeichert werden.", "error");
+  }
+}
+
+async function analyzeNetworkDevice() {
+  if (!networkInventorySelectedId) return;
+  const button = document.getElementById("network-device-analyze");
+  const original = button?.textContent || "Gerät analysieren";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Analysiere Dienste …";
+  }
+  try {
+    const updated = await request("/api/network/device/analyze", {
+      method:"POST",
+      body:JSON.stringify({device_id:networkInventorySelectedId}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    const index = networkInventoryDevices.findIndex(item => item.id === networkInventorySelectedId);
+    if (index >= 0) networkInventoryDevices[index] = {...networkInventoryDevices[index], ...updated};
+    renderNetworkDeviceList();
+    renderNetworkDeviceModal(networkInventoryDevices[index]);
+    showN2KToast("Detailanalyse abgeschlossen.", "success");
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Detailanalyse konnte nicht abgeschlossen werden.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
 }
 
 function updateNetworkDetail(network) {
@@ -2094,6 +2382,21 @@ async function loadUpdates() {
     if (topDot) topDot.className = "health-dot warn";
   }
 }
+
+document.getElementById("network-scan")?.addEventListener("click", scanNetworkInventory);
+document.getElementById("network-device-search")?.addEventListener("input", renderNetworkDeviceList);
+document.getElementById("network-device-type-filter")?.addEventListener("change", renderNetworkDeviceList);
+document.querySelectorAll("[data-network-filter]").forEach(button => button.addEventListener("click", () => {
+  networkInventoryFilter = button.dataset.networkFilter || "all";
+  document.querySelectorAll("[data-network-filter]").forEach(item => item.classList.toggle("active", item === button));
+  renderNetworkDeviceList();
+}));
+document.getElementById("network-device-modal-close")?.addEventListener("click", closeNetworkDevice);
+document.getElementById("network-device-modal")?.addEventListener("click", event => {
+  if (event.target.id === "network-device-modal") closeNetworkDevice();
+});
+document.getElementById("network-device-save")?.addEventListener("click", saveNetworkDevice);
+document.getElementById("network-device-analyze")?.addEventListener("click", analyzeNetworkDevice);
 
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
