@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-media1">
-  <link rel="stylesheet" href="media-center.css?v=20261007-media1">
+  <link rel="stylesheet" href="styles.css?v=20261007-media2">
+  <link rel="stylesheet" href="media-center.css?v=20261007-media2">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -190,6 +190,24 @@
                 <div><strong id="overview-ha">Prüfe HAOS …</strong><span id="overview-ha-detail">–</span></div>
               </div>
             </button>
+
+            <div id="overview-media-widget" class="widget overview-media-widget">
+              <div class="widget-head"><div><small>N2K MEDIA</small><h3>Schnellsteuerung</h3></div><button class="widget-open-mini" data-target-view="media-center-panel" title="Media Center öffnen">›</button></div>
+              <div class="overview-media-now">
+                <span class="overview-media-icon">♪</span>
+                <div><strong id="overview-media-title">Bereit</strong><small id="overview-media-subtitle">Radio & Streaming</small></div>
+              </div>
+              <div class="overview-media-controls">
+                <button id="overview-media-prev" title="Vorheriger Sender">‹</button>
+                <button id="overview-media-play" class="main" title="Play / Pause">▶</button>
+                <button id="overview-media-next" title="Nächster Sender">›</button>
+                <button data-target-view="media-center-panel" title="Media Center öffnen">☷</button>
+              </div>
+              <div class="overview-media-favorites">
+                <small>FAVORITEN</small>
+                <div id="overview-media-favorites"><span class="widget-empty">Noch keine Radio-Favoriten.</span></div>
+              </div>
+            </div>
 
             <div class="widget activity-widget">
               <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
@@ -630,6 +648,15 @@
                 </div>
                 <div id="media-radio-status" class="media-radio-status">Senderverzeichnis wird geladen …</div>
                 <div id="media-station-list" class="media-station-list"></div>
+                <div class="media-favorites-block">
+                  <div class="media-favorites-head">
+                    <div><small>DEINE FAVORITEN</small><strong>Direkt abspielen</strong></div>
+                    <span id="media-favorites-count">0</span>
+                  </div>
+                  <div id="media-favorites-list" class="media-favorites-list">
+                    <div class="media-empty">Noch keine Favoriten gespeichert.</div>
+                  </div>
+                </div>
               </section>
 
               <section class="media-card media-streaming-card">
@@ -876,6 +903,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-media1"></script>
+  <script src="app.js?v=20261007-media2"></script>
 </body>
 </html>
