@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-systemgroup1">
+  <link rel="stylesheet" href="styles.css?v=20261007-network1">
   <link rel="stylesheet" href="media-center.css?v=20261007-rds1">
 </head>
 <body>
@@ -643,6 +643,109 @@
               <section><small>WAN-IP</small><strong id="network-detail-wan">–</strong><span id="network-detail-country">–</span></section>
               <section><small>GATEWAY / DNS</small><strong id="network-detail-gateway">–</strong><span id="network-detail-dns">–</span></section>
             </div>
+            <section id="network-device-inventory" class="network-inventory">
+              <div class="network-inventory-head">
+                <div>
+                  <p class="eyebrow">N2K NETWORK INVENTORY</p>
+                  <h3>Geräte im Heimnetz</h3>
+                  <p>Lokale Erkennung über ARP, Neighbor Table, ICMP, mDNS und optionale Dienstanalyse.</p>
+                </div>
+                <div class="network-inventory-actions">
+                  <span id="network-scan-state" class="status-chip">Noch nicht gescannt</span>
+                  <button id="network-scan" class="primary-mini">Netzwerk scannen</button>
+                </div>
+              </div>
+
+              <div class="network-inventory-kpis">
+                <button class="network-inventory-kpi active" data-network-filter="all"><small>ALLE</small><strong id="network-count-known">0</strong><span>bekannte Geräte</span></button>
+                <button class="network-inventory-kpi" data-network-filter="online"><small>ONLINE</small><strong id="network-count-online">0</strong><span>aktuell erreichbar</span></button>
+                <button class="network-inventory-kpi" data-network-filter="new"><small>NEU</small><strong id="network-count-new">0</strong><span>neu erkannt</span></button>
+                <button class="network-inventory-kpi" data-network-filter="offline"><small>OFFLINE</small><strong id="network-count-offline">0</strong><span>zuletzt bekannt</span></button>
+              </div>
+
+              <div class="network-topology-card">
+                <div class="network-topology-node internet"><span>◎</span><div><small>INTERNET</small><strong id="network-topology-provider">Provider</strong></div></div>
+                <i>→</i>
+                <div class="network-topology-node gateway"><span>⌂</span><div><small>GATEWAY</small><strong id="network-topology-gateway">–</strong></div></div>
+                <i>→</i>
+                <div class="network-topology-node lan"><span>⌁</span><div><small>HEIMNETZ</small><strong id="network-topology-subnet">–</strong></div></div>
+                <i>→</i>
+                <div class="network-topology-node devices"><span>▦</span><div><small>GERÄTE</small><strong id="network-topology-devices">0 online</strong></div></div>
+              </div>
+
+              <div class="network-inventory-toolbar">
+                <div class="network-device-search"><span>⌕</span><input id="network-device-search" type="search" placeholder="Gerät, IP, MAC, Hersteller oder Dienst suchen …"></div>
+                <select id="network-device-type-filter" aria-label="Gerätetyp filtern">
+                  <option value="all">Alle Gerätetypen</option>
+                  <option value="router">Router</option>
+                  <option value="network">Netzwerk</option>
+                  <option value="server">Server</option>
+                  <option value="nas">NAS</option>
+                  <option value="computer">Computer</option>
+                  <option value="mobile">Smartphone / Tablet</option>
+                  <option value="tv">TV / Streaming</option>
+                  <option value="printer">Drucker</option>
+                  <option value="iot">Smart Home / IoT</option>
+                  <option value="unknown">Unbekannt</option>
+                </select>
+                <span id="network-last-scan">Noch kein Scan</span>
+              </div>
+
+              <div class="network-device-table-wrap">
+                <table class="network-device-table">
+                  <thead><tr><th>Status</th><th>Gerät</th><th>IP / MAC</th><th>Hersteller</th><th>Typ</th><th>Ping</th><th>Zuletzt gesehen</th><th></th></tr></thead>
+                  <tbody id="network-device-list"><tr><td colspan="8" class="network-device-empty">Starte den ersten Netzwerkscan.</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+
+            <div id="network-device-modal" class="network-device-modal hidden" role="dialog" aria-modal="true" aria-labelledby="network-device-modal-title">
+              <div class="network-device-modal-card">
+                <div class="network-device-modal-head">
+                  <div><small id="network-device-modal-status">GERÄT</small><h3 id="network-device-modal-title">Gerät</h3><p id="network-device-modal-subtitle">–</p></div>
+                  <button id="network-device-modal-close" class="secondary compact">Schließen</button>
+                </div>
+                <div class="network-device-detail-grid">
+                  <section><small>IP-ADRESSE</small><strong id="network-device-ip">–</strong></section>
+                  <section><small>MAC-ADRESSE</small><strong id="network-device-mac">–</strong></section>
+                  <section><small>HERSTELLER</small><strong id="network-device-vendor">–</strong></section>
+                  <section><small>HOSTNAME</small><strong id="network-device-hostname">–</strong></section>
+                  <section><small>PING</small><strong id="network-device-ping">–</strong></section>
+                  <section><small>ERSTE ERKENNUNG</small><strong id="network-device-first-seen">–</strong></section>
+                  <section><small>ZULETZT GESEHEN</small><strong id="network-device-last-seen">–</strong></section>
+                  <section><small>STATUS</small><strong id="network-device-online">–</strong></section>
+                </div>
+
+                <div class="network-device-edit-grid">
+                  <label>Name<input id="network-device-custom-name" maxlength="80" placeholder="Eigener Gerätename"></label>
+                  <label>Gerätetyp<select id="network-device-type">
+                    <option value="router">Router</option><option value="network">Netzwerk</option><option value="server">Server</option>
+                    <option value="nas">NAS</option><option value="computer">Computer</option><option value="mobile">Smartphone / Tablet</option>
+                    <option value="tv">TV / Streaming</option><option value="printer">Drucker</option><option value="iot">Smart Home / IoT</option><option value="unknown">Unbekannt</option>
+                  </select></label>
+                  <label class="network-device-trusted"><input id="network-device-trusted" type="checkbox"> Bekanntes / vertrauenswürdiges Gerät</label>
+                  <label class="wide">Notizen<textarea id="network-device-notes" rows="3" maxlength="500" placeholder="Standort, Besitzer, Zweck …"></textarea></label>
+                </div>
+                <div class="network-device-detail-actions">
+                  <button id="network-device-save" class="secondary">Änderungen speichern</button>
+                  <button id="network-device-analyze">Gerät analysieren</button>
+                </div>
+
+                <section class="network-device-services">
+                  <div class="network-device-section-head"><div><small>ERKANNTE DIENSTE</small><strong>mDNS / Bonjour / Netzwerkdienste</strong></div></div>
+                  <div id="network-device-services" class="network-service-chips"><span>Keine Dienste erkannt.</span></div>
+                </section>
+                <section class="network-device-analysis">
+                  <div class="network-device-section-head"><div><small>OPTIONALE DETAILANALYSE</small><strong>Offene Dienste und Service-Hinweise</strong></div><span id="network-device-analysis-time">Noch nicht ausgeführt</span></div>
+                  <div id="network-device-ports" class="network-port-list"><div class="network-device-empty">„Gerät analysieren“ prüft nur dieses Gerät im lokalen Heimnetz.</div></div>
+                  <p id="network-device-os-hint" class="network-device-os-hint"></p>
+                </section>
+                <section class="network-device-history">
+                  <div class="network-device-section-head"><div><small>VERLAUF</small><strong>Erkennung & Verfügbarkeit</strong></div></div>
+                  <div id="network-device-history" class="network-history-list"><div class="network-device-empty">Noch keine Historie vorhanden.</div></div>
+                </section>
+              </div>
+            </div>
           </article>
 
           
@@ -996,6 +1099,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-systemgroup1"></script>
+  <script src="app.js?v=20261007-network1"></script>
 </body>
 </html>

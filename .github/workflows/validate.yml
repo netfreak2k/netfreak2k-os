@@ -182,6 +182,17 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: Network inventory sanity
+        run: |
+          grep -q 'network-device-inventory' dashboard/index.html
+          grep -q 'scanNetworkInventory' dashboard/app.js
+          grep -q 'network_device_analyze' host/vm-agent.py
+          grep -q 'network_scan_payload' host/vm-agent.py
+          grep -q '/network/devices' server/api/server.py
+          grep -q '/network/scan' server/api/server.py
+          grep -q 'arp-scan' install.sh
+          grep -q 'nmap' scripts/update-server.sh
+
       - name: HAOS provisioning sanity
         run: |
           grep -q 'haos_ova-' scripts/provision-haos.sh
