@@ -88,6 +88,13 @@ install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/system/netfreak2k-update-check.timer
 
+log "Installiere Media-Center-Audioabhängigkeiten."
+write_progress "running" 62 "audio" "PipeWire, Bluetooth und AirPlay-Basis werden geprüft."
+apt-get update
+apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon
+systemctl enable --now bluetooth
+systemctl enable --now avahi-daemon
+
 write_progress "running" 68 "services" "Host-Dienste werden aktualisiert."
 systemctl daemon-reload
 systemctl restart netfreak2k-vm-agent.service
