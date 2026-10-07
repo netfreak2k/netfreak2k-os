@@ -2916,3 +2916,56 @@ body::after{
 @media(max-width:480px){
   .scheduler-kpi-grid{grid-template-columns:1fr}
 }
+
+
+/* Logs Events 2.0 */
+.events-kpi-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:12px 0
+}
+.events-kpi-grid section{
+  padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.024);
+  border:1px solid rgba(255,255,255,.045)
+}
+.events-kpi-grid small,.events-kpi-grid strong,.events-kpi-grid span{display:block}
+.events-kpi-grid small{font-size:7px;letter-spacing:.1em;color:#8d8165}
+.events-kpi-grid strong{font-size:18px;margin-top:3px}
+.events-kpi-grid span{font-size:7px;color:#78848f;margin-top:2px}
+.events-toolbar{
+  display:grid;grid-template-columns:minmax(220px,1fr) 150px 150px auto;gap:8px;align-items:center;margin:10px 0
+}
+.events-toolbar input,.events-toolbar select{
+  width:100%;box-sizing:border-box;padding:9px 10px;border-radius:9px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);color:inherit;font-size:8px
+}
+.events-toolbar>span{font-size:7px;color:#74808b;white-space:nowrap}
+.events-stream-card{
+  padding:10px;border-radius:14px;background:rgba(7,14,22,.48);
+  border:1px solid rgba(255,255,255,.045)
+}
+.events-list{display:grid;gap:5px;max-height:66vh;overflow:auto}
+.event-row{
+  display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:start;
+  padding:9px 10px;border-radius:9px;background:rgba(255,255,255,.018)
+}
+.event-level{
+  display:inline-flex;justify-content:center;padding:4px 6px;border-radius:999px;
+  font-size:6px;font-weight:900;letter-spacing:.04em;background:rgba(133,174,222,.06);color:#85aede
+}
+.event-warning .event-level{background:rgba(220,173,114,.07);color:#dcad72}
+.event-error .event-level,.event-critical .event-level{background:rgba(225,125,125,.07);color:#e17d7d}
+.event-copy{min-width:0}
+.event-copy strong,.event-copy small,.event-copy p{display:block}
+.event-copy strong{font-size:8px}
+.event-copy small{font-size:6px;color:#6f7b85;margin-top:2px}
+.event-copy p{font-size:7px;line-height:1.45;color:#8a96a1;margin:4px 0 0;white-space:pre-wrap;word-break:break-word}
+.event-row time{font-size:6px;color:#69747e;white-space:nowrap}
+@media(max-width:850px){
+  .events-kpi-grid{grid-template-columns:1fr 1fr}
+  .events-toolbar{grid-template-columns:1fr 1fr}
+  .events-toolbar>span{grid-column:1/-1}
+}
+@media(max-width:560px){
+  .events-kpi-grid,.events-toolbar{grid-template-columns:1fr}
+  .event-row{grid-template-columns:1fr}
+  .event-row time{justify-self:start}
+}
