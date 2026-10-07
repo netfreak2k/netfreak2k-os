@@ -1,133 +1,72 @@
-# Roadmap
+# Netfreak2k Server-OS Roadmap
 
-This roadmap reflects the current **Linux Mint host + browser-managed Netfreak2k platform** direction.
+## Current milestone — v1.0 release candidate
 
-## Phase 0 — Linux Mint host foundation / 0.1.x
+Current source version: **1.0.0-rc1**
 
-- Linux Mint remains the host OS
-- Netfreak2k background services
-- browser-managed N2K Glass web interface
-- KVM/QEMU + libvirt runtime for managed VMs
-- Home Assistant OS VM support
-- access through `http://SERVER-IP/`
-- health endpoint
-- self-contained install/start script
-- reversible stop/remove script
-- CI validation
-- container build validation
-- LAN-first operation
-- no host-changing administration yet
+The v1.0 feature set is frozen. Work in this milestone is limited to validation, bug fixes, documentation, installation/upgrade testing and release hardening.
 
-### Definition of done
+### Implemented for v1.0
 
-- stack starts on a Linux host with Docker Compose
-- browser can open the UI by IP address
-- container health check passes
-- restart policy works
-- uninstall helper removes Netfreak2k containers/network
-- no bootloader, partition or desktop changes
+- browser-managed N2K Golden Glass desktop
+- Docker app management and catalog
+- Home Assistant OS on KVM/libvirt
+- VM resources, controls and snapshots
+- storage inventory, SMART and controlled mounts
+- Backup & Recovery with verification and restore tests
+- safe update preflight and pre-update recovery points
+- LAN device inventory, history, service analysis and Wake-on-LAN
+- System Health and configurable monitoring policies
+- users, roles, TOTP 2FA, sessions and audit log
+- host security diagnostics
+- HTTPS/domain gateway and connectivity diagnostics
+- Jobs & Scheduler
+- unified Logs & Events
+- Recovery Center
+- N2K Drive, WebDAV/CalDAV and calendar
+- Office, Media Center, branded terminal and personalization
 
-## Phase 1 — Secure server management
+### Stable v1.0 gates
 
-- first-run wizard
-- admin account
-- authentication
-- session management
-- HTTPS strategy
-- CSRF/security hardening
-- limited host agent
-- explicit permission model
-- system status API
-- CPU/RAM/load/temperature
-- network status
-- disk/storage status
-- service status
-- update status
+See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Stable **1.0.0** is blocked until the validation workflow, real-host install/upgrade checks, recovery verification and project-license decision are complete.
 
-No host-changing control is enabled before authentication is implemented.
+## Post-v1.0
 
-## Phase 2 — App platform
+### v1.1 — Network and storage expansion
 
-- Docker app inventory
-- start/stop/restart apps
-- app logs
-- app installation framework
-- app catalog
-- storage mappings
-- port conflict detection
-- app permissions
-- backup metadata
-- safe uninstall
+- persistent user-managed mounts
+- explicit NAS/NFS/SMB management
+- richer RAID/ZFS operations with safety guards
+- optional gateway/bridge mode for true per-device traffic visibility
+- optional external outside-in probe integration
 
-## Phase 3 — Storage, backup and remote access
+### v1.2 — App platform expansion
 
-- mounted disk overview
-- SMART health
-- storage warnings
-- backup destinations
-- scheduled backups
-- encrypted backups
-- integrity checks
-- SMB/NAS integration
-- Tailscale
-- remote browser access
+- safer managed app update/recreate workflow
+- richer catalog metadata and dependency checks
+- app backup/restore integration
+- additional curated services
 
-## Phase 4 — AI platform
+### v1.x — AI and automation
 
 - AI Provider Center
-- ChatGPT/Gemini/Claude integration paths
-- local model services
-- hardware-based local-model recommendations
-- multi-pane AI dashboard
-- project/folder permissions
-- local/cloud routing rules
-- offline mode
-- local activity log
-
-## Phase 5 — Automation platform
-
+- local-model services and hardware recommendations
+- multi-pane AI workflows
 - graphical automation editor
-- time/network/device/energy triggers
-- multiple conditions
-- notifications
-- templates
-- simulation mode
-- local audit log
-- mandatory confirmation for critical actions
+- richer notification channels
+- simulation/dry-run support for automations
 
-## Phase 6 — Energy / off-grid
+## Later platform work
 
-- solar/battery/inverter dashboard
-- UPS monitoring
-- multiple sites
-- history and charts
-- alerts
-- energy-aware system rules
-- critical-service prioritization
-- local-AI energy analysis
-- generator integration with mandatory safety controls
+Only after the server platform has stable releases:
 
-## Phase 7 — Dedicated Netfreak2k Server-OS / Desktop
-
-Only after the server platform is mature:
-
-- dedicated bootable images
-- x86-64 installer
-- Raspberry Pi images
-- N2K Glass desktop
-- hardware detection
-- Wi-Fi/Bluetooth desktop controls
-- recovery environment
+- dedicated bootable x86-64 image
+- Raspberry Pi images where hardware capability is sufficient
+- optional N2K desktop edition
+- dedicated recovery environment
 - Secure Boot work
-- optional daily-driver desktop edition
-### Mandatory Home Assistant support
+- energy/UPS/solar integrations
 
-- Home Assistant OS in a Netfreak2k-managed KVM VM is a required first-class workload
-- persistent Home Assistant config storage
-- LAN device discovery support where technically required
-- clear port/network conflict checks
-- backup integration for Home Assistant config
-- safe update/restart path
-- Home Assistant status surfaced in Netfreak2k
-- future links between Home Assistant entities and Netfreak2k automation/energy modules
+## Product rule
 
+Netfreak2k remains LAN-first and recovery-oriented. Host-changing actions must stay explicit, authenticated, auditable and reversible where technically possible.
