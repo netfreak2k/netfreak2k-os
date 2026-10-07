@@ -586,9 +586,11 @@ def radio_stream_metadata(stream_url):
                             if 0 < meta_length <= 4080:
                                 raw_meta = response.read(meta_length).rstrip(b"\x00")
                                 metadata = raw_meta.decode("utf-8", errors="replace")
-                                match = re.search(r"StreamTitle='([^']*)'", metadata, flags=re.IGNORECASE)
+                                if "�" in metadata:
+                                    metadata = raw_meta.decode("latin-1", errors="replace")
+                                match = re.search(r"""StreamTitle=(?:'(.+?)'|"(.+?)");""", metadata, flags=re.IGNORECASE)
                                 if match:
-                                    stream_title = match.group(1).strip()[:300]
+                                    stream_title = (match.group(1) or match.group(2) or "").strip()[:300]
                                     result["stream_title"] = stream_title
                                     if " - " in stream_title:
                                         artist, title = stream_title.split(" - ", 1)
