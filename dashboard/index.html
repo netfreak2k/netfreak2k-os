@@ -527,11 +527,20 @@
 
           <article id="apps-panel" class="panel apps-panel section-anchor">
             <div class="panel-head">
-              <div><h2>Apps</h2><p>Docker-Dienste auf diesem Host.</p></div>
-              <button id="refresh-apps" class="secondary compact">Neu laden</button>
+              <div>
+                <p class="eyebrow">N2K DOCKER</p>
+                <h2>Apps & Container</h2>
+                <p>Ressourcen, Ports, Volumes, Logs und Laufzeitsteuerung der N2K-Dienste.</p>
+              </div>
+              <button id="refresh-apps" class="secondary compact">↻ Neu messen</button>
             </div>
-            <div id="apps-summary" class="section-summary">Lade Container …</div>
-            <div id="apps-list" class="apps-list"></div>
+            <div class="apps-kpi-grid">
+              <section><small>CONTAINER</small><strong id="apps-total">–</strong><span id="apps-summary">Lade Container …</span></section>
+              <section><small>AKTIV</small><strong id="apps-running">–</strong><span>laufende Dienste</span></section>
+              <section><small>VERWALTET</small><strong id="apps-managed">–</strong><span>steuerbare Apps</span></section>
+              <section><small>SYSTEM</small><strong id="apps-core">–</strong><span>geschützte Core-Dienste</span></section>
+            </div>
+            <div id="apps-list" class="apps-list apps-list-v2"></div>
           </article>
 
           <article id="app-store-panel" class="panel store-panel">
