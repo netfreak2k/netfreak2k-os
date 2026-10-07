@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-backup2">
+  <link rel="stylesheet" href="styles.css?v=20261007-security1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -63,6 +63,9 @@
         <label>Passwort
           <input id="login-password" type="password" autocomplete="current-password" required>
         </label>
+        <label>2FA-Code <small>(falls aktiviert)</small>
+          <input id="login-totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+        </label>
         <button type="submit">Anmelden</button>
       </form>
 
@@ -98,6 +101,7 @@
             <button class="nav-item nav-subitem" data-target="storage-panel"><span>◉</span>Speicher</button>
             <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
             <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+            <button class="nav-item nav-subitem" data-target="security-panel"><span>◆</span>Benutzer & Sicherheit</button>
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
@@ -538,6 +542,68 @@
             <div id="catalog-list" class="catalog-list">
               <div class="app-empty">Katalog wird geladen …</div>
             </div>
+          </article>
+
+          <article id="security-panel" class="panel security-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K SECURITY CENTER</p>
+                <h2>Benutzer & Sicherheit</h2>
+                <p>Konten, Rollen, Zwei-Faktor-Anmeldung, aktive Sitzungen und Audit-Protokoll.</p>
+              </div>
+              <span id="security-role-badge" class="status-chip">lädt</span>
+            </div>
+
+            <div class="security-summary-grid">
+              <section><small>MEIN KONTO</small><strong id="security-me">–</strong><span id="security-me-role">–</span></section>
+              <section><small>ZWEI-FAKTOR</small><strong id="security-2fa-state">–</strong><span>TOTP Authenticator</span></section>
+              <section><small>AKTIVE SITZUNGEN</small><strong id="security-session-count">0</strong><span>angemeldete Browser</span></section>
+              <section><small>BENUTZER</small><strong id="security-user-count">–</strong><span>lokale N2K-Konten</span></section>
+            </div>
+
+            <div class="security-grid">
+              <section class="security-card">
+                <div class="security-card-head"><div><small>ZWEI-FAKTOR</small><strong>Authenticator-App</strong></div><span id="security-2fa-badge" class="security-badge">AUS</span></div>
+                <p>Schützt dein Konto zusätzlich mit einem sechsstelligen TOTP-Code.</p>
+                <div id="security-totp-setup" class="security-totp-setup hidden">
+                  <label>Secret<input id="security-totp-secret" readonly></label>
+                  <label>Authenticator URI<textarea id="security-totp-uri" rows="3" readonly></textarea></label>
+                  <label>Code bestätigen<input id="security-totp-code" inputmode="numeric" maxlength="6" placeholder="123456"></label>
+                  <button id="security-totp-confirm" class="primary compact">2FA aktivieren</button>
+                </div>
+                <div class="security-card-actions">
+                  <button id="security-totp-begin" class="primary compact">2FA einrichten</button>
+                  <button id="security-totp-disable" class="secondary compact hidden">2FA deaktivieren</button>
+                </div>
+              </section>
+
+              <section class="security-card">
+                <div class="security-card-head"><div><small>SITZUNGEN</small><strong>Angemeldete Geräte</strong></div></div>
+                <div id="security-session-list" class="security-list"><div class="app-empty">Sitzungen werden geladen …</div></div>
+              </section>
+            </div>
+
+            <section id="security-users-card" class="security-card security-users-card">
+              <div class="security-card-head">
+                <div><small>BENUTZER</small><strong>Konten & Rollen</strong></div>
+                <button id="security-user-create-toggle" class="primary compact">Benutzer hinzufügen</button>
+              </div>
+              <div id="security-user-create" class="security-user-create hidden">
+                <label>Benutzername<input id="security-new-username" minlength="3" maxlength="32"></label>
+                <label>Passwort<input id="security-new-password" type="password" minlength="10"></label>
+                <label>Rolle<select id="security-new-role"><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
+                <button id="security-user-create-save" class="primary compact">Konto erstellen</button>
+              </div>
+              <div id="security-user-list" class="security-list"><div class="app-empty">Benutzer werden geladen …</div></div>
+              <div class="security-role-note">
+                <strong>Admin</strong> verwaltet System und Benutzer · <strong>Operator</strong> darf das System bedienen · <strong>Viewer</strong> hat nur Lesezugriff.
+              </div>
+            </section>
+
+            <section id="security-audit-card" class="security-card security-audit-card">
+              <div class="security-card-head"><div><small>AUDIT LOG</small><strong>Sicherheitsprotokoll</strong></div><span>letzte 100 Ereignisse</span></div>
+              <div id="security-audit-list" class="security-audit-list"><div class="app-empty">Audit-Protokoll wird geladen …</div></div>
+            </section>
           </article>
 
           <article id="health-panel" class="panel health-panel section-anchor">
@@ -1268,6 +1334,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-backup2"></script>
+  <script src="app.js?v=20261007-security1"></script>
 </body>
 </html>
