@@ -840,6 +840,14 @@ function renderNetworkInventory(payload = {}) {
   const provider = document.getElementById("network-detail-provider")?.textContent;
   setText("network-topology-provider", provider && provider !== "–" ? provider : "Internet");
   setText("network-last-scan", Number.isFinite(Number(payload.last_scan)) ? `Letzter Scan: ${formatDateTime(Number(payload.last_scan))}` : "Noch kein Scan");
+  const traffic = payload.traffic || {};
+  setText("network-traffic-mode", traffic.per_device_available
+    ? "Geräte-Traffic: Live-Messung aktiv"
+    : "Geräte-Traffic: nicht direkt messbar · Host-Sicht");
+  const trafficMode = document.getElementById("network-traffic-mode");
+  if (trafficMode) trafficMode.title = traffic.per_device_available
+    ? "Per-Device-Traffic wird direkt gemessen."
+    : "Für echten Client-Traffic muss Netfreak2k als Gateway/Bridge im Datenpfad liegen.";
   const scanState = document.getElementById("network-scan-state");
   if (scanState) {
     scanState.textContent = Number.isFinite(Number(payload.last_scan))
