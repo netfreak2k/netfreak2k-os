@@ -2522,10 +2522,15 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return session
 
-    def require_csrf(self, session):
+    def require_csrf_token(self, session):
         provided = self.headers.get("X-CSRF-Token", "")
         if not provided or not hmac.compare_digest(provided, session["csrf"]):
             self.send_json({"error": "csrf_required"}, 403)
+            return False
+        return True
+
+    def require_csrf(self, session):
+        if not self.require_csrf_token(session):
             return False
         if session.get("role") == "viewer":
             self.send_json({"error": "read_only_role"}, 403)
@@ -3041,7 +3046,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/security/totp/begin":
             session = self.require_auth()
-            if not session or not self.require_csrf(session):
+            if not session or not self.require_csrf_token(session):
                 return
             result = begin_totp_setup(session["username"])
             audit_event(session["username"], "totp_begin", "", self.client_address[0] if self.client_address else "")
@@ -3050,7 +3055,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/security/totp/confirm":
             session = self.require_auth()
-            if not session or not self.require_csrf(session):
+            if not session or not self.require_csrf_token(session):
                 return
             try:
                 data = self.read_json()
@@ -3063,7 +3068,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/security/totp/disable":
             session = self.require_auth()
-            if not session or not self.require_csrf(session):
+            if not session or not self.require_csrf_token(session):
                 return
             disable_totp(session["username"])
             audit_event(session["username"], "totp_disable", "", self.client_address[0] if self.client_address else "")
@@ -3072,7 +3077,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/security/session/revoke":
             session = self.require_auth()
-            if not session or not self.require_csrf(session):
+            if not session or not self.require_csrf_token(session):
                 return
             try:
                 data = self.read_json()
