@@ -44,6 +44,7 @@ WORKSPACE_AREAS = {
     "trash": "Papierkorb",
 }
 MAX_UPLOAD = 250 * 1024 * 1024
+MEDIA_AUDIO_EXTENSIONS = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".ogg", ".opus", ".weba"}
 SESSION_TTL = 12 * 60 * 60
 MAX_BODY = 16 * 1024
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -871,6 +872,46 @@ def workspace_list(username, area, rel=""):
     return {"area": area, "path": str(safe_relative(rel)), "items": items}
 
 
+def media_audio_library(username):
+    base = workspace_base(username, "audio").resolve()
+    tracks = []
+    if not base.exists():
+        return {"tracks": [], "count": 0}
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [name for name in dirs if not name.startswith(".")]
+        root_path = Path(root)
+        for name in sorted(files, key=str.lower):
+            if name.startswith(".") or Path(name).suffix.lower() not in MEDIA_AUDIO_EXTENSIONS:
+                continue
+            target = (root_path / name).resolve()
+            if base not in target.parents:
+                continue
+            try:
+                stat = target.stat()
+            except OSError:
+                continue
+            rel_parent = target.parent.relative_to(base)
+            rel_path = "" if str(rel_parent) == "." else rel_parent.as_posix()
+            track_id = hashlib.sha256(f"{rel_path}/{name}".encode("utf-8")).hexdigest()[:24]
+            params = f"area=audio&path={quote(rel_path)}&name={quote(name)}"
+            tracks.append({
+                "id": f"local-{track_id}",
+                "name": name,
+                "title": target.stem,
+                "path": rel_path,
+                "size_bytes": stat.st_size,
+                "modified_at": int(stat.st_mtime),
+                "extension": target.suffix.lower().lstrip("."),
+                "url": f"/api/workspace/file?{params}",
+            })
+            if len(tracks) >= 1000:
+                break
+        if len(tracks) >= 1000:
+            break
+    tracks.sort(key=lambda item: (item["path"].lower(), item["name"].lower()))
+    return {"tracks": tracks, "count": len(tracks), "area": "audio"}
+
+
 def workspace_mkdir(username, area, rel, name):
     if not name or name in {".", ".."} or "/" in name or "\\" in name:
         raise ValueError("invalid_name")
@@ -1604,9 +1645,48 @@ class Handler(BaseHTTPRequestHandler):
             return
         mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         size = path.stat().st_size
-        self.send_response(200)
+        start = 0
+        end = max(0, size - 1)
+        status = 200
+        range_header = self.headers.get("Range", "").strip()
+        if range_header and size > 0:
+            match = re.fullmatch(r"bytes=(\d*)-(\d*)", range_header)
+            if not match:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            left, right = match.groups()
+            try:
+                if left:
+                    start = int(left)
+                    end = int(right) if right else size - 1
+                elif right:
+                    suffix = min(int(right), size)
+                    start = size - suffix
+                    end = size - 1
+                else:
+                    raise ValueError
+            except ValueError:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            if start < 0 or end < start or start >= size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            end = min(end, size - 1)
+            status = 206
+
+        length = max(0, end - start + 1)
+        self.send_response(status)
         self.send_header("Content-Type", mime)
-        self.send_header("Content-Length", str(size))
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        if status == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.send_header("Cache-Control", "private, no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         disposition = "attachment" if download else "inline"
@@ -1615,7 +1695,14 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             with path.open("rb") as handle:
-                shutil.copyfileobj(handle, self.wfile, length=1024 * 1024)
+                handle.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = handle.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
 
     def read_binary(self):
         try:
@@ -1887,6 +1974,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if path == "/media/library":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(media_audio_library(session["username"]))
             return
 
         if path == "/media/devices":
