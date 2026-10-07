@@ -559,6 +559,26 @@ function renderNetworkDeviceModal(device) {
   }
   setText("network-device-analysis-time", Number.isFinite(Number(deep.scanned_at)) ? `Analyse: ${formatDateTime(Number(deep.scanned_at))}` : "Noch nicht ausgeführt");
   setText("network-device-os-hint", deep.os_hint ? `Service-Hinweis: ${deep.os_hint}` : "");
+
+  const history = document.getElementById("network-device-history");
+  if (history) {
+    history.innerHTML = "";
+    const entries = Array.isArray(device.history) ? [...device.history].slice(-12).reverse() : [];
+    if (entries.length) {
+      for (const entry of entries) {
+        const row = document.createElement("div");
+        row.className = "network-history-row";
+        const label = entry.state === "discovered" ? "Erstmals erkannt" : entry.state === "online" ? "Online" : entry.state === "offline" ? "Offline" : entry.state;
+        row.innerHTML = "<span></span><strong></strong><small></small>";
+        row.querySelector("span").className = `network-history-dot ${entry.state || ""}`;
+        row.querySelector("strong").textContent = label;
+        row.querySelector("small").textContent = Number.isFinite(Number(entry.at)) ? formatDateTime(Number(entry.at)) : "–";
+        history.appendChild(row);
+      }
+    } else {
+      history.innerHTML = '<div class="network-device-empty">Noch keine Historie vorhanden.</div>';
+    }
+  }
 }
 
 function openNetworkDevice(deviceId) {
