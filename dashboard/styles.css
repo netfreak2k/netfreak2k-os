@@ -3042,3 +3042,49 @@ body::after{
 @media(max-width:560px){
   .recovery-kpi-grid,.recovery-action-grid{grid-template-columns:1fr}
 }
+
+
+/* Release Readiness */
+.release-readiness-card{
+  border-color:rgba(112,211,157,.08);
+  background:linear-gradient(180deg,rgba(11,22,26,.58),rgba(7,14,22,.48))
+}
+.release-readiness-summary{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px
+}
+.release-readiness-summary>div{
+  padding:10px;border-radius:10px;background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.035);min-width:0
+}
+.release-readiness-summary small,.release-readiness-summary strong,.release-readiness-summary span{display:block}
+.release-readiness-summary small{font-size:6px;color:#83795f;letter-spacing:.08em}
+.release-readiness-summary strong{font-size:10px;margin-top:3px}
+.release-readiness-summary span{
+  margin-top:3px;font-size:7px;color:#74808b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.release-readiness-grid{
+  display:grid;grid-template-columns:1.15fr .85fr;gap:9px
+}
+.release-readiness-grid>section{
+  padding:10px;border-radius:11px;background:rgba(255,255,255,.015);
+  border:1px solid rgba(255,255,255,.03);min-width:0
+}
+.compact-head{margin-bottom:7px}
+.release-manual-gates{display:grid;gap:6px}
+.release-manual-row{
+  display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;align-items:start;
+  padding:8px;border-radius:9px;background:rgba(255,255,255,.018)
+}
+.release-manual-row>span{
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-size:7px;font-weight:900
+}
+.release-manual-row>span.done{background:rgba(112,211,157,.07);color:#70d39d}
+.release-manual-row>span.open{background:rgba(220,173,114,.07);color:#dcad72}
+.release-manual-row strong,.release-manual-row small{display:block}
+.release-manual-row strong{font-size:7px}
+.release-manual-row small{font-size:6px;color:#74808b;line-height:1.45;margin-top:2px}
+@media(max-width:820px){
+  .release-readiness-summary{grid-template-columns:1fr}
+  .release-readiness-grid{grid-template-columns:1fr}
+}
