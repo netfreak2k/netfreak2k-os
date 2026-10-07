@@ -149,6 +149,17 @@ def db_connect():
     )
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            csrf TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS user_preferences (
             username TEXT NOT NULL,
             pref_key TEXT NOT NULL,
@@ -226,12 +237,23 @@ def verify_login(username, password):
     return hmac.compare_digest(stored, supplied)
 
 
+def session_token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def new_session(username):
     token = secrets.token_urlsafe(32)
     csrf = secrets.token_urlsafe(24)
-    expires = int(time.time()) + SESSION_TTL
-    with _sessions_lock:
-        _sessions[token] = {"username": username, "csrf": csrf, "expires": expires}
+    now = int(time.time())
+    expires = now + SESSION_TTL
+    token_hash = session_token_hash(token)
+    with db_connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at<=?", (now,))
+        conn.execute(
+            "INSERT INTO sessions (token_hash,username,csrf,expires_at,created_at) VALUES (?,?,?,?,?)",
+            (token_hash, username, csrf, expires, now),
+        )
+        conn.commit()
     return token, csrf, expires
 
 
@@ -239,18 +261,26 @@ def get_session(token):
     if not token:
         return None
     now = int(time.time())
-    with _sessions_lock:
-        stale = [key for key, value in _sessions.items() if value["expires"] <= now]
-        for key in stale:
-            _sessions.pop(key, None)
-        return _sessions.get(token)
+    token_hash = session_token_hash(token)
+    with db_connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at<=?", (now,))
+        row = conn.execute(
+            "SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?",
+            (token_hash,),
+        ).fetchone()
+        conn.commit()
+    if not row:
+        return None
+    return {"username": row[0], "csrf": row[1], "expires": row[2]}
 
 
 def delete_session(token):
     if not token:
         return
-    with _sessions_lock:
-        _sessions.pop(token, None)
+    token_hash = session_token_hash(token)
+    with db_connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE token_hash=?", (token_hash,))
+        conn.commit()
 
 
 def read_text(path, default=""):
@@ -1985,6 +2015,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.send_header("Content-Length", "0")
             self.end_headers()
+            return
+
+        if path == "/update/progress":
+            progress = read_json_file(UPDATE_PROGRESS_FILE)
+            self.send_json(progress or {
+                "state": "idle",
+                "progress": 0,
+                "step": "idle",
+                "message": "Kein Update-Vorgang aktiv.",
+            })
             return
 
         if path == "/healthz":

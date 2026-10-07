@@ -5,10 +5,37 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-media-layout2">
+  <link rel="stylesheet" href="styles.css?v=20261007-update1">
   <link rel="stylesheet" href="media-center.css?v=20261007-media-layout2">
 </head>
 <body>
+  <div id="update-experience" class="update-experience hidden" aria-live="polite">
+    <div class="update-experience-card">
+      <div class="update-experience-brand"><span>N2K</span><div><small>NETFREAK2K SERVER-OS</small><strong>Systemupdate</strong></div></div>
+      <div class="update-experience-copy">
+        <span id="update-experience-state" class="update-experience-state">UPDATE WIRD VORBEREITET</span>
+        <h1 id="update-experience-title">Netfreak2k wird aktualisiert</h1>
+        <p id="update-experience-message">Der neue Stand wird sicher installiert. Diese Seite bleibt während des gesamten Vorgangs geöffnet.</p>
+      </div>
+      <div class="update-experience-progress">
+        <div><i id="update-experience-fill"></i></div>
+        <strong id="update-experience-percent">0%</strong>
+      </div>
+      <div id="update-experience-stages" class="update-experience-stages">
+        <span data-update-live-stage="prepare">Vorbereitung</span>
+        <span data-update-live-stage="download">Download</span>
+        <span data-update-live-stage="validate">Prüfung</span>
+        <span data-update-live-stage="install">Installation</span>
+        <span data-update-live-stage="containers">Dienste</span>
+        <span data-update-live-stage="verify">Abschluss</span>
+      </div>
+      <div class="update-experience-footer">
+        <span id="update-experience-connection">Verbindung zum Server aktiv</span>
+        <button id="update-experience-reload" class="secondary hidden">Oberfläche neu laden</button>
+      </div>
+    </div>
+  </div>
+
   <div id="auth-shell" class="auth-shell">
     <section class="auth-card glass">
       <div class="brand-mark">N2K</div>
@@ -959,6 +986,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-media-layout2"></script>
+  <script src="app.js?v=20261007-update1"></script>
 </body>
 </html>
