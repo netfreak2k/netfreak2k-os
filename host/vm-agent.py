@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "event_logs", "recovery_status", "recovery_action", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "event_logs", "recovery_status", "recovery_action", "release_readiness", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -2241,6 +2241,149 @@ def health_status_payload():
 
 
 
+def release_readiness_payload():
+    checks = []
+
+    version = ""
+    version_sources = [
+        Path("/opt/netfreak2k/VERSION"),
+        Path("/var/lib/netfreak2k/version.json"),
+    ]
+    if version_sources[0].is_file():
+        try:
+            version = version_sources[0].read_text(encoding="utf-8").strip()
+        except OSError:
+            version = ""
+    if not version and version_sources[1].is_file():
+        try:
+            saved = json.loads(version_sources[1].read_text(encoding="utf-8"))
+            version = str(saved.get("version") or "").strip()
+        except (OSError, json.JSONDecodeError):
+            version = ""
+    version_ok = version in {"1.0.0-rc1", "1.0.0"}
+    checks.append({
+        "id": "version",
+        "label": "Produktversion",
+        "ok": version_ok,
+        "detail": version or "Version nicht erkannt",
+    })
+
+    required_services = [
+        "netfreak2k-vm-agent.service",
+        "netfreak2k-ha-proxy.service",
+        "nginx.service",
+        "docker.service",
+        "libvirtd.service",
+    ]
+    service_states = [system_service_state(unit) for unit in required_services]
+    service_ok = all(item.get("ok") for item in service_states)
+    checks.append({
+        "id": "services",
+        "label": "Kerndienste",
+        "ok": service_ok,
+        "detail": f"{sum(1 for item in service_states if item.get('ok'))} von {len(service_states)} aktiv",
+    })
+
+    remote = remote_access_status_payload()
+    backend_port = int(remote.get("backend_port") or 18080)
+    api_ok = False
+    if shutil.which("curl"):
+        result = run("curl", "-fsS", "--max-time", "6", f"http://127.0.0.1:{backend_port}/api/setup", timeout=8)
+        api_ok = result.returncode == 0
+    checks.append({
+        "id": "api",
+        "label": "Lokale API",
+        "ok": api_ok,
+        "detail": f"127.0.0.1:{backend_port}" if api_ok else f"Keine Antwort auf 127.0.0.1:{backend_port}",
+    })
+
+    https_port = int(remote.get("https_port") or 443)
+    https_ok = False
+    if shutil.which("curl"):
+        result = run("curl", "-k", "-fsS", "--max-time", "6", f"https://127.0.0.1:{https_port}/", timeout=8)
+        https_ok = result.returncode == 0
+    checks.append({
+        "id": "https",
+        "label": "Lokales HTTPS",
+        "ok": https_ok,
+        "detail": f"HTTPS Port {https_port} antwortet" if https_ok else f"HTTPS Port {https_port} nicht erreichbar",
+    })
+
+    ha_state = "unknown"
+    if shutil.which("virsh"):
+        result = run("virsh", "--connect", "qemu:///system", "domstate", VM_NAME, timeout=8)
+        if result.returncode == 0:
+            ha_state = result.stdout.strip().lower()
+    checks.append({
+        "id": "haos",
+        "label": "Home Assistant OS",
+        "ok": ha_state == "running",
+        "detail": f"VM-Zustand: {ha_state}",
+    })
+
+    backups = backup_list_payload().get("backups") or []
+    latest = backups[0] if backups else None
+    backup_ok = bool(latest) and latest.get("verified") is not False
+    checks.append({
+        "id": "backup",
+        "label": "Recovery-Punkt",
+        "ok": backup_ok,
+        "detail": (
+            f"{latest.get('id')} · " + ("verifiziert" if latest.get("verified") is True else "vorhanden")
+            if latest else "Kein Backup vorhanden"
+        ),
+    })
+
+    timer_units = [
+        "netfreak2k-update-check.timer",
+        "netfreak2k-backup-scheduler.timer",
+        "netfreak2k-cert-renew.timer",
+    ]
+    timer_states = []
+    for unit in timer_units:
+        result = run("systemctl", "is-enabled", unit, timeout=5)
+        timer_states.append({"unit": unit, "enabled": result.returncode == 0})
+    timers_ok = all(item["enabled"] for item in timer_states)
+    checks.append({
+        "id": "timers",
+        "label": "System-Timer",
+        "ok": timers_ok,
+        "detail": f"{sum(1 for item in timer_states if item['enabled'])} von {len(timer_states)} aktiviert",
+    })
+
+    passed = sum(1 for item in checks if item.get("ok"))
+    blockers = [item for item in checks if not item.get("ok")]
+    return {
+        "checked_at": int(time.time()),
+        "version": version,
+        "checks": checks,
+        "passed": passed,
+        "total": len(checks),
+        "host_ready": not blockers,
+        "blockers": blockers,
+        "manual_gates": [
+            {
+                "id": "fresh_install",
+                "label": "Fresh-Install-Smoke-Test",
+                "complete": False,
+                "detail": "Muss auf einem echten unterstützten amd64 Linux Mint/Ubuntu Host bestätigt werden.",
+            },
+            {
+                "id": "upgrade",
+                "label": "Upgrade-Smoke-Test",
+                "complete": False,
+                "detail": "Upgrade einer bestehenden Installation muss real bestätigt werden.",
+            },
+            {
+                "id": "license",
+                "label": "Projektlizenz",
+                "complete": False,
+                "detail": "Vor öffentlichem 1.0.0 Stable muss die Netfreak2k-Quelllizenz explizit gewählt werden.",
+            },
+        ],
+    }
+
+
 def recovery_status_payload():
     health = health_status_payload()
     backups = backup_list_payload()
@@ -3510,6 +3653,9 @@ def execute(action, request):
 
     if action == "recovery_action":
         return recovery_action(request.get("operation"))
+
+    if action == "release_readiness":
+        return release_readiness_payload()
 
     if action == "scheduler_status":
         return scheduler_status_payload()
