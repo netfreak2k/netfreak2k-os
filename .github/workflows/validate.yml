@@ -86,6 +86,7 @@ jobs:
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/overview | grep -q '"network":'
+          curl --retry 5 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:18080/api/update/progress | grep -q '"state":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/media/devices | grep -q '"devices":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/media/library | grep -q '"tracks":'
           curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K DESKTOP'
@@ -186,6 +187,14 @@ jobs:
           grep -q 'N2K PERSONALISIERUNG' dashboard/index.html
           grep -q '09-cyber-city' dashboard/app.js
           grep -q 'N2K wallpaper collection' THIRD_PARTY_NOTICES.md
+
+      - name: Update experience sanity
+        run: |
+          grep -q 'CREATE TABLE IF NOT EXISTS sessions' server/api/server.py
+          grep -q 'session_token_hash' server/api/server.py
+          grep -q 'update-experience' dashboard/index.html
+          grep -q 'pollUpdateExperience' dashboard/app.js
+          grep -q '/update/progress' server/api/server.py
 
       - name: GitHub update sanity
         run: |
