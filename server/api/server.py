@@ -1745,6 +1745,7 @@ def overview_payload(username):
     ha = vm_agent("status")
     storage = vm_agent("storage_status")
     backups = vm_agent("backup_list")
+    network_inventory = vm_agent("network_inventory")
     updates = update_payload()
     favorites = favorites_payload(username)
     shares = shares_payload(username)
@@ -1771,6 +1772,15 @@ def overview_payload(username):
             "detail": "HAOS ist nicht vollständig erreichbar.",
             "target": "vms-panel",
         })
+    new_network_devices = int((network_inventory.get("summary") or {}).get("new") or 0) if network_inventory.get("available") else 0
+    if new_network_devices:
+        warnings.append({
+            "kind": "network_device",
+            "level": "info",
+            "title": f"{new_network_devices} neue Geräte im Heimnetz",
+            "detail": "N2K Network hat bisher unbekannte Geräte erkannt.",
+            "target": "network-panel",
+        })
     if updates.get("available") and updates.get("update_available"):
         warnings.append({
             "kind": "update",
@@ -1786,6 +1796,11 @@ def overview_payload(username):
         "cpu": cpu_topology(),
         "memory": memory,
         "network": network,
+        "network_inventory": {
+            "available": bool(network_inventory.get("available")),
+            "summary": network_inventory.get("summary") or {},
+            "last_scan": network_inventory.get("last_scan"),
+        },
         "storage": host_storage,
         "uptime_seconds": parse_uptime(),
         "recent": recent_workspace_items(username, 6),
