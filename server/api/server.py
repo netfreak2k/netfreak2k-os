@@ -28,7 +28,7 @@ try:
 except Exception:
     MutagenFile = None
 
-VERSION = os.environ.get("N2K_VERSION", "1.0.0-rc1")
+VERSION = os.environ.get("N2K_VERSION", "1.0.0")
 HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
 HOST_SYS = Path(os.environ.get("N2K_SYS_ROOT", "/host/sys"))
