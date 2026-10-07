@@ -700,6 +700,7 @@ function enterApp(username, role = "viewer") {
   loadSecurity();
   loadRemoteAccess();
   loadScheduler();
+  loadEventCenter();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -4384,6 +4385,10 @@ document.getElementById("network-device-wake")?.addEventListener("click", wakeNe
 
 document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
 document.getElementById("scheduler-refresh")?.addEventListener("click", loadScheduler);
+document.getElementById("events-refresh")?.addEventListener("click", loadEventCenter);
+document.getElementById("events-search")?.addEventListener("input", renderEventCenter);
+document.getElementById("events-source")?.addEventListener("change", renderEventCenter);
+document.getElementById("events-level")?.addEventListener("change", renderEventCenter);
 document.getElementById("monitoring-policy-save")?.addEventListener("click", saveMonitoringPolicy);
 document.querySelectorAll("[data-health-range]").forEach(button => button.addEventListener("click", () => {
   healthRange = button.dataset.healthRange || "24h";
@@ -4731,6 +4736,7 @@ const viewGroups = {
   "health-panel": ["health-panel"],
   "security-panel": ["security-panel"],
   "scheduler-panel": ["scheduler-panel"],
+  "events-panel": ["events-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -4743,7 +4749,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","scheduler-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","scheduler-panel","events-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -4877,6 +4883,71 @@ async function runSchedulerJob(jobId, button) {
     await loadScheduler();
   } finally {
     if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
+let eventCenterRows = [];
+
+function eventLevelLabel(level) {
+  return level === "critical" ? "KRITISCH" :
+    level === "error" ? "FEHLER" :
+    level === "warning" ? "WARNUNG" : "INFO";
+}
+
+function renderEventCenter() {
+  const list = document.getElementById("events-list");
+  if (!list) return;
+  const query = (document.getElementById("events-search")?.value || "").trim().toLowerCase();
+  const source = document.getElementById("events-source")?.value || "all";
+  const level = document.getElementById("events-level")?.value || "all";
+
+  const rows = eventCenterRows.filter(item => {
+    if (source !== "all" && item.source !== source) return false;
+    if (level !== "all" && item.level !== level) return false;
+    if (!query) return true;
+    const haystack = [
+      item.source, item.level, item.identifier, item.unit, item.message
+    ].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(query);
+  });
+
+  list.innerHTML = "";
+  rows.forEach(item => {
+    const row = document.createElement("article");
+    row.className = `event-row event-${item.level || "info"}`;
+    row.innerHTML = `
+      <span class="event-level"></span>
+      <div class="event-copy"><strong></strong><small></small><p></p></div>
+      <time></time>`;
+    row.querySelector(".event-level").textContent = eventLevelLabel(item.level);
+    row.querySelector(".event-copy strong").textContent = item.identifier || item.source || "system";
+    row.querySelector(".event-copy small").textContent =
+      [String(item.source || "system").toUpperCase(), item.unit].filter(Boolean).join(" · ");
+    row.querySelector(".event-copy p").textContent = item.message || "–";
+    row.querySelector("time").textContent = Number.isFinite(Number(item.timestamp))
+      ? formatDateTime(Number(item.timestamp)) : "–";
+    list.appendChild(row);
+  });
+  if (!rows.length) list.innerHTML = '<div class="app-empty">Keine Ereignisse entsprechen diesem Filter.</div>';
+  setHealthText("events-filter-summary", `${rows.length} von ${eventCenterRows.length} Ereignissen`);
+}
+
+async function loadEventCenter() {
+  const panel = document.getElementById("events-panel");
+  if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/events?lines=320", {headers:{}});
+    eventCenterRows = Array.isArray(data.events) ? data.events : [];
+    const summary = data.summary || {};
+    setHealthText("events-count-total", String(summary.total ?? eventCenterRows.length));
+    setHealthText("events-count-critical", String(summary.critical ?? 0));
+    setHealthText("events-count-error", String(summary.errors ?? 0));
+    setHealthText("events-count-warning", String(summary.warnings ?? 0));
+    renderEventCenter();
+  } catch (error) {
+    console.error(error);
+    const list = document.getElementById("events-list");
+    if (list) list.innerHTML = '<div class="app-empty">Logs & Ereignisse konnten nicht geladen werden.</div>';
   }
 }
 
@@ -5511,6 +5582,7 @@ setInterval(loadNotifications, 60000);
 setInterval(loadSecurity, 120000);
 setInterval(loadRemoteAccess, 120000);
 setInterval(loadScheduler, 60000);
+setInterval(loadEventCenter, 60000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
