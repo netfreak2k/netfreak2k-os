@@ -1357,7 +1357,7 @@ def file_sha256(path):
 def backup_manifest(target):
     files = []
     for path in sorted(target.rglob("*")):
-        if not path.is_file() or path.name in {"manifest.json", "verify.json"}:
+        if not path.is_file() or path.name in {"manifest.json", "verify.json", "meta.json"}:
             continue
         rel = str(path.relative_to(target))
         try:
