@@ -197,6 +197,17 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Security Hardening 2.0 sanity
+        run: |
+          grep -q 'security-host-hardening' dashboard/index.html
+          grep -q 'loadHostSecurity' dashboard/app.js
+          grep -q '/security/host' server/api/server.py
+          grep -q 'security_status_payload' host/vm-agent.py
+          grep -q 'security_listening_sockets' host/vm-agent.py
+          grep -q 'security_firewall_status' host/vm-agent.py
+          grep -q 'security_failed_logins' host/vm-agent.py
+          grep -q 'security-hardening-summary' dashboard/styles.css
+
       - name: Update Recovery 2.0 sanity
         run: |
           grep -q 'update-safety-card' dashboard/index.html
