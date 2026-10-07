@@ -54,6 +54,8 @@ _cpu_sample = None
 _net_sample = None
 _network_enrichment = {"at": 0.0, "data": {}}
 _ping_cache = {"at": 0.0, "value": None}
+_radio_cache = {}
+_radio_cache_lock = threading.Lock()
 
 
 def db_connect():
@@ -406,6 +408,68 @@ def public_network_identity():
     except Exception:
         data = {}
     _network_enrichment = {"at": now, "data": data}
+    return data
+
+
+def radio_browser_stations(country="DE", search="", limit=60):
+    country = re.sub(r"[^A-Za-z]", "", str(country or "DE")).upper()[:2] or "DE"
+    search = str(search or "").strip()[:80]
+    try:
+        limit = max(1, min(int(limit), 120))
+    except (TypeError, ValueError):
+        limit = 60
+
+    cache_key = (country, search.lower(), limit)
+    now = time.monotonic()
+    with _radio_cache_lock:
+        cached = _radio_cache.get(cache_key)
+        if cached and now - cached["at"] < 300:
+            return cached["data"]
+
+    params = [
+        f"countrycode={quote(country)}",
+        "hidebroken=true",
+        "order=clickcount",
+        "reverse=true",
+        f"limit={limit}",
+    ]
+    if search:
+        params.append(f"name={quote(search)}")
+    url = "https://de1.api.radio-browser.info/json/stations/search?" + "&".join(params)
+    request = Request(url, headers={"User-Agent": "Netfreak2k-Server-OS/0.1"})
+    stations = []
+    try:
+        with urlopen(request, timeout=4.0) as response:
+            payload = json.loads(response.read(1024 * 1024).decode("utf-8"))
+        for item in payload if isinstance(payload, list) else []:
+            stream_url = item.get("url_resolved") or item.get("url")
+            name = str(item.get("name") or "").strip()
+            if not name or not stream_url or not str(stream_url).startswith(("http://", "https://")):
+                continue
+            favicon = str(item.get("favicon") or "").strip()
+            stations.append({
+                "id": item.get("stationuuid") or hashlib.sha256(f"{name}|{stream_url}".encode("utf-8")).hexdigest()[:24],
+                "country": country,
+                "name": name[:120],
+                "genre": (str(item.get("tags") or "").replace(",", " · ")[:120] or "Radio"),
+                "bitrate": f'{int(item.get("bitrate") or 0)} kbps' if item.get("bitrate") else (str(item.get("codec") or "Stream")),
+                "codec": str(item.get("codec") or ""),
+                "url": stream_url,
+                "homepage": str(item.get("homepage") or ""),
+                "favicon": favicon if favicon.startswith(("http://", "https://")) else "",
+                "votes": int(item.get("votes") or 0),
+                "clickcount": int(item.get("clickcount") or 0),
+            })
+    except Exception:
+        stations = []
+
+    data = {"country": country, "search": search, "stations": stations, "source": "radio-browser.info"}
+    with _radio_cache_lock:
+        _radio_cache[cache_key] = {"at": now, "data": data}
+        if len(_radio_cache) > 80:
+            oldest = sorted(_radio_cache.items(), key=lambda pair: pair[1]["at"])[:20]
+            for key, _ in oldest:
+                _radio_cache.pop(key, None)
     return data
 
 
@@ -1748,6 +1812,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if path == "/media/radio":
+            if not self.require_auth():
+                return
+            country = (query.get("country") or ["DE"])[0]
+            search = (query.get("search") or [""])[0]
+            limit = (query.get("limit") or ["60"])[0]
+            payload = radio_browser_stations(country, search, limit)
+            self.send_json(payload, 200 if payload.get("stations") else 503)
             return
 
         if path == "/workspace":
