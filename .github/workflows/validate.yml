@@ -282,7 +282,8 @@ jobs:
 
       - name: GitHub update sanity
         run: |
-          grep -q 'archive/refs/heads' scripts/check-updates.sh
+          grep -q 'archive/refs/' scripts/check-updates.sh
+          grep -q 'target_ref' scripts/check-updates.sh
           grep -q 'sha256sum' scripts/check-updates.sh
           grep -q 'installed_fingerprint' scripts/check-updates.sh
           grep -q 'fingerprint' scripts/update-server.sh
