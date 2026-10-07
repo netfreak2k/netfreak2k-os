@@ -430,6 +430,54 @@ async function revokeSecuritySession(id) {
   } catch (error) { console.error(error); showN2KToast("Sitzung konnte nicht beendet werden.", "error"); }
 }
 
+
+async function loadRemoteAccess() {
+  const panel = document.getElementById("remote-panel");
+  if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/remote-access", {headers:{}});
+    const secure = Boolean(data.secure);
+    const cert = data.certificate || {};
+    const pill = document.getElementById("remote-secure-pill");
+    if (pill) {
+      pill.textContent = secure ? "HTTPS AKTIV" : "HTTP AKTIV";
+      pill.classList.toggle("ok", secure);
+      pill.classList.toggle("warn", !secure);
+    }
+    document.getElementById("remote-current-protocol").textContent = secure ? "HTTPS" : "HTTP";
+    document.getElementById("remote-current-host").textContent = data.hostname || location.hostname || "–";
+    document.getElementById("remote-https-port").textContent = data.https_port ? ":" + data.https_port : "–";
+    document.getElementById("remote-cert-state").textContent = cert.available ? "Vorhanden" : "Fehlt";
+    document.getElementById("remote-cert-expiry").textContent = cert.not_after ? "Gültig bis " + cert.not_after : "Lokales N2K-Zertifikat";
+    document.getElementById("remote-https-url").textContent = data.https_url || "–";
+    document.getElementById("remote-http-url").textContent = data.http_url || "–";
+    document.getElementById("remote-cert-subject").textContent = cert.subject || "Netfreak2k Local TLS";
+    const fingerprint = cert.fingerprint_sha256 || "";
+    document.getElementById("remote-cert-fingerprint").textContent =
+      fingerprint ? fingerprint.match(/.{1,2}/g).join(":").toUpperCase() : "–";
+    const certBadge = document.getElementById("remote-cert-badge");
+    if (certBadge) {
+      certBadge.textContent = cert.available ? "BEREIT" : "FEHLT";
+      certBadge.className = "security-badge " + (cert.available ? "ok" : "warn");
+    }
+  } catch (error) {
+    console.error(error);
+    const pill = document.getElementById("remote-secure-pill");
+    if (pill) pill.textContent = "NICHT ERREICHBAR";
+  }
+}
+
+async function copyRemoteValue(id, label) {
+  const value = document.getElementById(id)?.textContent || "";
+  if (!value || value === "–") return;
+  try {
+    await navigator.clipboard.writeText(value);
+    showN2KToast(label + " kopiert.", "success");
+  } catch (_) {
+    showN2KToast("Kopieren ist in diesem Browser nicht verfügbar.", "error");
+  }
+}
+
 function enterApp(username, role = "viewer") {
   currentRole = role || "viewer";
   show(document.getElementById("auth-shell"), false);
@@ -449,6 +497,7 @@ function enterApp(username, role = "viewer") {
   loadBackups();
   loadSystemHealth();
   loadSecurity();
+  loadRemoteAccess();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -3297,6 +3346,10 @@ document.getElementById("security-user-create-toggle")?.addEventListener("click"
 });
 document.getElementById("security-user-create-save")?.addEventListener("click", createSecurityUser);
 
+document.getElementById("remote-copy-https")?.addEventListener("click", () => copyRemoteValue("remote-https-url", "HTTPS-Adresse"));
+document.getElementById("remote-copy-http")?.addEventListener("click", () => copyRemoteValue("remote-http-url", "HTTP-Adresse"));
+document.getElementById("remote-copy-fingerprint")?.addEventListener("click", () => copyRemoteValue("remote-cert-fingerprint", "Zertifikat-Fingerprint"));
+
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
   loadOverview();
@@ -3581,6 +3634,7 @@ const viewGroups = {
   "apps-panel": ["apps-panel", "app-store-panel"],
   "health-panel": ["health-panel"],
   "security-panel": ["security-panel"],
+  "remote-panel": ["remote-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -3593,7 +3647,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","remote-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -4246,6 +4300,7 @@ setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
 setInterval(loadNotifications, 60000);
 setInterval(loadSecurity, 120000);
+setInterval(loadRemoteAccess, 120000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
