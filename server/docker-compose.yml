@@ -70,6 +70,9 @@ services:
         condition: service_healthy
     ports:
       - "${N2K_HTTP_PORT:-80}:80"
+      - "${N2K_HTTPS_PORT:-8443}:443"
+    volumes:
+      - /var/lib/netfreak2k/tls:/etc/netfreak2k/tls:ro
     networks:
       - netfreak2k
 
