@@ -13,7 +13,7 @@ Target candidate: **1.0.0-rc1**
 
 ## Required before 1.0.0 stable
 
-- [x] GitHub Actions Validate workflow completes successfully on the current RC head (`ecd2831b`, Validate run 477)
+- [x] GitHub Actions Validate workflow completes successfully on the current RC head (`e10da010`, Validate run 488)
 - [ ] Fresh install smoke test on supported amd64 Linux Mint/Ubuntu host
 - [ ] Upgrade smoke test from an existing Netfreak2k installation
 - [ ] Backup verification and restore-test pass on a real installation
@@ -38,3 +38,18 @@ A clean `RESULT: PASS` covers service state, local API/HTTPS reachability, HAOS 
 ## Release policy
 
 Do not label a build as stable merely because the feature set is complete. A stable v1.0 requires a passing validation workflow, a real-host installation/upgrade smoke test, a verified recovery path and an explicit project license.
+
+
+## Current remaining blockers
+
+The codebase and current release-readiness UI are validated on GitHub Actions. The remaining stable-release gates are external to CI:
+
+1. **Fresh-install smoke test** on a supported amd64 Linux Mint/Ubuntu host.
+2. **Upgrade smoke test** from an existing Netfreak2k installation.
+3. **Real backup/recovery verification** on the target host.
+4. **Home Assistant OS startup verification** on the target host.
+5. **HTTPS gateway verification** on the installer-selected ports.
+6. **Mobile UI pass** on a phone-sized browser.
+7. **Explicit Netfreak2k project license decision** and committed LICENSE file.
+
+The in-product Recovery Center now exposes the technical host-readiness checks so these can be verified without relying on terminal-only workflows.
