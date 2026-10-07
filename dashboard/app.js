@@ -2770,6 +2770,9 @@ const N2K_EQ_PRESETS = {
 };
 
 let mediaAudio = null;
+let mediaStations = [...N2K_RADIO_STATIONS];
+let mediaRadioRequest = 0;
+let mediaRadioSearchTimer = null;
 let mediaCountry = "DE";
 let mediaStationIndex = -1;
 let mediaInitialized = false;
@@ -2792,7 +2795,7 @@ function ensureMediaAudio() {
 }
 
 function mediaCurrentStation() {
-  return mediaStationIndex >= 0 ? N2K_RADIO_STATIONS[mediaStationIndex] : null;
+  return mediaStationIndex >= 0 ? mediaStations[mediaStationIndex] : null;
 }
 
 function setMediaStatus(text) {
@@ -2826,9 +2829,9 @@ function updateMediaPlaybackUi() {
 
 function filteredMediaStations() {
   const q = (document.getElementById("media-radio-search")?.value || "").trim().toLowerCase();
-  return N2K_RADIO_STATIONS
+  return mediaStations
     .map((station,index) => ({station,index}))
-    .filter(({station}) => station.country === mediaCountry)
+    .filter(({station}) => !station.country || station.country === mediaCountry)
     .filter(({station}) => !q || `${station.name} ${station.genre}`.toLowerCase().includes(q));
 }
 
@@ -2842,6 +2845,17 @@ function renderMediaStations() {
     row.className = "media-station-row";
     if (index === mediaStationIndex) row.classList.add("active");
     row.innerHTML = '<span class="media-station-logo">♪</span><div><strong></strong><small></small></div><button class="media-fav">♡</button><button class="media-station-play">▶</button>';
+    const logo = row.querySelector(".media-station-logo");
+    if (station.favicon) {
+      logo.textContent = "";
+      const image = document.createElement("img");
+      image.src = station.favicon;
+      image.alt = "";
+      image.loading = "lazy";
+      image.referrerPolicy = "no-referrer";
+      image.addEventListener("error", () => { logo.textContent = "♪"; image.remove(); });
+      logo.appendChild(image);
+    }
     row.querySelector("strong").textContent = station.name;
     row.querySelector("small").textContent = `${station.genre} · ${station.bitrate}`;
     const fav = row.querySelector(".media-fav");
@@ -2874,7 +2888,7 @@ function updateMediaFavoriteButton() {
 }
 
 async function playMediaStation(index) {
-  const station = N2K_RADIO_STATIONS[index];
+  const station = mediaStations[index];
   if (!station) return;
   const audio = ensureMediaAudio();
   mediaStationIndex = index;
@@ -2896,13 +2910,40 @@ async function playMediaStation(index) {
 }
 
 function stepMediaStation(direction) {
-  const candidates = N2K_RADIO_STATIONS
+  const candidates = mediaStations
     .map((station,index) => ({station,index}))
-    .filter(({station}) => station.country === mediaCountry);
+    .filter(({station}) => !station.country || station.country === mediaCountry);
   if (!candidates.length) return;
   const pos = candidates.findIndex(item => item.index === mediaStationIndex);
   const next = pos < 0 ? 0 : (pos + direction + candidates.length) % candidates.length;
   playMediaStation(candidates[next].index);
+}
+
+async function loadMediaRadioDirectory() {
+  const requestId = ++mediaRadioRequest;
+  const status = document.getElementById("media-radio-status");
+  const search = (document.getElementById("media-radio-search")?.value || "").trim();
+  if (status) status.textContent = `Lade ${mediaCountry}-Sender …`;
+  try {
+    const params = new URLSearchParams({country: mediaCountry, search, limit: "80"});
+    const data = await request(`/api/media/radio?${params.toString()}`, {headers: {}});
+    if (requestId !== mediaRadioRequest) return;
+    const stations = Array.isArray(data.stations) ? data.stations : [];
+    if (stations.length) {
+      mediaStations = stations;
+      mediaStationIndex = -1;
+      if (status) status.textContent = `${stations.length} Sender · Radio Browser Verzeichnis`;
+    } else {
+      mediaStations = N2K_RADIO_STATIONS.filter(station => station.country === mediaCountry);
+      if (status) status.textContent = "Keine Online-Treffer · lokale Startsender";
+    }
+  } catch (error) {
+    if (requestId !== mediaRadioRequest) return;
+    console.warn("Radio directory unavailable", error);
+    mediaStations = N2K_RADIO_STATIONS.filter(station => station.country === mediaCountry);
+    if (status) status.textContent = "Senderverzeichnis offline · lokale Startsender";
+  }
+  renderMediaStations();
 }
 
 async function refreshMediaDevices() {
@@ -3006,15 +3047,19 @@ function initMediaCenter() {
   mediaInitialized = true;
   ensureMediaAudio();
   renderMediaStations();
+  loadMediaRadioDirectory();
   refreshMediaDevices();
   updateMediaPlaybackUi();
 
   document.querySelectorAll("#media-country-tabs button").forEach(button => button.addEventListener("click", () => {
     mediaCountry = button.dataset.country || "DE";
     document.querySelectorAll("#media-country-tabs button").forEach(item => item.classList.toggle("active", item === button));
-    renderMediaStations();
+    loadMediaRadioDirectory();
   }));
-  document.getElementById("media-radio-search")?.addEventListener("input", renderMediaStations);
+  document.getElementById("media-radio-search")?.addEventListener("input", () => {
+    clearTimeout(mediaRadioSearchTimer);
+    mediaRadioSearchTimer = setTimeout(loadMediaRadioDirectory, 260);
+  });
   document.getElementById("media-play")?.addEventListener("click", async () => {
     const audio = ensureMediaAudio();
     if (!audio.src) {
