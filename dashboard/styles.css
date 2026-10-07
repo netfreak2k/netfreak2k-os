@@ -2804,3 +2804,48 @@ body::after{
   .monitoring-quiet-switch{grid-column:auto}
   .monitoring-quiet-row .status-chip{justify-self:start}
 }
+
+
+/* Remote Connectivity 2.0 */
+.remote-connectivity-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:11px 0
+}
+.remote-connectivity-grid section{
+  padding:10px;border-radius:10px;background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.035);min-width:0
+}
+.remote-connectivity-grid small,.remote-connectivity-grid strong,.remote-connectivity-grid span{display:block}
+.remote-connectivity-grid small{font-size:6px;color:#83795f;letter-spacing:.08em}
+.remote-connectivity-grid strong{
+  margin-top:3px;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.remote-connectivity-grid span{
+  margin-top:3px;font-size:7px;color:#78848f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.remote-connectivity-checks{display:grid;gap:5px;margin-bottom:9px}
+.remote-connectivity-row{
+  display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:8px;align-items:center;
+  padding:7px 8px;border-radius:8px;background:rgba(255,255,255,.018)
+}
+.remote-connectivity-dot{
+  width:7px;height:7px;border-radius:50%;background:#747d86
+}
+.remote-connectivity-dot.ok{background:#70d39d;box-shadow:0 0 0 3px rgba(112,211,157,.06)}
+.remote-connectivity-dot.bad{background:#dcad72;box-shadow:0 0 0 3px rgba(220,173,114,.06)}
+.remote-connectivity-row strong,.remote-connectivity-row small{display:block}
+.remote-connectivity-row strong{font-size:7px}
+.remote-connectivity-row small{font-size:6px;color:#74808b;margin-top:2px}
+.remote-connectivity-row em{font-size:6px;font-style:normal;color:#6f7a84}
+.remote-outside-note{
+  padding:9px 10px;border-radius:9px;background:rgba(220,173,114,.035);
+  border:1px solid rgba(220,173,114,.08);font-size:7px;color:#9a8764;line-height:1.45
+}
+.remote-outside-note.verified{
+  background:rgba(112,211,157,.035);border-color:rgba(112,211,157,.08);color:#70d39d
+}
+@media(max-width:900px){
+  .remote-connectivity-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .remote-connectivity-grid{grid-template-columns:1fr}
+}
