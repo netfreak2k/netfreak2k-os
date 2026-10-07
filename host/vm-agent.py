@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import hmac
 import ipaddress
 import json
@@ -736,11 +737,11 @@ def local_ipv4_network():
 
 
 def reverse_hostname(ip):
-    try:
-        name, _, _ = socket.gethostbyaddr(ip)
-        return name.rstrip(".")[:160]
-    except OSError:
+    result = run("getent", "hosts", ip, timeout=2)
+    if result.returncode != 0 or not result.stdout.strip():
         return ""
+    parts = result.stdout.strip().split()
+    return (parts[1] if len(parts) > 1 else "")[:160].rstrip(".")
 
 
 def classify_network_device(name, vendor, services, ip, gateway=None):
@@ -794,7 +795,7 @@ def mdns_services():
 def arp_scan_devices(interface, subnet):
     devices = {}
     if shutil.which("arp-scan"):
-        result = run("arp-scan", "--interface", interface, "--localnet", "--plain", "--ignoredups", timeout=45)
+        result = run("arp-scan", "--interface", interface, "--localnet", "--plain", "--ignoredups", timeout=30)
         if result.returncode in (0, 1):
             for line in result.stdout.splitlines():
                 match = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s+((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})\s*(.*)$", line.strip())
@@ -833,12 +834,13 @@ def network_scan_payload():
     topology = local_ipv4_network()
     now = int(time.time())
     current = arp_scan_devices(topology["interface"], topology["subnet"])
-    for ip, item in ping_sweep_devices(topology["subnet"]).items():
-        base = current.setdefault(ip, item)
-        if not base.get("mac") and item.get("mac"):
-            base["mac"] = item["mac"]
-        if not base.get("vendor") and item.get("vendor"):
-            base["vendor"] = item["vendor"]
+    if not current:
+        for ip, item in ping_sweep_devices(topology["subnet"]).items():
+            base = current.setdefault(ip, item)
+            if not base.get("mac") and item.get("mac"):
+                base["mac"] = item["mac"]
+            if not base.get("vendor") and item.get("vendor"):
+                base["vendor"] = item["vendor"]
 
     neigh = run("ip", "-j", "neigh", "show", "dev", topology["interface"], timeout=5)
     try:
