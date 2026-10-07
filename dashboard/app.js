@@ -1212,6 +1212,87 @@ function renderHealthHistoryChart() {
   if (last) ctx.fillText(new Date(last * 1000).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}), width - pad.right, height - 5);
 }
 
+let selectedServiceUnit = "";
+
+function ensureServiceDiagnosticsModal() {
+  if (document.getElementById("service-diagnostics-modal")) return;
+  const modal = document.createElement("div");
+  modal.id = "service-diagnostics-modal";
+  modal.className = "service-diagnostics-modal hidden";
+  modal.innerHTML = `
+    <div class="service-diagnostics-dialog">
+      <div class="service-diagnostics-head">
+        <div><small>SYSTEMDIENST</small><strong id="service-diag-title">Dienst</strong><span id="service-diag-unit">–</span></div>
+        <button id="service-diag-close" class="secondary compact">Schließen</button>
+      </div>
+      <div class="service-diagnostics-status">
+        <span id="service-diag-state" class="health-badge">–</span>
+        <span id="service-diag-count">Logs werden geladen …</span>
+        <button id="service-diag-action" class="primary compact hidden">Neu starten</button>
+      </div>
+      <pre id="service-diag-log" class="service-diagnostics-log">Logs werden geladen …</pre>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("service-diag-close")?.addEventListener("click", () => modal.classList.add("hidden"));
+  modal.addEventListener("click", event => { if (event.target === modal) modal.classList.add("hidden"); });
+  document.getElementById("service-diag-action")?.addEventListener("click", restartSelectedService);
+}
+
+async function openServiceDiagnostics(service) {
+  ensureServiceDiagnosticsModal();
+  selectedServiceUnit = service?.unit || "";
+  const modal = document.getElementById("service-diagnostics-modal");
+  const action = document.getElementById("service-diag-action");
+  setHealthText("service-diag-title", service?.label || selectedServiceUnit.replace(".service","") || "Dienst");
+  setHealthText("service-diag-unit", selectedServiceUnit || "–");
+  setHealthText("service-diag-state", service?.state || "unknown");
+  document.getElementById("service-diag-state").className = `health-badge ${service?.ok ? "ok" : "warn"}`;
+  if (action) {
+    action.classList.toggle("hidden", !service?.restartable || currentRole === "viewer");
+    action.textContent = service?.ok ? "Neu starten" : "Starten";
+    action.dataset.operation = service?.ok ? "restart" : "start";
+  }
+  setHealthText("service-diag-count", "Journal wird geladen …");
+  document.getElementById("service-diag-log").textContent = "Logs werden geladen …";
+  modal?.classList.remove("hidden");
+  try {
+    const data = await request(`/api/service/logs?unit=${encodeURIComponent(selectedServiceUnit)}&lines=120`, {headers:{}});
+    const lines = Array.isArray(data.lines) ? data.lines : [];
+    document.getElementById("service-diag-log").textContent = lines.length ? lines.join("\n") : "Keine Journal-Einträge vorhanden.";
+    setHealthText("service-diag-count", `${data.line_count || lines.length} Journal-Zeilen`);
+    const state = data.state || {};
+    setHealthText("service-diag-state", state.state || "unknown");
+    document.getElementById("service-diag-state").className = `health-badge ${state.ok ? "ok" : "warn"}`;
+  } catch (error) {
+    console.error(error);
+    document.getElementById("service-diag-log").textContent = "Journal konnte nicht geladen werden.";
+    setHealthText("service-diag-count", "Diagnose nicht verfügbar");
+  }
+}
+
+async function restartSelectedService() {
+  if (!selectedServiceUnit || currentRole === "viewer") return;
+  const button = document.getElementById("service-diag-action");
+  const operation = button?.dataset.operation || "restart";
+  const original = button?.textContent || "Neu starten";
+  if (button) { button.disabled = true; button.textContent = operation === "start" ? "Starte …" : "Starte neu …"; }
+  try {
+    const data = await request("/api/service/action", {
+      method:"POST",
+      body:JSON.stringify({unit:selectedServiceUnit, operation}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast(operation === "start" ? "Dienst wurde gestartet." : "Dienst wurde neu gestartet.", "success");
+    await loadSystemHealth();
+    await openServiceDiagnostics(data.service || {unit:selectedServiceUnit, restartable:true});
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Dienstaktion fehlgeschlagen.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 function renderHealthStatus(data) {
   const current = data.current || {};
   const score = Number(current.score);
@@ -1297,13 +1378,15 @@ function renderHealthStatus(data) {
     dockerRow.querySelector(".health-dot-mini").classList.add(docker.available && docker.running === docker.total ? "ok" : "warn");
     serviceList.appendChild(dockerRow);
     services.forEach(service => {
-      const row = document.createElement("div");
-      row.className = "health-list-row";
-      row.innerHTML = "<span class='health-dot-mini'></span><div><strong></strong><small></small></div><em></em>";
-      row.querySelector("strong").textContent = service.unit.replace(".service","");
-      row.querySelector("small").textContent = "systemd Dienst";
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "health-list-row health-service-row";
+      row.innerHTML = "<span class='health-dot-mini'></span><div><strong></strong><small></small></div><em></em><span class='health-service-more'>Details ›</span>";
+      row.querySelector("strong").textContent = service.label || service.unit.replace(".service","");
+      row.querySelector("small").textContent = service.restartable ? "systemd · steuerbar" : "systemd · geschützt";
       row.querySelector("em").textContent = service.state || "unknown";
       row.querySelector(".health-dot-mini").classList.add(service.ok ? "ok" : "warn");
+      row.addEventListener("click", () => openServiceDiagnostics(service));
       serviceList.appendChild(row);
     });
   }
