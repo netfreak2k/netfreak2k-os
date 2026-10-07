@@ -927,8 +927,15 @@ function renderNetworkDeviceList() {
       serviceWrap.appendChild(chip);
     }
 
+    const openPorts = Array.isArray(device.deep_scan?.ports) ? device.deep_scan.ports.length : 0;
+    const presence = device.online && Number.isFinite(Number(device.online_since))
+      ? `Online ${formatUptime(Math.max(0, Math.floor(Date.now()/1000 - Number(device.online_since))))}`
+      : !device.online && Number.isFinite(Number(device.offline_since))
+        ? `Offline ${formatUptime(Math.max(0, Math.floor(Date.now()/1000 - Number(device.offline_since))))}`
+        : "";
     card.querySelector(".network-card-footer span").textContent =
-      device.trusted ? "✓ Vertrauenswürdig" : (device.new && device.online ? "Neu im Netzwerk" : "Lokales Gerät");
+      [device.trusted ? "✓ Vertrauenswürdig" : (device.new && device.online ? "Neu im Netzwerk" : "Lokales Gerät"), presence, openPorts ? `${openPorts} offene Ports` : ""]
+        .filter(Boolean).join(" · ");
 
     card.addEventListener("click", () => openNetworkDevice(device.id));
     body.appendChild(card);
@@ -997,11 +1004,25 @@ function renderNetworkDeviceModal(device) {
   setText("network-device-first-seen", Number.isFinite(Number(device.first_seen)) ? formatDateTime(Number(device.first_seen)) : "–");
   setText("network-device-last-seen", Number.isFinite(Number(device.last_seen)) ? formatDateTime(Number(device.last_seen)) : "–");
   setText("network-device-online", device.online ? "Online" : "Offline");
+  setText("network-device-online-since", device.online && Number.isFinite(Number(device.online_since))
+    ? `${formatDateTime(Number(device.online_since))} · ${formatUptime(Math.max(0, Math.floor(Date.now()/1000 - Number(device.online_since))))}`
+    : "–");
+  setText("network-device-offline-since", !device.online && Number.isFinite(Number(device.offline_since))
+    ? `${formatDateTime(Number(device.offline_since))} · ${formatUptime(Math.max(0, Math.floor(Date.now()/1000 - Number(device.offline_since))))}`
+    : "–");
+  setText("network-device-seen-count", Number.isFinite(Number(device.seen_count)) ? String(device.seen_count) : "–");
+  setText("network-device-last-wake", Number.isFinite(Number(device.last_wake_at)) ? formatDateTime(Number(device.last_wake_at)) : "Noch nie");
 
   const nameInput = document.getElementById("network-device-custom-name");
   const typeInput = document.getElementById("network-device-type");
   const trustedInput = document.getElementById("network-device-trusted");
   const notesInput = document.getElementById("network-device-notes");
+  const wakeButton = document.getElementById("network-device-wake");
+  if (wakeButton) {
+    const validMac = /^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(device.mac || "");
+    wakeButton.disabled = currentRole === "viewer" || !validMac;
+    wakeButton.title = !validMac ? "Keine gültige MAC-Adresse verfügbar" : "Magic Packet ins lokale Netzwerk senden";
+  }
   if (nameInput) nameInput.value = device.custom_name || "";
   if (typeInput) typeInput.value = device.device_type || "unknown";
   if (trustedInput) trustedInput.checked = Boolean(device.trusted);
@@ -1052,11 +1073,17 @@ function renderNetworkDeviceModal(device) {
       for (const entry of entries) {
         const row = document.createElement("div");
         row.className = "network-history-row";
-        const label = entry.state === "discovered" ? "Erstmals erkannt" : entry.state === "online" ? "Online" : entry.state === "offline" ? "Offline" : entry.state;
+        const label = entry.state === "discovered" ? "Erstmals erkannt" :
+          entry.state === "online" ? "Online" :
+          entry.state === "offline" ? "Offline" :
+          entry.state === "ip_change" ? "IP-Adresse geändert" :
+          entry.state === "wake_sent" ? "Wake-on-LAN gesendet" : entry.state;
         row.innerHTML = "<span></span><strong></strong><small></small>";
         row.querySelector("span").className = `network-history-dot ${entry.state || ""}`;
         row.querySelector("strong").textContent = label;
-        row.querySelector("small").textContent = Number.isFinite(Number(entry.at)) ? formatDateTime(Number(entry.at)) : "–";
+        const at = Number.isFinite(Number(entry.at)) ? formatDateTime(Number(entry.at)) : "–";
+        const extra = entry.state === "ip_change" && (entry.from || entry.to) ? ` · ${entry.from || "?"} → ${entry.to || "?"}` : "";
+        row.querySelector("small").textContent = at + extra;
         history.appendChild(row);
       }
     } else {
@@ -1102,6 +1129,33 @@ async function saveNetworkDevice() {
     showN2KToast("Geräteinformationen konnten nicht gespeichert werden.", "error");
   }
 }
+
+async function wakeNetworkDevice() {
+  if (!networkInventorySelectedId || currentRole === "viewer") return;
+  const device = networkInventoryDevices.find(item => item.id === networkInventorySelectedId);
+  if (!device) return;
+  if (!confirm(`${device.name || device.ip}: Wake-on-LAN senden?`)) return;
+  const button = document.getElementById("network-device-wake");
+  const original = button?.textContent || "Wake-on-LAN";
+  if (button) { button.disabled = true; button.textContent = "Sende …"; }
+  try {
+    await request("/api/network/device/wake", {
+      method:"POST",
+      body:JSON.stringify({device_id:networkInventorySelectedId}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    device.last_wake_at = Math.floor(Date.now()/1000);
+    device.history = [...(device.history || []), {at:device.last_wake_at, state:"wake_sent"}].slice(-60);
+    renderNetworkDeviceModal(device);
+    showN2KToast("Wake-on-LAN wurde gesendet.", "success");
+  } catch (error) {
+    console.error(error);
+    showN2KToast(error.code === "wake_mac_unavailable" ? "Für dieses Gerät ist keine MAC-Adresse verfügbar." : "Wake-on-LAN konnte nicht gesendet werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 
 async function analyzeNetworkDevice() {
   if (!networkInventorySelectedId) return;
@@ -3858,6 +3912,7 @@ document.getElementById("network-device-modal")?.addEventListener("click", event
 });
 document.getElementById("network-device-save")?.addEventListener("click", saveNetworkDevice);
 document.getElementById("network-device-analyze")?.addEventListener("click", analyzeNetworkDevice);
+document.getElementById("network-device-wake")?.addEventListener("click", wakeNetworkDevice);
 
 document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
 document.querySelectorAll("[data-health-range]").forEach(button => button.addEventListener("click", () => {
