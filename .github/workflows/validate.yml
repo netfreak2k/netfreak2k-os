@@ -183,6 +183,21 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: Backup Recovery sanity
+        run: |
+          grep -q 'backup-recovery-panel' dashboard/index.html
+          grep -q 'saveBackupPolicy' dashboard/app.js
+          grep -q 'testRestoreBackup' dashboard/app.js
+          grep -q 'backup_test_restore' host/vm-agent.py
+          grep -q 'backup_scheduled_tick' host/vm-agent.py
+          grep -q '/backups/test-restore' server/api/server.py
+          grep -q '/backups/policy' server/api/server.py
+          grep -q 'netfreak2k-backup-scheduler.timer' install.sh
+          grep -q 'netfreak2k-backup-scheduler.timer' scripts/update-server.sh
+          test -f host/netfreak2k-backup-scheduler.service
+          test -f host/netfreak2k-backup-scheduler.timer
+          test -x scripts/backup-scheduler.sh || test -f scripts/backup-scheduler.sh
+
       - name: Notification center sanity
         run: |
           grep -q 'notification-panel' dashboard/index.html

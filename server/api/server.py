@@ -1669,7 +1669,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action == "backup_create" else 150 if action in {"network_scan","network_device_analyze"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -3288,6 +3288,75 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result, 201)
+            return
+
+        if path == "/backups/verify":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                backup_id = str(data.get("backup_id", ""))
+                result = vm_agent("backup_verify", {"backup_id": backup_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/backups/test-restore":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                backup_id = str(data.get("backup_id", ""))
+                result = vm_agent("backup_test_restore", {"backup_id": backup_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/backups/policy":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                fields = data.get("fields")
+                if not isinstance(fields, dict):
+                    raise ValueError("invalid_backup_policy")
+                result = vm_agent("backup_policy_set", {"fields": fields})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/backups/prune":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("backup_prune")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
             return
 
         if path == "/backups/restore":

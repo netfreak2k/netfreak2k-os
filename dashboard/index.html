@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-notify1">
+  <link rel="stylesheet" href="styles.css?v=20261007-backup2">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -670,15 +670,108 @@
             </div>
           </article>
 
-          <article id="backups-panel" class="panel backup-panel section-anchor">
+          <article id="backups-panel" class="panel backup-panel backup-recovery-panel section-anchor">
             <div class="panel-head">
-              <div><h2>Backups</h2><p>Netfreak2k-Konfiguration, Admin-Datenbank und verwaltete App-Daten.</p></div>
-              <button id="create-backup" class="primary compact">Backup erstellen</button>
+              <div>
+                <p class="eyebrow">N2K BACKUP & RECOVERY</p>
+                <h2>Backups & Wiederherstellung</h2>
+                <p>Automatische Sicherungen, Integritätsprüfung, Aufbewahrung und kontrollierte Wiederherstellung.</p>
+              </div>
+              <button id="create-backup" class="primary compact">Backup jetzt erstellen</button>
             </div>
-            <div class="backup-note">Home Assistant OS nutzt weiterhin sein eigenes Backup-System.</div>
-            <div id="backup-list" class="backup-list">
-              <div class="app-empty">Backups werden geladen …</div>
+
+            <div class="backup-health-grid">
+              <section>
+                <small>LETZTES BACKUP</small>
+                <strong id="backup-health-last">Noch keines</strong>
+                <span id="backup-health-last-meta">–</span>
+              </section>
+              <section>
+                <small>INTEGRITÄT</small>
+                <strong id="backup-health-integrity">Nicht geprüft</strong>
+                <span id="backup-health-integrity-meta">SHA-256 Prüfung</span>
+              </section>
+              <section>
+                <small>AUTOMATIK</small>
+                <strong id="backup-health-schedule">Deaktiviert</strong>
+                <span id="backup-health-next">–</span>
+              </section>
+              <section>
+                <small>AUFBEWAHRUNG</small>
+                <strong id="backup-health-retention">7 Backups</strong>
+                <span id="backup-health-target">Lokaler Server</span>
+              </section>
             </div>
+
+            <div class="backup-recovery-grid">
+              <section class="backup-policy-card">
+                <div class="backup-section-head">
+                  <div><small>BACKUP-PLAN</small><strong>Automatische Sicherung</strong></div>
+                  <label class="backup-switch"><input id="backup-policy-enabled" type="checkbox"><span></span></label>
+                </div>
+                <div class="backup-policy-form">
+                  <label>Rhythmus
+                    <select id="backup-policy-frequency">
+                      <option value="daily">Täglich</option>
+                      <option value="weekly">Wöchentlich</option>
+                    </select>
+                  </label>
+                  <label>Startzeit
+                    <select id="backup-policy-hour">
+                      <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option>
+                      <option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option>
+                      <option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
+                      <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option>
+                      <option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option>
+                      <option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
+                    </select>
+                  </label>
+                  <label id="backup-weekday-wrap">Wochentag
+                    <select id="backup-policy-weekday">
+                      <option value="0">Montag</option><option value="1">Dienstag</option><option value="2">Mittwoch</option><option value="3">Donnerstag</option>
+                      <option value="4">Freitag</option><option value="5">Samstag</option><option value="6">Sonntag</option>
+                    </select>
+                  </label>
+                  <label>Aufbewahrung
+                    <select id="backup-policy-retention">
+                      <option value="3">3 Backups</option><option value="5">5 Backups</option><option value="7">7 Backups</option>
+                      <option value="14">14 Backups</option><option value="30">30 Backups</option><option value="60">60 Backups</option>
+                    </select>
+                  </label>
+                  <label class="backup-check"><input id="backup-policy-verify" type="checkbox"> Nach Erstellung automatisch verifizieren</label>
+                </div>
+                <div class="backup-policy-actions">
+                  <button id="backup-policy-save" class="primary compact">Backup-Plan speichern</button>
+                  <button id="backup-prune" class="secondary compact">Aufbewahrung jetzt anwenden</button>
+                </div>
+              </section>
+
+              <section class="backup-target-card">
+                <div class="backup-section-head">
+                  <div><small>ZIEL</small><strong>Speicherort</strong></div>
+                  <span id="backup-target-state" class="status-chip">Lokal</span>
+                </div>
+                <div class="backup-target-options">
+                  <label><input type="radio" name="backup-target" value="local" checked><span><strong>Lokaler Server</strong><small>/var/lib/netfreak2k/backups</small></span></label>
+                  <label><input type="radio" name="backup-target" value="mounted"><span><strong>Eingehängtes Ziel / NAS</strong><small>Zusätzliche Kopie auf vorhandenes Mount</small></span></label>
+                </div>
+                <label id="backup-target-path-wrap" class="backup-target-path hidden">Mount-Pfad
+                  <input id="backup-target-path" type="text" maxlength="260" placeholder="/mnt/nas/netfreak2k">
+                  <small>Erlaubt sind Ziele unter /mnt, /media oder /srv/backups.</small>
+                </label>
+                <div class="backup-note">Home Assistant OS nutzt weiterhin sein eigenes Backup-System. N2K sichert Admin-Datenbank, Server-Konfiguration und verwaltete App-Daten.</div>
+              </section>
+            </div>
+
+            <section class="backup-archive-card">
+              <div class="backup-section-head">
+                <div><small>ARCHIV</small><strong>Verfügbare Wiederherstellungspunkte</strong></div>
+                <span id="backup-archive-summary">Wird geladen …</span>
+              </div>
+              <div id="backup-list" class="backup-list backup-list-v2">
+                <div class="app-empty">Backups werden geladen …</div>
+              </div>
+            </section>
           </article>
 
           <article id="network-panel" class="panel network-detail-panel section-anchor">
@@ -1175,6 +1268,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-notify1"></script>
+  <script src="app.js?v=20261007-backup2"></script>
 </body>
 </html>

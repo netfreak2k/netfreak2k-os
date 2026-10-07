@@ -7,6 +7,7 @@ import os
 import pwd
 import re
 import secrets
+import sqlite3
 import socket
 import subprocess
 import shutil
@@ -23,7 +24,7 @@ ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
-    "backup_list", "backup_create", "backup_restore", "vm_list",
+    "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
@@ -35,6 +36,7 @@ BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
 BLUETOOTH_MAC_RE = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
 AUDIO_NODE_RE = re.compile(r"^[0-9]{1,6}$")
 BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
+BACKUP_POLICY_FILE = Path("/var/lib/netfreak2k/backup-policy.json")
 MULTIROOM_STATE = Path("/run/netfreak2k/media-multiroom.json")
 NETWORK_INVENTORY_FILE = Path("/var/lib/netfreak2k/network-inventory.json")
 NETWORK_SCAN_STATE = Path("/run/netfreak2k/network-scan.json")
@@ -1176,8 +1178,19 @@ def health_status_payload():
         age = int(time.time()) - int(latest_backup["created_at"])
         if age > 3 * 86400:
             warnings.append({"kind": "backup", "level": "warning", "title": "Backup ist veraltet", "detail": f"Letztes Backup vor {age // 86400} Tagen."})
+        if latest_backup.get("verified") is False:
+            warnings.append({"kind": "backup", "level": "critical", "title": "Backup-Integrität fehlgeschlagen", "detail": f"{latest_backup.get('id', 'Backup')} konnte nicht verifiziert werden."})
     elif not latest_backup:
         warnings.append({"kind": "backup", "level": "warning", "title": "Kein Backup vorhanden", "detail": "Es wurde noch kein N2K-Backup gefunden."})
+    backup_policy = backup_policy_payload()
+    last_backup_result = backup_policy.get("last_result")
+    if backup_policy.get("enabled") and isinstance(last_backup_result, dict) and last_backup_result.get("ok") is False:
+        warnings.append({
+            "kind": "backup",
+            "level": "critical",
+            "title": "Automatisches Backup fehlgeschlagen",
+            "detail": str(last_backup_result.get("error") or "Der geplante Backup-Lauf ist fehlgeschlagen.")[:300],
+        })
 
     score = 100
     for item in warnings:
@@ -1244,6 +1257,196 @@ def vm_list_payload():
     return {"vms": vms}
 
 
+
+def default_backup_policy():
+    return {
+        "enabled": False,
+        "frequency": "daily",
+        "hour": 3,
+        "weekday": 6,
+        "retention": 7,
+        "verify_after_create": True,
+        "target": "local",
+        "target_path": "",
+        "last_scheduled_at": None,
+        "last_result": None,
+    }
+
+
+def backup_policy_payload():
+    policy = default_backup_policy()
+    try:
+        saved = json.loads(BACKUP_POLICY_FILE.read_text(encoding="utf-8"))
+        if isinstance(saved, dict):
+            for key in policy:
+                if key in saved:
+                    policy[key] = saved[key]
+    except (OSError, json.JSONDecodeError):
+        pass
+    return policy
+
+
+def write_backup_policy(policy):
+    BACKUP_POLICY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = BACKUP_POLICY_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(policy, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    os.replace(tmp, BACKUP_POLICY_FILE)
+    os.chmod(BACKUP_POLICY_FILE, 0o600)
+
+
+def normalize_backup_target_path(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    path = Path(raw).expanduser().resolve()
+    allowed_roots = [Path("/mnt").resolve(), Path("/media").resolve(), Path("/srv/backups").resolve(), Path("/srv/netfreak2k-backups").resolve()]
+    if not any(path == root or root in path.parents for root in allowed_roots):
+        raise RuntimeError("backup_target_not_allowed")
+    return str(path)
+
+
+def backup_policy_set(fields):
+    if not isinstance(fields, dict):
+        raise RuntimeError("invalid_backup_policy")
+    policy = backup_policy_payload()
+    if "enabled" in fields:
+        policy["enabled"] = bool(fields.get("enabled"))
+    if "frequency" in fields:
+        frequency = str(fields.get("frequency") or "")
+        if frequency not in {"daily", "weekly"}:
+            raise RuntimeError("invalid_backup_frequency")
+        policy["frequency"] = frequency
+    if "hour" in fields:
+        try:
+            hour = int(fields.get("hour"))
+        except (TypeError, ValueError):
+            raise RuntimeError("invalid_backup_hour")
+        if not 0 <= hour <= 23:
+            raise RuntimeError("invalid_backup_hour")
+        policy["hour"] = hour
+    if "weekday" in fields:
+        try:
+            weekday = int(fields.get("weekday"))
+        except (TypeError, ValueError):
+            raise RuntimeError("invalid_backup_weekday")
+        if not 0 <= weekday <= 6:
+            raise RuntimeError("invalid_backup_weekday")
+        policy["weekday"] = weekday
+    if "retention" in fields:
+        try:
+            retention = int(fields.get("retention"))
+        except (TypeError, ValueError):
+            raise RuntimeError("invalid_backup_retention")
+        if retention not in {3, 5, 7, 14, 30, 60}:
+            raise RuntimeError("invalid_backup_retention")
+        policy["retention"] = retention
+    if "verify_after_create" in fields:
+        policy["verify_after_create"] = bool(fields.get("verify_after_create"))
+    if "target" in fields:
+        target = str(fields.get("target") or "local")
+        if target not in {"local", "mounted"}:
+            raise RuntimeError("invalid_backup_target")
+        policy["target"] = target
+    if "target_path" in fields:
+        policy["target_path"] = normalize_backup_target_path(fields.get("target_path"))
+    if policy["target"] == "mounted" and not policy.get("target_path"):
+        raise RuntimeError("backup_target_path_required")
+    write_backup_policy(policy)
+    return policy
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def backup_manifest(target):
+    files = []
+    for path in sorted(target.rglob("*")):
+        if not path.is_file() or path.name in {"manifest.json", "verify.json", "meta.json"}:
+            continue
+        rel = str(path.relative_to(target))
+        try:
+            stat = path.stat()
+            files.append({
+                "path": rel,
+                "size_bytes": stat.st_size,
+                "sha256": file_sha256(path),
+            })
+        except OSError:
+            continue
+    return {
+        "created_at": int(time.time()),
+        "algorithm": "sha256",
+        "files": files,
+    }
+
+
+def backup_verify(backup_id):
+    if not BACKUP_ID_RE.fullmatch(str(backup_id or "")):
+        raise RuntimeError("invalid_backup_id")
+    source = BACKUP_DIR / backup_id
+    if not source.is_dir():
+        raise RuntimeError("backup_not_found")
+    manifest_file = source / "manifest.json"
+    if not manifest_file.is_file():
+        result = {"ok": False, "checked_at": int(time.time()), "error": "manifest_missing", "files_checked": 0}
+    else:
+        try:
+            manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+        failures = []
+        checked = 0
+        for entry in manifest.get("files") or []:
+            rel = str(entry.get("path") or "")
+            expected = str(entry.get("sha256") or "")
+            expected_size = entry.get("size_bytes")
+            path = (source / rel).resolve()
+            if source.resolve() not in path.parents:
+                failures.append({"path": rel, "error": "invalid_path"})
+                continue
+            if not path.is_file():
+                failures.append({"path": rel, "error": "missing"})
+                continue
+            try:
+                stat = path.stat()
+                if expected_size is not None and stat.st_size != int(expected_size):
+                    failures.append({"path": rel, "error": "size_mismatch"})
+                    continue
+                if expected and file_sha256(path) != expected:
+                    failures.append({"path": rel, "error": "checksum_mismatch"})
+                    continue
+                checked += 1
+            except (OSError, ValueError):
+                failures.append({"path": rel, "error": "read_failed"})
+        result = {
+            "ok": not failures and checked == len(manifest.get("files") or []),
+            "checked_at": int(time.time()),
+            "files_checked": checked,
+            "failures": failures[:25],
+        }
+    try:
+        (source / "verify.json").write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
+    except OSError:
+        pass
+    try:
+        meta_file = source / "meta.json"
+        meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else {}
+        meta["verified_at"] = result.get("checked_at")
+        meta["verified"] = bool(result.get("ok"))
+        meta_file.write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
+    except (OSError, json.JSONDecodeError):
+        pass
+    return result
+
+
 def backup_list_payload():
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     backups = []
@@ -1267,11 +1470,45 @@ def backup_list_payload():
             "created_at": meta.get("created_at"),
             "size_bytes": size,
             "apps": meta.get("apps", []),
+            "reason": meta.get("reason", "manual"),
+            "verified": meta.get("verified"),
+            "verified_at": meta.get("verified_at"),
+            "target": meta.get("target", "local"),
+            "replicated": bool(meta.get("replicated")),
+            "restore_ready": meta.get("restore_ready"),
+            "restore_tested_at": meta.get("restore_tested_at"),
         })
-    return {"backups": backups[:20]}
+    return {"backups": backups[:60], "policy": backup_policy_payload()}
 
 
-def backup_create():
+def backup_target_is_mounted(path):
+    current = Path(path)
+    for candidate in [current, *current.parents]:
+        if str(candidate) == "/":
+            break
+        if candidate.exists() and os.path.ismount(candidate):
+            return True
+    return False
+
+
+def replicate_backup(target, policy):
+    if policy.get("target") != "mounted":
+        return False
+    raw = normalize_backup_target_path(policy.get("target_path"))
+    if not raw:
+        return False
+    root = Path(raw)
+    if not backup_target_is_mounted(root):
+        raise RuntimeError("backup_target_not_mounted")
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / target.name
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(target, destination)
+    return True
+
+
+def backup_create(reason="manual"):
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     backup_id = time.strftime("n2k-%Y%m%d-%H%M%S", time.localtime())
     target = BACKUP_DIR / backup_id
@@ -1296,7 +1533,7 @@ def backup_create():
     apps_dir = target / "apps"
     apps_dir.mkdir()
     for app_id, spec in APP_CATALOG.items():
-        if container_state(spec["container"]) is None:
+        if container_state(spec["container"]) is None or not spec.get("mount"):
             continue
         app_target = apps_dir / app_id
         app_target.mkdir()
@@ -1309,14 +1546,182 @@ def backup_create():
         if cp_result.returncode == 0:
             apps.append(app_id)
 
+    policy = backup_policy_payload()
     meta = {
         "id": backup_id,
         "created_at": int(time.time()),
         "apps": apps,
         "includes": ["netfreak2k-admin-db", "managed-app-data", "server-env"],
+        "reason": "scheduled" if reason == "scheduled" else "manual",
+        "target": policy.get("target", "local"),
+        "verified": None,
+        "verified_at": None,
+        "replicated": False,
     }
     (target / "meta.json").write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
-    return {"created": True, "backup": backup_list_payload()["backups"][0]}
+    manifest = backup_manifest(target)
+    (target / "manifest.json").write_text(json.dumps(manifest, separators=(",", ":")), encoding="utf-8")
+
+    verification = None
+    if policy.get("verify_after_create", True):
+        verification = backup_verify(backup_id)
+
+    replicated = replicate_backup(target, policy)
+    try:
+        meta = json.loads((target / "meta.json").read_text(encoding="utf-8"))
+        meta["replicated"] = replicated
+        (target / "meta.json").write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    if replicated and policy.get("target") == "mounted":
+        try:
+            replica_meta = Path(policy.get("target_path")) / backup_id / "meta.json"
+            shutil.copy2(target / "meta.json", replica_meta)
+        except OSError:
+            pass
+
+    backup_prune()
+    current = backup_list_payload()["backups"][0]
+    return {"created": True, "backup": current, "verification": verification}
+
+
+def backup_prune():
+    policy = backup_policy_payload()
+    retention = int(policy.get("retention") or 7)
+    payload = backup_list_payload()
+    backups = payload.get("backups") or []
+    removed = []
+    for item in backups[retention:]:
+        backup_id = item.get("id")
+        if not BACKUP_ID_RE.fullmatch(str(backup_id or "")):
+            continue
+        target = BACKUP_DIR / backup_id
+        try:
+            shutil.rmtree(target)
+            removed.append(backup_id)
+        except OSError:
+            continue
+
+    replica_removed = []
+    if policy.get("target") == "mounted" and policy.get("target_path"):
+        try:
+            root = Path(normalize_backup_target_path(policy.get("target_path")))
+            if backup_target_is_mounted(root) and root.is_dir():
+                replicas = sorted(
+                    [item for item in root.iterdir() if item.is_dir() and BACKUP_ID_RE.fullmatch(item.name)],
+                    reverse=True,
+                )
+                for item in replicas[retention:]:
+                    shutil.rmtree(item)
+                    replica_removed.append(item.name)
+        except (OSError, RuntimeError):
+            pass
+    return {"removed": removed, "replica_removed": replica_removed, "retention": retention}
+
+
+def backup_schedule_due(policy, now=None):
+    if not policy.get("enabled"):
+        return False
+    now = int(now or time.time())
+    local = time.localtime(now)
+    target_hour = int(policy.get("hour") or 0)
+    if local.tm_hour < target_hour:
+        return False
+    last = policy.get("last_scheduled_at")
+    if last:
+        last_local = time.localtime(int(last))
+        if (last_local.tm_year, last_local.tm_yday) == (local.tm_year, local.tm_yday):
+            return False
+    if policy.get("frequency") == "weekly":
+        weekday = (local.tm_wday + 0) % 7
+        if weekday != int(policy.get("weekday") or 0):
+            return False
+    return True
+
+
+def backup_scheduled_tick():
+    policy = backup_policy_payload()
+    if not backup_schedule_due(policy):
+        return {"due": False, "policy": policy}
+    try:
+        result = backup_create(reason="scheduled")
+        policy = backup_policy_payload()
+        policy["last_scheduled_at"] = int(time.time())
+        policy["last_result"] = {
+            "ok": True,
+            "at": policy["last_scheduled_at"],
+            "backup_id": (result.get("backup") or {}).get("id"),
+        }
+        write_backup_policy(policy)
+        return {"due": True, "created": True, "result": result, "policy": policy}
+    except Exception as exc:
+        policy = backup_policy_payload()
+        policy["last_scheduled_at"] = int(time.time())
+        policy["last_result"] = {"ok": False, "at": policy["last_scheduled_at"], "error": str(exc)[:300]}
+        write_backup_policy(policy)
+        raise
+
+
+def backup_test_restore(backup_id):
+    if not BACKUP_ID_RE.fullmatch(str(backup_id or "")):
+        raise RuntimeError("invalid_backup_id")
+    source = BACKUP_DIR / backup_id
+    if not source.is_dir():
+        raise RuntimeError("backup_not_found")
+
+    verification = backup_verify(backup_id)
+    checks = [{"name": "checksums", "ok": bool(verification.get("ok")), "detail": f"{verification.get('files_checked', 0)} Dateien geprüft"}]
+
+    db_file = source / "netfreak2k.db"
+    db_ok = False
+    db_detail = "Admin-Datenbank fehlt"
+    if db_file.is_file():
+        try:
+            conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            conn.close()
+            db_ok = bool(row and str(row[0]).lower() == "ok")
+            db_detail = "SQLite integrity_check: ok" if db_ok else f"SQLite integrity_check: {row[0] if row else 'unknown'}"
+        except sqlite3.Error as exc:
+            db_detail = f"SQLite Fehler: {str(exc)[:160]}"
+    checks.append({"name": "database", "ok": db_ok, "detail": db_detail})
+
+    env_ok = (source / "server.env").is_file()
+    checks.append({"name": "server_config", "ok": env_ok, "detail": "Server-Konfiguration vorhanden" if env_ok else "server.env fehlt"})
+
+    try:
+        meta = json.loads((source / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        meta = {}
+    missing_apps = []
+    for app_id in meta.get("apps") or []:
+        if not (source / "apps" / str(app_id)).is_dir():
+            missing_apps.append(str(app_id))
+    apps_ok = not missing_apps
+    checks.append({
+        "name": "app_data",
+        "ok": apps_ok,
+        "detail": "App-Daten vollständig" if apps_ok else "Fehlend: " + ", ".join(missing_apps[:8]),
+    })
+
+    ready = all(item["ok"] for item in checks)
+    result = {
+        "ok": ready,
+        "tested_at": int(time.time()),
+        "backup_id": backup_id,
+        "checks": checks,
+    }
+    try:
+        test_file = source / "restore-test.json"
+        test_file.write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
+        meta_file = source / "meta.json"
+        meta["restore_tested_at"] = result["tested_at"]
+        meta["restore_ready"] = ready
+        meta_file.write_text(json.dumps(meta, separators=(",", ":")), encoding="utf-8")
+    except OSError:
+        pass
+    return result
 
 
 def backup_restore(backup_id):
@@ -1325,6 +1730,10 @@ def backup_restore(backup_id):
     source = BACKUP_DIR / backup_id
     if not source.is_dir():
         raise RuntimeError("backup_not_found")
+
+    verification = backup_verify(backup_id)
+    if not verification.get("ok"):
+        raise RuntimeError("backup_integrity_failed")
 
     restore_script = Path("/opt/netfreak2k/scripts/restore-server.sh")
     if not restore_script.is_file():
@@ -1347,7 +1756,7 @@ def backup_restore(backup_id):
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "restore_start_failed")
-    return {"accepted": True, "backup_id": backup_id}
+    return {"accepted": True, "backup_id": backup_id, "verified": True}
 
 
 def execute(action, request):
@@ -1395,6 +1804,24 @@ def execute(action, request):
 
     if action == "backup_create":
         return backup_create()
+
+    if action == "backup_verify":
+        return backup_verify(str(request.get("backup_id", "")))
+
+    if action == "backup_test_restore":
+        return backup_test_restore(str(request.get("backup_id", "")))
+
+    if action == "backup_policy_get":
+        return backup_policy_payload()
+
+    if action == "backup_policy_set":
+        return backup_policy_set(request.get("fields") or {})
+
+    if action == "backup_prune":
+        return backup_prune()
+
+    if action == "backup_scheduled_tick":
+        return backup_scheduled_tick()
 
     if action == "audio_status":
         return audio_status_payload()

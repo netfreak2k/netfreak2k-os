@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Netfreak2k backup schedule hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=120
+Unit=netfreak2k-backup-scheduler.service
+
+[Install]
+WantedBy=timers.target

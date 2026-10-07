@@ -1677,37 +1677,139 @@ async function loadVms() {
   }
 }
 
+
+function backupPolicyLabel(policy) {
+  if (!policy?.enabled) return "Deaktiviert";
+  const hour = String(Number(policy.hour) || 0).padStart(2, "0") + ":00";
+  if (policy.frequency === "weekly") {
+    const days = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+    return (days[Number(policy.weekday)] || "Wöchentlich") + " · " + hour;
+  }
+  return "Täglich · " + hour;
+}
+
+function renderBackupPolicy(policy = {}) {
+  const enabled = document.getElementById("backup-policy-enabled");
+  const frequency = document.getElementById("backup-policy-frequency");
+  const hour = document.getElementById("backup-policy-hour");
+  const weekday = document.getElementById("backup-policy-weekday");
+  const retention = document.getElementById("backup-policy-retention");
+  const verify = document.getElementById("backup-policy-verify");
+  const path = document.getElementById("backup-target-path");
+  if (enabled) enabled.checked = Boolean(policy.enabled);
+  if (frequency) frequency.value = policy.frequency === "weekly" ? "weekly" : "daily";
+  if (hour) hour.value = String(Number.isFinite(Number(policy.hour)) ? Number(policy.hour) : 3);
+  if (weekday) weekday.value = String(Number.isFinite(Number(policy.weekday)) ? Number(policy.weekday) : 6);
+  if (retention) retention.value = String(Number(policy.retention) || 7);
+  if (verify) verify.checked = policy.verify_after_create !== false;
+  if (path) path.value = policy.target_path || "";
+  document.querySelectorAll('input[name="backup-target"]').forEach(input => {
+    input.checked = input.value === (policy.target === "mounted" ? "mounted" : "local");
+  });
+  const weekdayWrap = document.getElementById("backup-weekday-wrap");
+  weekdayWrap?.classList.toggle("hidden", policy.frequency !== "weekly");
+  const pathWrap = document.getElementById("backup-target-path-wrap");
+  pathWrap?.classList.toggle("hidden", policy.target !== "mounted");
+  const targetState = document.getElementById("backup-target-state");
+  if (targetState) targetState.textContent = policy.target === "mounted" ? "Lokal + extern" : "Lokal";
+
+  const lastScheduled = Number(policy.last_scheduled_at);
+  document.getElementById("backup-health-schedule").textContent = backupPolicyLabel(policy);
+  document.getElementById("backup-health-next").textContent = policy.enabled
+    ? (Number.isFinite(lastScheduled) && lastScheduled > 0 ? "Letzter Lauf: " + formatDateTime(lastScheduled) : "Wartet auf ersten geplanten Lauf")
+    : "Automatische Sicherung ist aus";
+  document.getElementById("backup-health-retention").textContent = String(Number(policy.retention) || 7) + " Backups";
+  document.getElementById("backup-health-target").textContent =
+    policy.target === "mounted" ? (policy.target_path || "Externes Ziel") : "Lokaler Server";
+}
+
+function renderBackupArchive(backups = []) {
+  const list = document.getElementById("backup-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const latest = backups[0];
+
+  const last = document.getElementById("backup-health-last");
+  const lastMeta = document.getElementById("backup-health-last-meta");
+  const integrity = document.getElementById("backup-health-integrity");
+  const integrityMeta = document.getElementById("backup-health-integrity-meta");
+  if (latest) {
+    if (last) last.textContent = formatDateTime(latest.created_at);
+    if (lastMeta) lastMeta.textContent = formatBytes(latest.size_bytes) + " · " + (latest.reason === "scheduled" ? "automatisch" : "manuell");
+    if (integrity) integrity.textContent = latest.verified === true ? "Verifiziert" : latest.verified === false ? "Fehler" : "Nicht geprüft";
+    if (integrityMeta) integrityMeta.textContent = latest.verified_at ? "Geprüft " + formatDateTime(latest.verified_at) : "SHA-256 Integritätsprüfung";
+  } else {
+    if (last) last.textContent = "Noch keines";
+    if (lastMeta) lastMeta.textContent = "Erstelle den ersten Wiederherstellungspunkt";
+    if (integrity) integrity.textContent = "Nicht geprüft";
+    if (integrityMeta) integrityMeta.textContent = "SHA-256 Integritätsprüfung";
+  }
+
+  const summary = document.getElementById("backup-archive-summary");
+  if (summary) {
+    const verifiedCount = backups.filter(item => item.verified === true).length;
+    summary.textContent = backups.length + " Backups · " + verifiedCount + " verifiziert";
+  }
+
+  for (const backup of backups) {
+    const row = document.createElement("div");
+    row.className = "backup-row backup-row-v2";
+    const statusClass = backup.verified === true ? "ok" : backup.verified === false ? "bad" : "warn";
+    const statusText = backup.verified === true ? "VERIFIZIERT" : backup.verified === false ? "FEHLER" : "UNGEPRÜFT";
+    row.innerHTML = `
+      <div class="backup-row-icon">↺</div>
+      <div class="backup-row-copy">
+        <div class="backup-row-title"><strong></strong><span class="backup-integrity-chip ${statusClass}"></span></div>
+        <small class="backup-meta"></small>
+        <div class="backup-row-tags"></div>
+      </div>
+      <div class="backup-row-actions">
+        <button class="secondary compact backup-verify-btn">Prüfen</button>
+        <button class="secondary compact backup-test-btn">Restore-Test</button>
+        <button class="secondary compact backup-restore-btn">Wiederherstellen</button>
+      </div>`;
+    row.querySelector(".backup-row-title strong").textContent = backup.id;
+    row.querySelector(".backup-integrity-chip").textContent = statusText;
+    const appText = Array.isArray(backup.apps) && backup.apps.length
+      ? " · Apps: " + backup.apps.join(", ")
+      : "";
+    row.querySelector(".backup-meta").textContent =
+      formatDateTime(backup.created_at) + " · " + formatBytes(backup.size_bytes) + appText;
+
+    const tags = row.querySelector(".backup-row-tags");
+    const tagValues = [
+      backup.reason === "scheduled" ? "Automatisch" : "Manuell",
+      backup.replicated ? "Externe Kopie" : "Lokal",
+      backup.verified_at ? "Prüfung " + formatDateTime(backup.verified_at) : "",
+      backup.restore_ready === true ? "Restore-Test OK" : backup.restore_ready === false ? "Restore-Test Fehler" : ""
+    ].filter(Boolean);
+    tagValues.forEach(value => {
+      const tag = document.createElement("span");
+      tag.textContent = value;
+      tags.appendChild(tag);
+    });
+
+    row.querySelector(".backup-verify-btn").addEventListener("click", () => verifyBackup(backup.id));
+    row.querySelector(".backup-test-btn").addEventListener("click", () => testRestoreBackup(backup.id));
+    row.querySelector(".backup-restore-btn").addEventListener("click", () => restoreBackup(backup.id));
+    list.appendChild(row);
+  }
+
+  if (!backups.length) {
+    list.innerHTML = '<div class="app-empty">Noch kein Netfreak2k-Backup vorhanden.</div>';
+  }
+}
+
 async function loadBackups() {
   const list = document.getElementById("backup-list");
   if (!list) return;
   try {
     const data = await request("/api/backups", {headers: {}});
-    const backups = Array.isArray(data.backups) ? data.backups : [];
-    list.innerHTML = "";
-    for (const backup of backups) {
-      const row = document.createElement("div");
-      row.className = "backup-row";
-      row.innerHTML = `
-        <div>
-          <strong></strong>
-          <small class="backup-meta"></small>
-        </div>
-        <button class="secondary compact">Wiederherstellen</button>`;
-      row.querySelector("strong").textContent = backup.id;
-      const appText = Array.isArray(backup.apps) && backup.apps.length
-        ? ` · Apps: ${backup.apps.join(", ")}`
-        : "";
-      row.querySelector(".backup-meta").textContent =
-        `${formatDateTime(backup.created_at)} · ${formatBytes(backup.size_bytes)}${appText}`;
-      row.querySelector("button").addEventListener("click", () => restoreBackup(backup.id));
-      list.appendChild(row);
-    }
-    if (!backups.length) {
-      list.innerHTML = '<div class="app-empty">Noch kein Netfreak2k-Backup vorhanden.</div>';
-    }
+    renderBackupPolicy(data.policy || {});
+    renderBackupArchive(Array.isArray(data.backups) ? data.backups : []);
   } catch (error) {
     console.error(error);
-    list.innerHTML = '<div class="app-empty">Backup-Liste konnte nicht geladen werden.</div>';
+    list.innerHTML = '<div class="app-empty">Backup-Status konnte nicht geladen werden.</div>';
   }
 }
 
@@ -1716,45 +1818,147 @@ async function createBackup() {
   if (!button) return;
   const original = button.textContent;
   button.disabled = true;
-  button.textContent = "Sichere …";
+  button.textContent = "Sicherung läuft …";
   try {
-    await request("/api/backups/create", {
+    const result = await request("/api/backups/create", {
       method: "POST",
       body: "{}",
       headers: {"X-CSRF-Token": csrfToken}
     });
+    const verified = result.verification?.ok;
+    showN2KToast(verified === false ? "Backup erstellt, Integritätsprüfung meldet einen Fehler." : "Backup und Wiederherstellungspunkt erstellt.", verified === false ? "error" : "success");
     await loadBackups();
+    loadNotifications();
   } catch (error) {
     console.error(error);
-    showN2KToast("Backup konnte nicht erstellt werden.");
+    showN2KToast("Backup konnte nicht erstellt werden.", "error");
   } finally {
     button.disabled = false;
     button.textContent = original;
   }
 }
 
+async function verifyBackup(backupId) {
+  const buttons = document.querySelectorAll(".backup-verify-btn");
+  buttons.forEach(button => button.disabled = true);
+  try {
+    const result = await request("/api/backups/verify", {
+      method: "POST",
+      body: JSON.stringify({backup_id: backupId}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    showN2KToast(
+      result.ok ? "Backup wurde vollständig verifiziert." : "Integritätsprüfung fehlgeschlagen.",
+      result.ok ? "success" : "error"
+    );
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Backup konnte nicht verifiziert werden.", "error");
+  } finally {
+    buttons.forEach(button => button.disabled = false);
+  }
+}
+
+async function testRestoreBackup(backupId) {
+  const buttons = document.querySelectorAll(".backup-test-btn");
+  buttons.forEach(button => button.disabled = true);
+  try {
+    const result = await request("/api/backups/test-restore", {
+      method: "POST",
+      body: JSON.stringify({backup_id: backupId}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    const failed = Array.isArray(result.checks) ? result.checks.filter(item => !item.ok) : [];
+    showN2KToast(
+      result.ok ? "Restore-Test erfolgreich: Backup ist wiederherstellbar." : "Restore-Test meldet " + failed.length + " Problem(e).",
+      result.ok ? "success" : "error"
+    );
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Restore-Test konnte nicht abgeschlossen werden.", "error");
+  } finally {
+    buttons.forEach(button => button.disabled = false);
+  }
+}
+
+async function saveBackupPolicy() {
+  const button = document.getElementById("backup-policy-save");
+  const target = document.querySelector('input[name="backup-target"]:checked')?.value || "local";
+  const fields = {
+    enabled: Boolean(document.getElementById("backup-policy-enabled")?.checked),
+    frequency: document.getElementById("backup-policy-frequency")?.value || "daily",
+    hour: Number(document.getElementById("backup-policy-hour")?.value || 3),
+    weekday: Number(document.getElementById("backup-policy-weekday")?.value || 6),
+    retention: Number(document.getElementById("backup-policy-retention")?.value || 7),
+    verify_after_create: Boolean(document.getElementById("backup-policy-verify")?.checked),
+    target: target,
+    target_path: target === "mounted" ? (document.getElementById("backup-target-path")?.value || "") : ""
+  };
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = "Speichere …"; }
+  try {
+    await request("/api/backups/policy", {
+      method: "POST",
+      body: JSON.stringify({fields: fields}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    showN2KToast("Backup-Plan gespeichert.", "success");
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Backup-Plan konnte nicht gespeichert werden. Prüfe den Zielpfad.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
+async function pruneBackups() {
+  const button = document.getElementById("backup-prune");
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = "Räume auf …"; }
+  try {
+    const result = await request("/api/backups/prune", {
+      method: "POST",
+      body: "{}",
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    const removed = Array.isArray(result.removed) ? result.removed.length : 0;
+    showN2KToast(removed ? removed + " alte Backups entfernt." : "Aufbewahrung ist bereits sauber.", "success");
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Aufbewahrung konnte nicht angewendet werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function restoreBackup(backupId) {
   const first = confirm(
-    `Backup ${backupId} wiederherstellen? Netfreak2k und betroffene Apps werden dabei neu gestartet.`
+    "Backup " + backupId + " wiederherstellen? Vor dem Restore wird die Integrität erneut geprüft."
   );
   if (!first) return;
   const second = confirm(
-    "Vorhandene Netfreak2k-Admin- und App-Daten werden durch den Backup-Stand ersetzt. Wirklich fortfahren?"
+    "Vorhandene Netfreak2k-Admin- und App-Daten werden durch diesen geprüften Backup-Stand ersetzt. Wirklich fortfahren?"
   );
   if (!second) return;
   try {
+    showN2KToast("Integrität wird geprüft, danach startet die Wiederherstellung.", "info");
     await request("/api/backups/restore", {
       method: "POST",
       body: JSON.stringify({backup_id: backupId}),
       headers: {"X-CSRF-Token": csrfToken}
     });
-    showN2KToast("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
+    showN2KToast("Geprüfte Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.", "success");
     setTimeout(() => window.location.reload(), 12000);
   } catch (error) {
     console.error(error);
-    showN2KToast("Wiederherstellung konnte nicht gestartet werden.");
+    showN2KToast("Wiederherstellung wurde abgebrochen. Backup oder Integrität prüfen.", "error");
   }
 }
+
 
 const workspaceAreaNames = {
   documents: "Dokumente",
@@ -2964,6 +3168,17 @@ document.getElementById("event-create")?.addEventListener("click", createCalenda
 document.getElementById("refresh-apps")?.addEventListener("click", loadApps);
 document.getElementById("refresh-catalog")?.addEventListener("click", loadCatalog);
 document.getElementById("create-backup")?.addEventListener("click", createBackup);
+document.getElementById("backup-policy-save")?.addEventListener("click", saveBackupPolicy);
+document.getElementById("backup-prune")?.addEventListener("click", pruneBackups);
+document.getElementById("backup-policy-frequency")?.addEventListener("change", event => {
+  document.getElementById("backup-weekday-wrap")?.classList.toggle("hidden", event.target.value !== "weekly");
+});
+document.querySelectorAll('input[name="backup-target"]').forEach(input => input.addEventListener("change", () => {
+  const mounted = document.querySelector('input[name="backup-target"]:checked')?.value === "mounted";
+  document.getElementById("backup-target-path-wrap")?.classList.toggle("hidden", !mounted);
+  const state = document.getElementById("backup-target-state");
+  if (state) state.textContent = mounted ? "Lokal + extern" : "Lokal";
+}));
 document.getElementById("refresh-favorites")?.addEventListener("click", loadFavorites);
 document.getElementById("refresh-shares")?.addEventListener("click", loadShares);
 document.getElementById("sync-create")?.addEventListener("click", createSyncCredential);
