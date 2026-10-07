@@ -23,6 +23,28 @@ A final project license must be selected before a public stable release.
 | socat | Home Assistant host proxy | GPL family; distribution/package metadata must be checked for the exact packaged version |
 | Home Assistant Operating System | Managed Home Assistant VM | Apache License 2.0 for the Home Assistant OS repository; the image contains many separately licensed components |
 | Uptime Kuma | Optional managed app | MIT License |
+| Certbot / Let's Encrypt client | TLS certificate automation | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| OpenSSL | TLS/crypto tooling | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| Avahi | mDNS / local service discovery | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| nmap | LAN discovery / service analysis | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| arp-scan | LAN device discovery | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| smartmontools | SMART disk diagnostics | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| PipeWire / WirePlumber | Host audio routing / Media Center | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| BlueZ | Bluetooth host integration | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| curl / ca-certificates / xz-utils / iputils | Installer, download and network runtime tooling | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| OVMF / virt-install | UEFI and VM provisioning support | Installed from the host distribution; exact packaged license/NOTICE metadata is authoritative |
+| Mutagen 1.47.0 | Audio metadata parsing inside the API container | Python package installed from PyPI; upstream package metadata and bundled license text are authoritative |
+
+
+## v1.0 dependency inventory review
+
+For the **1.0.0-rc1** feature freeze, this register was cross-checked against:
+
+- packages installed by `install.sh`,
+- Python packages installed by `server/api/Dockerfile`,
+- the managed application catalog in `host/vm-agent.py`.
+
+This is an engineering dependency-inventory review, not legal advice. Distribution-time obligations remain governed by the exact upstream/package licenses and notices shipped by each dependency.
 
 ## Removed from new installations
 
