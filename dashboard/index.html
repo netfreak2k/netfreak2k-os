@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
   <link rel="stylesheet" href="styles.css?v=20261007-media2">
-  <link rel="stylesheet" href="media-center.css?v=20261007-media2">
+  <link rel="stylesheet" href="media-center.css?v=20261007-media3">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -99,11 +99,20 @@
         </div>
 
         <div class="topbar-right">
-          <button id="top-media-player" class="top-media-player" data-target-view="media-center-panel" title="N2K Media Center öffnen">
-            <span class="top-media-art">♪</span>
-            <span class="top-media-copy"><small>MEDIA</small><strong id="top-media-title">Bereit</strong></span>
-            <span id="top-media-state" class="top-media-state">▶</span>
-          </button>
+          <div id="top-media-player" class="top-media-player" aria-label="N2K Media Steuerung">
+            <button class="top-media-open" data-target-view="media-center-panel" title="N2K Media Center öffnen">
+              <span class="top-media-art">♪</span>
+              <span class="top-media-copy"><small>MEDIA</small><strong id="top-media-title">Bereit</strong></span>
+            </button>
+            <div class="top-media-controls" aria-label="Wiedergabesteuerung">
+              <button id="top-media-prev" title="Vorheriger Sender">‹</button>
+              <button id="top-media-play" title="Play">▶</button>
+              <button id="top-media-pause" title="Pause">Ⅱ</button>
+              <button id="top-media-stop" title="Stop">■</button>
+              <button id="top-media-next" title="Nächster Sender">›</button>
+              <button id="top-media-mute" title="Stumm">🔊</button>
+            </div>
+          </div>
           <div class="top-actions">
             <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
             <div class="online-pill"><span class="dot ok"></span>System läuft</div>
@@ -622,8 +631,13 @@
                   <label class="media-volume">🔊<input id="media-volume" type="range" min="0" max="100" value="72"><span id="media-volume-value">72%</span></label>
                 </div>
               </div>
-              <div class="media-visualizer" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="media-visualizer">
+                <canvas id="media-spectrum" width="520" height="150" aria-label="Echtes Audiospektrum"></canvas>
+                <div class="media-spectrum-meta">
+                  <span><small>REAL FFT</small><strong id="media-spectrum-state">Warte auf Signal</strong></span>
+                  <span><small>PEAK</small><strong id="media-spectrum-peak">– dBFS</strong></span>
+                  <span><small>RMS</small><strong id="media-spectrum-rms">– dBFS</strong></span>
+                </div>
               </div>
             </div>
 
@@ -903,6 +917,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-media2"></script>
+  <script src="app.js?v=20261007-media3"></script>
 </body>
 </html>
