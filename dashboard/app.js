@@ -4954,6 +4954,68 @@ async function loadEventCenter() {
   }
 }
 
+function renderReleaseReadiness(data = {}) {
+  const checks = Array.isArray(data.checks) ? data.checks : [];
+  const manual = Array.isArray(data.manual_gates) ? data.manual_gates : [];
+  const badge = document.getElementById("release-readiness-badge");
+  if (badge) {
+    badge.textContent = data.host_ready ? "HOST BEREIT" : "BLOCKIERT";
+    badge.className = "health-badge " + (data.host_ready ? "ok" : "bad");
+  }
+
+  setHealthText("release-readiness-score", `${data.passed ?? 0} / ${data.total ?? checks.length} OK`);
+  setHealthText("release-readiness-version", data.version || "Version unbekannt");
+  setHealthText("release-readiness-host", data.host_ready ? "BEREIT" : "PRÜFEN");
+  setHealthText("release-readiness-manual", String(manual.filter(item => !item.complete).length));
+
+  const checkList = document.getElementById("release-readiness-checks");
+  if (checkList) {
+    checkList.innerHTML = "";
+    checks.forEach(check => {
+      const row = document.createElement("div");
+      row.className = "recovery-check-row";
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector("span").className = "recovery-check-dot " + (check.ok ? "ok" : "bad");
+      row.querySelector("strong").textContent = check.label || check.id || "Prüfung";
+      row.querySelector("small").textContent = check.detail || "–";
+      row.querySelector("em").textContent = check.ok ? "OK" : "BLOCKIERT";
+      checkList.appendChild(row);
+    });
+    if (!checks.length) checkList.innerHTML = '<div class="app-empty">Keine technischen Release-Checks verfügbar.</div>';
+  }
+
+  const manualList = document.getElementById("release-manual-gates");
+  if (manualList) {
+    manualList.innerHTML = "";
+    manual.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "release-manual-row";
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div>";
+      row.querySelector("span").textContent = item.complete ? "✓" : "!";
+      row.querySelector("span").className = item.complete ? "done" : "open";
+      row.querySelector("strong").textContent = item.label || item.id || "Freigabe";
+      row.querySelector("small").textContent = item.detail || "–";
+      manualList.appendChild(row);
+    });
+    if (!manual.length) manualList.innerHTML = '<div class="app-empty">Keine manuellen Release-Gates hinterlegt.</div>';
+  }
+}
+
+async function loadReleaseReadiness() {
+  if (!document.getElementById("release-readiness-card") && !document.querySelector(".release-readiness-card")) return;
+  try {
+    const data = await request("/api/release/readiness", {headers:{}});
+    renderReleaseReadiness(data);
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("release-readiness-badge");
+    if (badge) {
+      badge.textContent = "FEHLER";
+      badge.className = "health-badge bad";
+    }
+  }
+}
+
 function renderRecoveryCenter(data = {}) {
   const health = data.health || {};
   const checks = Array.isArray(data.checks) ? data.checks : [];
@@ -5033,6 +5095,7 @@ async function loadRecoveryCenter() {
   try {
     const data = await request("/api/recovery", {headers:{}});
     renderRecoveryCenter(data);
+    await loadReleaseReadiness();
   } catch (error) {
     console.error(error);
     const list = document.getElementById("recovery-check-list");
