@@ -2288,3 +2288,47 @@ body::after{
 .remote-requirements strong{font-size:6px;color:#e4c576}.remote-requirements span{font-size:6px;color:#7c8995;margin-top:3px;line-height:1.45}
 .remote-security-note{margin-top:10px;padding:9px;border-radius:9px;font-size:6px;line-height:1.5;color:#74818d;background:rgba(68,164,114,.035);border:1px solid rgba(88,202,145,.06)}
 @media(max-width:800px){.remote-access-summary{grid-template-columns:1fr}.remote-mode-switch{grid-template-columns:1fr}.remote-domain-config{grid-template-columns:1fr}.remote-requirements{grid-column:auto}}
+
+
+/* Service diagnostics center */
+.health-service-row{
+  width:100%;border:0;color:inherit;text-align:left;cursor:pointer;
+  background:transparent;font:inherit
+}
+.health-service-row:hover{background:rgba(255,255,255,.035)}
+.health-service-more{
+  flex:0 0 auto;color:#d9bd70;font-size:7px;letter-spacing:.03em;white-space:nowrap
+}
+.service-diagnostics-modal{
+  position:fixed;inset:0;z-index:1500;display:grid;place-items:center;padding:20px;
+  background:rgba(0,0,0,.68);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)
+}
+.service-diagnostics-modal.hidden{display:none}
+.service-diagnostics-dialog{
+  width:min(940px,96vw);max-height:min(780px,90vh);display:flex;flex-direction:column;
+  border-radius:18px;overflow:hidden;background:#071019;
+  border:1px solid rgba(255,229,168,.12);box-shadow:0 28px 80px rgba(0,0,0,.48)
+}
+.service-diagnostics-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:16px 17px;
+  border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)
+}
+.service-diagnostics-head small,.service-diagnostics-head strong,.service-diagnostics-head span{display:block}
+.service-diagnostics-head small{font-size:7px;letter-spacing:.12em;color:#a28c54}
+.service-diagnostics-head strong{font-size:15px;margin-top:3px}
+.service-diagnostics-head span{font-size:8px;color:#7f8b96;margin-top:3px}
+.service-diagnostics-status{
+  display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.05)
+}
+.service-diagnostics-status>span:nth-child(2){font-size:8px;color:#7d8994;flex:1}
+.service-diagnostics-log{
+  margin:0;min-height:320px;max-height:600px;overflow:auto;padding:15px 17px;
+  background:#020608;color:#a9d8bc;font:10px/1.55 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  white-space:pre-wrap;word-break:break-word
+}
+@media(max-width:620px){
+  .service-diagnostics-modal{padding:10px}
+  .service-diagnostics-dialog{max-height:92vh}
+  .service-diagnostics-status{align-items:flex-start;flex-wrap:wrap}
+  .service-diagnostics-log{min-height:280px;font-size:9px}
+}
