@@ -2160,9 +2160,124 @@ document.getElementById("refresh-updates")?.addEventListener("click", async () =
     button.textContent = original;
   }
 });
+let updateExperienceTimer = null;
+
+function renderUpdateExperience(progress = {}, reachable = true) {
+  const overlay = document.getElementById("update-experience");
+  if (!overlay) return;
+  const state = progress.state || "idle";
+  const value = Math.max(0, Math.min(100, Number(progress.progress) || 0));
+  const step = progress.step || "prepare";
+  const message = progress.message || "Update-Status wird geprüft.";
+  const stateNode = document.getElementById("update-experience-state");
+  const title = document.getElementById("update-experience-title");
+  const messageNode = document.getElementById("update-experience-message");
+  const fill = document.getElementById("update-experience-fill");
+  const percent = document.getElementById("update-experience-percent");
+  const connection = document.getElementById("update-experience-connection");
+  const reload = document.getElementById("update-experience-reload");
+
+  overlay.classList.remove("complete", "failed");
+  if (state === "completed") overlay.classList.add("complete");
+  if (state === "failed") overlay.classList.add("failed");
+
+  if (stateNode) stateNode.textContent =
+    state === "completed" ? "UPDATE ABGESCHLOSSEN" :
+    state === "failed" ? "UPDATE FEHLGESCHLAGEN" :
+    reachable ? "SYSTEMUPDATE LÄUFT" : "SERVER WIRD NEU GESTARTET";
+  if (title) title.textContent =
+    state === "completed" ? "Netfreak2k ist aktualisiert" :
+    state === "failed" ? "Update konnte nicht abgeschlossen werden" :
+    "Netfreak2k wird aktualisiert";
+  if (messageNode) messageNode.textContent = state === "completed"
+    ? "Der neue Stand ist vollständig installiert und alle Dienste sind wieder verfügbar."
+    : message;
+  if (fill) fill.style.width = `${value}%`;
+  if (percent) percent.textContent = `${value}%`;
+  if (connection) connection.textContent = reachable
+    ? "Verbindung zum Server aktiv"
+    : "Dienste werden neu gestartet · Verbindung wird automatisch wiederhergestellt";
+  if (reload) reload.classList.toggle("hidden", state !== "completed" && state !== "failed");
+
+  const stageOrder = ["prepare","download","extract","validate","install","audio","services","containers","restart","verify","completed"];
+  const stageGroups = {prepare:"prepare",download:"download",extract:"download",validate:"validate",install:"install",audio:"install",services:"containers",containers:"containers",restart:"containers",verify:"verify",completed:"verify"};
+  const current = stageGroups[step] || "prepare";
+  const compact = ["prepare","download","validate","install","containers","verify"];
+  const idx = compact.indexOf(current);
+  document.querySelectorAll("[data-update-live-stage]").forEach(node => {
+    const nodeIndex = compact.indexOf(node.dataset.updateLiveStage);
+    node.classList.toggle("active", state === "running" && nodeIndex === idx);
+    node.classList.toggle("done", state === "completed" || (idx >= 0 && nodeIndex < idx));
+  });
+}
+
+async function pollUpdateExperience() {
+  const overlay = document.getElementById("update-experience");
+  if (!overlay || overlay.classList.contains("hidden")) return;
+  let progress = {};
+  let reachable = true;
+  try {
+    const response = await fetch("/api/update/progress", {cache:"no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    progress = await response.json();
+  } catch (_) {
+    reachable = false;
+    progress = {
+      state:"running",
+      progress:Number(localStorage.getItem("n2k-update-last-progress") || 78),
+      step:"restart",
+      message:"Die Webplattform wird neu gestartet."
+    };
+  }
+  if (Number.isFinite(Number(progress.progress))) {
+    localStorage.setItem("n2k-update-last-progress", String(progress.progress));
+  }
+  renderUpdateExperience(progress, reachable);
+
+  if (progress.state === "completed") {
+    localStorage.removeItem("n2k-update-ui-active");
+    localStorage.removeItem("n2k-update-last-progress");
+    clearTimeout(updateExperienceTimer);
+    updateExperienceTimer = setTimeout(() => window.location.reload(), 2200);
+    return;
+  }
+  if (progress.state === "failed") {
+    localStorage.removeItem("n2k-update-ui-active");
+    return;
+  }
+  updateExperienceTimer = setTimeout(pollUpdateExperience, reachable ? 1200 : 1800);
+}
+
+function openUpdateExperience() {
+  const overlay = document.getElementById("update-experience");
+  if (!overlay) return;
+  localStorage.setItem("n2k-update-ui-active", "1");
+  overlay.classList.remove("hidden");
+  renderUpdateExperience({state:"running",progress:1,step:"prepare",message:"Update wird vorbereitet."}, true);
+  clearTimeout(updateExperienceTimer);
+  updateExperienceTimer = setTimeout(pollUpdateExperience, 500);
+}
+
+async function recoverUpdateExperience() {
+  try {
+    const response = await fetch("/api/update/progress", {cache:"no-store"});
+    if (!response.ok) return;
+    const progress = await response.json();
+    const active = progress.state === "running" || localStorage.getItem("n2k-update-ui-active") === "1";
+    if (active) {
+      document.getElementById("update-experience")?.classList.remove("hidden");
+      renderUpdateExperience(progress, true);
+      clearTimeout(updateExperienceTimer);
+      updateExperienceTimer = setTimeout(pollUpdateExperience, 700);
+    }
+  } catch (_) {}
+}
+
+document.getElementById("update-experience-reload")?.addEventListener("click", () => window.location.reload());
+
 document.getElementById("install-update")?.addEventListener("click", async () => {
   const button = document.getElementById("install-update");
-  if (!confirm("Netfreak2k Server-OS jetzt aus GitHub aktualisieren? Die Weboberfläche wird dabei kurz neu gestartet.")) return;
+  if (!confirm("Netfreak2k Server-OS jetzt aktualisieren? Die Oberfläche bleibt während des Updates in einem sicheren Wartungsmodus geöffnet.")) return;
   const original = button.textContent;
   button.disabled = true;
   button.textContent = "Update wird gestartet …";
@@ -2172,32 +2287,16 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
       body: "{}",
       headers: {"X-CSRF-Token": csrfToken}
     });
-    document.getElementById("update-title").textContent = "Update läuft";
-    document.getElementById("update-detail").textContent =
-      "Netfreak2k startet den Update-Vorgang. Der Fortschritt wird live angezeigt.";
-    const updateProgressPoll = setInterval(() => loadUpdates(), 1200);
-    let attempts = 0;
-    const waitForServer = async () => {
-      attempts += 1;
-      try {
-        const response = await fetch("/api/healthz", {cache: "no-store"});
-        if (response.ok && attempts > 2) {
-          clearInterval(updateProgressPoll);
-          window.location.reload();
-          return;
-        }
-      } catch (_) {}
-      if (attempts < 60) setTimeout(waitForServer, 2000);
-      else window.location.reload();
-    };
-    setTimeout(waitForServer, 5000);
+    openUpdateExperience();
   } catch (error) {
     console.error(error);
     button.disabled = false;
     button.textContent = original;
-    showN2KToast("Update konnte nicht gestartet werden.");
+    showN2KToast("Update konnte nicht gestartet werden.", "error");
   }
 });
+
+recoverUpdateExperience();
 const globalSearch = document.getElementById("global-search");
 globalSearch?.addEventListener("input", () => {
   clearTimeout(searchTimer);
