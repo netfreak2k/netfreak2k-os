@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "remote_access_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "security_status", "remote_access_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -1681,6 +1681,212 @@ def docker_health_payload():
     }
 
 
+def security_listening_sockets():
+    if not shutil.which("ss"):
+        return []
+    result = run("ss", "-H", "-lntup", timeout=8)
+    if result.returncode != 0:
+        return []
+    rows = []
+    for line in result.stdout.splitlines():
+        parts = line.split(None, 6)
+        if len(parts) < 5:
+            continue
+        protocol = parts[0].lower()
+        local = parts[4]
+        process_text = parts[6] if len(parts) > 6 else ""
+        host = local
+        port = ""
+        if local.startswith("[") and "]:" in local:
+            host, port = local.rsplit(":", 1)
+            host = host.strip("[]")
+        elif ":" in local:
+            host, port = local.rsplit(":", 1)
+        process = ""
+        pid = None
+        match = re.search(r'users:\(\("([^"]+)",pid=(\d+)', process_text)
+        if match:
+            process = match.group(1)[:120]
+            try:
+                pid = int(match.group(2))
+            except ValueError:
+                pid = None
+        bind_all = host in {"0.0.0.0", "::", "*", ""}
+        loopback = host in {"127.0.0.1", "::1", "localhost"}
+        scope = "all_interfaces" if bind_all else "loopback" if loopback else "interface"
+        rows.append({
+            "protocol": protocol,
+            "address": host or "*",
+            "port": port,
+            "process": process,
+            "pid": pid,
+            "scope": scope,
+        })
+    rows.sort(key=lambda item: (item.get("scope") != "all_interfaces", item.get("protocol", ""), str(item.get("port", ""))))
+    return rows[:120]
+
+
+def security_firewall_status():
+    result = {
+        "engine": "none",
+        "state": "unknown",
+        "active": False,
+        "default_input_policy": "unknown",
+        "rules": 0,
+        "detail": "Keine Firewall-Engine eindeutig erkannt",
+    }
+    if shutil.which("ufw"):
+        ufw = run("ufw", "status", timeout=8)
+        if ufw.returncode == 0:
+            first = next((line.strip() for line in ufw.stdout.splitlines() if line.strip()), "")
+            active = first.lower().startswith("status: active")
+            result.update({
+                "engine": "ufw",
+                "state": "active" if active else "inactive",
+                "active": active,
+                "detail": first or "UFW installiert",
+                "rules": sum(1 for line in ufw.stdout.splitlines() if re.match(r"^\S+\s+ALLOW|^\S+\s+DENY|^\S+\s+REJECT", line.strip())),
+            })
+            return result
+
+    if shutil.which("firewall-cmd"):
+        fw = run("firewall-cmd", "--state", timeout=6)
+        if fw.returncode == 0:
+            state = fw.stdout.strip() or "running"
+            return {
+                "engine": "firewalld",
+                "state": state,
+                "active": state == "running",
+                "default_input_policy": "managed",
+                "rules": None,
+                "detail": "firewalld verwaltet die Host-Firewall",
+            }
+
+    if shutil.which("nft"):
+        nft = run("nft", "list", "ruleset", timeout=10)
+        if nft.returncode == 0:
+            text = nft.stdout or ""
+            policy_match = re.search(r"hook\s+input\s+priority[^;]*;\s*policy\s+(drop|reject|accept)", text, re.I)
+            policy = policy_match.group(1).lower() if policy_match else "unknown"
+            protective = policy in {"drop", "reject"}
+            return {
+                "engine": "nftables",
+                "state": "filtered" if protective else "present",
+                "active": protective,
+                "default_input_policy": policy,
+                "rules": sum(1 for line in text.splitlines() if re.search(r"\b(accept|drop|reject)\b", line)),
+                "detail": "Host-Eingang standardmäßig blockiert" if protective else "nftables-Regeln vorhanden, aber keine Drop/Reject-Default-Policy erkannt",
+            }
+    return result
+
+
+def security_failed_logins():
+    if not shutil.which("journalctl"):
+        return {"count_24h": 0, "sources": [], "available": False}
+    result = run("journalctl", "--since", "24 hours ago", "--no-pager", "-o", "short-iso", timeout=12)
+    if result.returncode != 0:
+        return {"count_24h": 0, "sources": [], "available": False}
+    patterns = ("failed password", "authentication failure", "invalid user", "failed publickey")
+    matched = []
+    ips = {}
+    for line in result.stdout.splitlines():
+        lower = line.lower()
+        if not any(pattern in lower for pattern in patterns):
+            continue
+        matched.append(line)
+        for ip in re.findall(r"(?<![\d:])(?:\d{1,3}\.){3}\d{1,3}(?![\d:])", line):
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                continue
+            ips[ip] = ips.get(ip, 0) + 1
+    sources = sorted(
+        [{"ip": ip, "count": count} for ip, count in ips.items()],
+        key=lambda item: item["count"],
+        reverse=True,
+    )[:8]
+    return {"count_24h": len(matched), "sources": sources, "available": True}
+
+
+def security_status_payload():
+    sockets = security_listening_sockets()
+    firewall = security_firewall_status()
+    failed = security_failed_logins()
+
+    ssh_unit = "ssh.service"
+    ssh = system_service_state(ssh_unit)
+    if ssh.get("state") in {"not-found", "unknown", "inactive"}:
+        alt = system_service_state("sshd.service")
+        if alt.get("state") not in {"not-found", "unknown"}:
+            ssh = alt
+            ssh_unit = "sshd.service"
+
+    remote = remote_access_status_payload()
+    all_interface = [item for item in sockets if item.get("scope") == "all_interfaces"]
+    loopback = [item for item in sockets if item.get("scope") == "loopback"]
+
+    findings = []
+    if not firewall.get("active"):
+        findings.append({
+            "level": "warning",
+            "title": "Host-Firewall nicht restriktiv erkannt",
+            "detail": firewall.get("detail") or "Keine restriktive Input-Policy erkannt.",
+        })
+    if ssh.get("ok"):
+        findings.append({
+            "level": "info",
+            "title": "SSH-Dienst aktiv",
+            "detail": f"{ssh_unit} ist aktiv. Prüfe, ob Remote-Shell-Zugriff benötigt wird.",
+        })
+    if failed.get("count_24h", 0) >= 20:
+        findings.append({
+            "level": "warning",
+            "title": "Viele fehlgeschlagene Logins",
+            "detail": f"{failed['count_24h']} fehlgeschlagene Authentifizierungen in 24 Stunden.",
+        })
+    exposed_ports = sorted({str(item.get("port")) for item in all_interface if item.get("port")})
+    if len(exposed_ports) > 12:
+        findings.append({
+            "level": "warning",
+            "title": "Viele Host-Ports lauschen auf allen Interfaces",
+            "detail": f"{len(exposed_ports)} unterschiedliche Ports sind an alle Interfaces gebunden.",
+        })
+
+    score = 100
+    if not firewall.get("active"):
+        score -= 25
+    if failed.get("count_24h", 0) >= 20:
+        score -= 15
+    elif failed.get("count_24h", 0) > 0:
+        score -= 5
+    if ssh.get("ok"):
+        score -= 5
+    if len(exposed_ports) > 12:
+        score -= 10
+    score = max(0, score)
+
+    return {
+        "sampled_at": int(time.time()),
+        "score": score,
+        "firewall": firewall,
+        "ssh": {"unit": ssh_unit, **ssh},
+        "failed_logins": failed,
+        "listeners": sockets,
+        "summary": {
+            "listeners": len(sockets),
+            "all_interfaces": len(all_interface),
+            "loopback": len(loopback),
+            "distinct_exposed_ports": len(exposed_ports),
+        },
+        "remote_access": {
+            "mode": remote.get("mode"),
+            "domain": remote.get("domain"),
+            "certificate": remote.get("certificate"),
+        },
+        "findings": findings,
+    }
+
+
 def health_status_payload():
     usage = shutil.disk_usage("/")
     storage_used = usage.total - usage.free
@@ -2788,6 +2994,9 @@ def execute(action, request):
 
     if action == "service_action":
         return managed_service_action(request.get("unit"), request.get("operation"))
+
+    if action == "security_status":
+        return security_status_payload()
 
     if action == "remote_access_status":
         return remote_access_status_payload()
