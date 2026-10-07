@@ -13,6 +13,7 @@ import secrets
 import sqlite3
 import socket
 import shutil
+import ssl
 import threading
 import email.utils
 import xml.sax.saxutils
@@ -837,6 +838,51 @@ def radio_stream_metadata(stream_url):
             for key, _ in oldest:
                 _radio_meta_cache.pop(key, None)
     return result
+
+
+def remote_access_payload(handler=None):
+    http_port = int(os.environ.get("N2K_HTTP_PORT", "80") or 80)
+    https_port = int(os.environ.get("N2K_HTTPS_PORT", "8443") or 8443)
+    host_header = ""
+    proto = "http"
+    if handler is not None:
+        host_header = str(handler.headers.get("Host") or "")
+        proto = str(handler.headers.get("X-Forwarded-Proto") or "http").lower()
+    hostname = host_header.split(":", 1)[0].strip("[]") if host_header else ""
+    if not hostname:
+        hostname = read_text(HOST_ETC / "hostname", "netfreak2k") or "netfreak2k"
+    cert_file = Path("/host/netfreak2k/tls/server.crt")
+    cert = {"available": cert_file.is_file(), "fingerprint_sha256": None, "not_after": None, "subject": None}
+    if cert_file.is_file():
+        try:
+            pem = cert_file.read_text(encoding="utf-8")
+            der = ssl.PEM_cert_to_DER_cert(pem)
+            cert["fingerprint_sha256"] = hashlib.sha256(der).hexdigest()
+            decoded = ssl._ssl._test_decode_cert(str(cert_file))
+            cert["not_after"] = decoded.get("notAfter")
+            subject = decoded.get("subject") or []
+            parts = []
+            for group in subject:
+                for key, value in group:
+                    if key == "commonName":
+                        parts.append(value)
+            cert["subject"] = parts[0] if parts else None
+        except Exception:
+            pass
+    http_suffix = "" if http_port == 80 else f":{http_port}"
+    https_suffix = "" if https_port == 443 else f":{https_port}"
+    return {
+        "hostname": hostname,
+        "http_port": http_port,
+        "https_port": https_port,
+        "http_url": f"http://{hostname}{http_suffix}/",
+        "https_url": f"https://{hostname}{https_suffix}/",
+        "current_protocol": proto,
+        "secure": proto == "https",
+        "certificate": cert,
+        "recommendation": "vpn_or_trusted_reverse_proxy",
+        "direct_port_forwarding_recommended": False,
+    }
 
 
 def network_details():
@@ -2705,6 +2751,12 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             self.send_json(security_payload(session["username"]))
+            return
+
+        if path == "/remote-access":
+            if not self.require_auth():
+                return
+            self.send_json(remote_access_payload(self))
             return
 
         if path == "/status":
