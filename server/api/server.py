@@ -3297,6 +3297,25 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/network/device/wake":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                device_id = str(data.get("device_id", "")).strip()
+                if not re.fullmatch(r"[0-9a-f]{20}", device_id):
+                    raise ValueError("invalid_device_id")
+                result = vm_agent("network_device_wake", {"device_id": device_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "network_device_wake", device_id, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
         if path == "/network/device/analyze":
             session = self.require_auth()
             if not session:
