@@ -2963,6 +2963,7 @@ function mediaSessionSnapshot() {
     section: mediaActiveSection,
     shuffle: mediaShuffle,
     repeat: mediaRepeat,
+    queue: [...mediaQueue],
     current: current ? {
       id: current.id,
       source: current.source || "radio",
@@ -2994,6 +2995,93 @@ function loadMediaSession() {
   } catch (_) {
     return {};
   }
+}
+
+function applyMediaSection(section = "all") {
+  mediaActiveSection = section || "all";
+  document.querySelectorAll(".media-section-tabs button").forEach(button => {
+    button.classList.toggle("active", button.dataset.mediaSection === mediaActiveSection);
+  });
+  document.querySelectorAll("[data-media-group]").forEach(card => {
+    card.classList.toggle("media-section-hidden", mediaActiveSection !== "all" && card.dataset.mediaGroup !== mediaActiveSection);
+  });
+  saveMediaSession();
+}
+
+function restoreMediaPreferences() {
+  const state = loadMediaSession();
+  const audio = ensureMediaAudio();
+  const volume = Number(state.volume);
+  if (Number.isFinite(volume)) audio.volume = Math.max(0, Math.min(1, volume / 100));
+  audio.muted = Boolean(state.muted);
+  if (typeof state.country === "string" && /^[A-Z]{2}$/.test(state.country)) mediaCountry = state.country;
+  if (typeof state.section === "string") mediaActiveSection = state.section;
+  mediaShuffle = Boolean(state.shuffle);
+  if (["off","all","one"].includes(state.repeat)) mediaRepeat = state.repeat;
+  if (Array.isArray(state.queue)) mediaQueue = state.queue.map(String).slice(0, 200);
+
+  const eqValues = Array.isArray(state.eq) ? state.eq : [];
+  document.querySelectorAll("#media-equalizer input[data-eq]").forEach((input,index) => {
+    if (Number.isFinite(Number(eqValues[index]))) input.value = String(eqValues[index]);
+  });
+  const volumeInput = document.getElementById("media-volume");
+  const volumeCopy = document.getElementById("media-volume-value");
+  if (volumeInput) volumeInput.value = String(Math.round(audio.volume * 100));
+  if (volumeCopy) volumeCopy.textContent = `${Math.round(audio.volume * 100)}%`;
+  document.querySelectorAll("#media-country-tabs button").forEach(button => {
+    button.classList.toggle("active", button.dataset.country === mediaCountry);
+  });
+  applyMediaSection(mediaActiveSection);
+  updateMediaPlayModes();
+  applyMediaEq();
+}
+
+function restoreMediaCurrentItem() {
+  if (mediaSessionRestored) return;
+  const state = loadMediaSession();
+  const current = state.current;
+  if (!current?.id || !current?.url) return;
+
+  const audio = ensureMediaAudio();
+  if (current.source === "local") {
+    const index = mediaLocalTracks.findIndex(track => String(track.id) === String(current.id));
+    if (index < 0) return;
+    mediaStationIndex = -1;
+    mediaLocalIndex = index;
+    const track = mediaLocalTracks[index];
+    audio.src = track.url;
+    updateMediaArtwork(track);
+  } else {
+    let index = mediaStations.findIndex(station => String(station.id) === String(current.id));
+    if (index < 0) {
+      mediaStations = [...mediaStations, current];
+      index = mediaStations.length - 1;
+    }
+    mediaLocalIndex = -1;
+    mediaStationIndex = index;
+    audio.src = current.url;
+    updateMediaArtwork(current);
+  }
+  mediaSessionRestored = true;
+  updateMediaPlaybackUi();
+  updateMediaFavoriteButton();
+  renderMediaLibrary();
+  renderMediaStations();
+}
+
+function clearSpectrumUi() {
+  const canvas = document.getElementById("media-spectrum");
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  const peak = document.getElementById("media-spectrum-peak");
+  const rms = document.getElementById("media-spectrum-rms");
+  const state = document.getElementById("media-spectrum-state");
+  if (peak) peak.textContent = "– dBFS";
+  if (rms) rms.textContent = "– dBFS";
+  if (state) state.textContent = "Kein Signal";
+  document.querySelectorAll("[data-eq-level]").forEach(node => { node.textContent = "Signal – dB"; });
 }
 
 function ensureMediaAudio() {
@@ -3370,6 +3458,7 @@ async function playMediaStation(index) {
     setMediaStatus("Wiedergabe wurde vom Browser blockiert oder der Stream ist nicht erreichbar.");
   }
   updateMediaPlaybackUi();
+  saveMediaSession();
 }
 
 function localTrackIndexById(id) {
@@ -4070,10 +4159,14 @@ function applyMediaEq() {
   if (mediaAudioContext?.state === "suspended") mediaAudioContext.resume().catch(() => {});
   const inputs = Array.from(document.querySelectorAll("#media-equalizer input[data-eq]"));
   inputs.forEach((input,index) => {
-    if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = Number(input.value) || 0;
+    const gain = Number(input.value) || 0;
+    if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = gain;
+    const label = document.querySelector(`[data-eq-gain="${index}"]`);
+    if (label) label.textContent = `EQ ${gain > 0 ? "+" : ""}${gain} dB`;
   });
   const mode = document.getElementById("media-eq-mode");
-  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv · Echtzeitmessung" : "DSP nicht verfügbar";
+  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv · Signal ≠ EQ-Verstärkung" : "DSP nicht verfügbar";
+  saveMediaSession();
 }
 
 async function playMediaPlayback() {
@@ -4115,14 +4208,18 @@ function stopMediaPlayback() {
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Wiedergabe gestoppt";
   if (subtitle) subtitle.textContent = "Wähle einen Sender oder Streaming-Dienst.";
+  updateMediaArtwork(null);
+  clearSpectrumUi();
   updateMediaPlaybackUi();
   updateMediaFavoriteButton();
+  saveMediaSession();
 }
 
 function toggleMediaMute() {
   const audio = ensureMediaAudio();
   audio.muted = !audio.muted;
   updateMediaPlaybackUi();
+  saveMediaSession();
 }
 
 async function toggleMediaPlayback() {
@@ -4136,6 +4233,7 @@ function initMediaCenter() {
   mediaInitialized = true;
   ensureMediaAudio();
   setupMediaSessionControls();
+  restoreMediaPreferences();
   renderMediaStations();
   renderMediaFavorites();
   loadMediaRadioDirectory();
@@ -4179,10 +4277,22 @@ function initMediaCenter() {
     const copy = document.getElementById("media-volume-value");
     if (copy) copy.textContent = `${value}%`;
     updateMediaPlaybackUi();
+    saveMediaSession();
   });
   document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
   document.getElementById("media-library-refresh")?.addEventListener("click", loadMediaLibrary);
   document.getElementById("media-library-search")?.addEventListener("input", renderMediaLibrary);
+  document.getElementById("media-queue-clear")?.addEventListener("click", clearMediaQueue);
+  document.getElementById("media-shuffle")?.addEventListener("click", () => {
+    mediaShuffle = !mediaShuffle;
+    updateMediaPlayModes();
+    saveMediaSession();
+  });
+  document.getElementById("media-repeat")?.addEventListener("click", () => {
+    mediaRepeat = mediaRepeat === "off" ? "all" : mediaRepeat === "all" ? "one" : "off";
+    updateMediaPlayModes();
+    saveMediaSession();
+  });
   document.getElementById("media-more-services")?.addEventListener("click", () => toggleMediaServiceDirectory(true));
   document.getElementById("media-service-directory-close")?.addEventListener("click", () => toggleMediaServiceDirectory(false));
   document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
