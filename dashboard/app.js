@@ -3260,12 +3260,41 @@ async function loadUpdates() {
       statePill.classList.toggle("warning", runtimeState === "failed" || data.update_available);
     }
 
-    setText("update-installed-ref", installed.ref || data.ref || "main");
+    const updateChannel = data.channel || installed.channel || "development";
+    const channelLabels = {stable:"Stable", beta:"Beta", development:"Development"};
+    const channelNotes = {
+      stable:"Nur freigegebene stabile Releases",
+      beta:"Neueste veröffentlichte Version inklusive Vorabversionen",
+      development:"Main-Branch · neuester Entwicklungsstand"
+    };
+    setText("update-installed-version", installed.version || data.installed_version || "Version unbekannt");
+    setText("update-installed-ref", installed.ref || "main");
     setText("update-installed-fingerprint",
       installed.fingerprint ? installed.fingerprint.slice(0, 16) : "Fingerprint unbekannt");
-    setText("update-remote-ref", data.ref || "main");
+    setText("update-remote-version", data.remote_version || "–");
+    setText("update-remote-ref", data.target_ref || "main");
     setText("update-remote-fingerprint",
       data.remote_fingerprint ? data.remote_fingerprint.slice(0, 16) : "nicht verfügbar");
+    setText("update-channel-label", channelLabels[updateChannel] || updateChannel);
+    setText("update-channel-note", channelNotes[updateChannel] || "GitHub Release-Kanal");
+    const channelSelect = document.getElementById("update-channel-select");
+    if (channelSelect) {
+      channelSelect.value = updateChannel;
+      channelSelect.disabled = currentRole !== "admin";
+    }
+    const channelSave = document.getElementById("update-channel-save");
+    if (channelSave) channelSave.disabled = currentRole !== "admin";
+
+    const rollback = data.rollback || {};
+    const rollbackButton = document.getElementById("update-rollback");
+    setText("update-rollback-title", data.rollback_available
+      ? (rollback.from_version ? "Zurück zu " + rollback.from_version : "Vorheriger Stand verfügbar")
+      : "Kein Rollback-Punkt");
+    setText("update-rollback-detail", data.rollback_available
+      ? ((rollback.to_version ? "Vor Update auf " + rollback.to_version : "Vorheriger Programmstand") +
+         (Number.isFinite(rollback.created_at) ? " · " + formatDateTime(rollback.created_at) : ""))
+      : "Vor einem Update wird automatisch ein Wiederherstellungspunkt erzeugt.");
+    if (rollbackButton) rollbackButton.disabled = !data.rollback_available || currentRole !== "admin";
     setText("update-last-check",
       Number.isFinite(data.checked_at) ? formatDateTime(data.checked_at) : "noch nicht geprüft");
     setText("update-installed-at",
@@ -3319,13 +3348,18 @@ async function loadUpdates() {
       title.textContent = "Neue Version verfügbar";
       if (topText) topText.textContent = "Update verfügbar";
       if (topDot) topDot.className = "health-dot info";
-      const fingerprint = data.remote_fingerprint ? data.remote_fingerprint.slice(0, 12) : "GitHub";
-      detail.textContent = `Neuer Stand ${fingerprint} erkannt. Installation erfolgt erst nach deiner Bestätigung.`;
-    } else if (data.note === "github_archive_unavailable") {
+      const target = data.remote_version || (data.remote_fingerprint ? data.remote_fingerprint.slice(0, 12) : "GitHub");
+      detail.textContent = `Neuer Stand ${target} im ${channelLabels[updateChannel] || updateChannel}-Kanal erkannt. Installation erfolgt erst nach deiner Bestätigung.`;
+    } else if (data.note === "github_archive_unavailable" || data.note === "release_metadata_unavailable") {
       title.textContent = "GitHub momentan nicht erreichbar";
       if (topText) topText.textContent = "Update-Prüfung offline";
       if (topDot) topDot.className = "health-dot warn";
       detail.textContent = "Netfreak2k läuft weiter; die nächste Prüfung erfolgt automatisch.";
+    } else if (data.note === "no_release_for_channel") {
+      title.textContent = "Noch kein Release in diesem Kanal";
+      detail.textContent = "Der gewählte Kanal enthält aktuell noch keine veröffentlichte Version.";
+      if (topText) topText.textContent = "Kein Release im Kanal";
+      if (topDot) topDot.className = "health-dot";
     } else {
       title.textContent = runtimeState === "completed" ? "Update erfolgreich abgeschlossen" : "Netfreak2k ist aktuell";
       detail.textContent = runtimeState === "completed"
@@ -3345,6 +3379,57 @@ async function loadUpdates() {
     if (topDot) topDot.className = "health-dot warn";
   }
 }
+
+async function saveUpdateChannel() {
+  const select = document.getElementById("update-channel-select");
+  const button = document.getElementById("update-channel-save");
+  const channel = select?.value || "development";
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = "Prüfe Kanal …"; }
+  try {
+    await request("/api/updates/channel", {
+      method:"POST",
+      body:JSON.stringify({channel}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast("Update-Kanal wurde auf " + channel + " gesetzt.", "success");
+    await loadUpdates();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Update-Kanal konnte nicht geändert werden.", "error");
+  } finally {
+    if (button) {
+      button.textContent = original;
+      button.disabled = currentRole !== "admin";
+    }
+  }
+}
+
+async function triggerUpdateRollback() {
+  const button = document.getElementById("update-rollback");
+  if (!button || button.disabled) return;
+  if (!confirm("Vorherigen Netfreak2k-Programmstand wiederherstellen? Nutzerdaten und Backups bleiben erhalten, Webdienste werden neu gestartet.")) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Rollback startet …";
+  try {
+    await request("/api/updates/rollback", {
+      method:"POST",
+      body:"{}",
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast("Rollback wurde gestartet. Die Weboberfläche startet neu.", "info");
+    setTimeout(() => window.location.reload(), 15000);
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Rollback konnte nicht gestartet werden.", "error");
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+document.getElementById("update-channel-save")?.addEventListener("click", saveUpdateChannel);
+document.getElementById("update-rollback")?.addEventListener("click", triggerUpdateRollback);
 
 document.getElementById("network-scan")?.addEventListener("click", scanNetworkInventory);
 document.getElementById("network-device-search")?.addEventListener("input", renderNetworkDeviceList);
