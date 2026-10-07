@@ -285,3 +285,32 @@
   .media-now-copy h3{font-size:17px}
   .media-section-tabs{margin:0 10px 9px}
 }
+
+/* RDS now-playing + fixed player volume */
+.top-media-volume{
+  display:flex;align-items:center;gap:5px;flex:0 0 92px;
+  padding:0 3px;color:#8f9aa5;font-size:8px
+}
+.top-media-volume span{font-size:8px;opacity:.75}
+.top-media-volume input{
+  width:72px;height:3px;accent-color:#7d9fff;cursor:pointer
+}
+.media-source-line{display:flex;align-items:center;gap:7px;min-height:18px}
+.media-rds-badge{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:999px;
+  border:1px solid rgba(83,225,174,.16);background:rgba(51,168,120,.08);
+  color:#8ce5bb;font-size:5px;font-weight:800;letter-spacing:.11em
+}
+.media-rds-badge::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:#5fe0ac;
+  box-shadow:0 0 8px rgba(95,224,172,.65)
+}
+.media-service.appletv{background:linear-gradient(145deg,#31333a,#111318)}
+.media-service.appletv span{font-size:14px;letter-spacing:-.04em}
+.media-station-row.active small{color:#82b9ff}
+@media(max-width:1180px){
+  .top-media-volume{flex-basis:78px}.top-media-volume input{width:58px}
+}
+@media(max-width:760px){
+  .top-media-volume{flex:1 1 90px;min-width:70px}.top-media-volume input{width:100%}
+}

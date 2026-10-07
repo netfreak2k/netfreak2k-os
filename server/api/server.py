@@ -3,6 +3,7 @@ import base64
 import calendar
 import hashlib
 import hmac
+import ipaddress
 import json
 import mimetypes
 import os
@@ -63,6 +64,8 @@ _network_enrichment = {"at": 0.0, "data": {}}
 _ping_cache = {"at": 0.0, "value": None}
 _radio_cache = {}
 _radio_cache_lock = threading.Lock()
+_radio_meta_cache = {}
+_radio_meta_cache_lock = threading.Lock()
 _media_meta_cache = {}
 _media_meta_cache_lock = threading.Lock()
 
@@ -510,6 +513,102 @@ def radio_browser_stations(country="DE", search="", limit=60):
             for key, _ in oldest:
                 _radio_cache.pop(key, None)
     return data
+
+
+def safe_external_radio_url(value):
+    value = str(value or "").strip()
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("invalid_stream_url")
+    host = parsed.hostname.lower()
+    if host in {"localhost", "localhost.localdomain"}:
+        raise ValueError("invalid_stream_url")
+    try:
+        addresses = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+    except OSError:
+        raise ValueError("stream_unreachable")
+    for entry in addresses:
+        raw = entry[4][0]
+        try:
+            addr = ipaddress.ip_address(raw)
+        except ValueError:
+            continue
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_reserved or addr.is_unspecified:
+            raise ValueError("invalid_stream_url")
+    return value
+
+
+def radio_stream_metadata(stream_url):
+    stream_url = safe_external_radio_url(stream_url)
+    now = time.monotonic()
+    cache_key = hashlib.sha256(stream_url.encode("utf-8")).hexdigest()
+    with _radio_meta_cache_lock:
+        cached = _radio_meta_cache.get(cache_key)
+        if cached and now - cached["at"] < 7:
+            return cached["data"]
+
+    result = {
+        "available": False,
+        "stream_title": "",
+        "artist": "",
+        "title": "",
+        "icy_name": "",
+        "icy_genre": "",
+        "source": "icy",
+    }
+    request = Request(
+        stream_url,
+        headers={
+            "User-Agent": "Netfreak2k-Server-OS/0.2",
+            "Icy-MetaData": "1",
+            "Accept": "*/*",
+        },
+    )
+    try:
+        with urlopen(request, timeout=5.0) as response:
+            headers = response.headers
+            result["icy_name"] = str(headers.get("icy-name") or "").strip()[:160]
+            result["icy_genre"] = str(headers.get("icy-genre") or "").strip()[:160]
+            raw_interval = headers.get("icy-metaint")
+            if raw_interval:
+                interval = int(raw_interval)
+                if 0 < interval <= 1024 * 1024:
+                    remaining = interval
+                    while remaining > 0:
+                        chunk = response.read(min(65536, remaining))
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                    if remaining == 0:
+                        length_byte = response.read(1)
+                        if length_byte:
+                            meta_length = length_byte[0] * 16
+                            if 0 < meta_length <= 4080:
+                                raw_meta = response.read(meta_length).rstrip(b"\x00")
+                                metadata = raw_meta.decode("utf-8", errors="replace")
+                                if "�" in metadata:
+                                    metadata = raw_meta.decode("latin-1", errors="replace")
+                                match = re.search(r"""StreamTitle=(?:'(.+?)'|"(.+?)");""", metadata, flags=re.IGNORECASE)
+                                if match:
+                                    stream_title = (match.group(1) or match.group(2) or "").strip()[:300]
+                                    result["stream_title"] = stream_title
+                                    if " - " in stream_title:
+                                        artist, title = stream_title.split(" - ", 1)
+                                        result["artist"] = artist.strip()[:160]
+                                        result["title"] = title.strip()[:200]
+                                    else:
+                                        result["title"] = stream_title
+                                    result["available"] = bool(stream_title)
+    except Exception:
+        pass
+
+    with _radio_meta_cache_lock:
+        _radio_meta_cache[cache_key] = {"at": now, "data": result}
+        if len(_radio_meta_cache) > 200:
+            oldest = sorted(_radio_meta_cache.items(), key=lambda pair: pair[1]["at"])[:50]
+            for key, _ in oldest:
+                _radio_meta_cache.pop(key, None)
+    return result
 
 
 def network_details():
@@ -2176,6 +2275,16 @@ class Handler(BaseHTTPRequestHandler):
                 "error": live.get("error", "audio_agent_unavailable"),
             }
             self.send_json(payload)
+            return
+
+        if path == "/media/radio/metadata":
+            if not self.require_auth():
+                return
+            stream_url = (query.get("url") or [""])[0]
+            try:
+                self.send_json(radio_stream_metadata(stream_url))
+            except ValueError as exc:
+                self.send_json({"available": False, "error": str(exc)}, 400)
             return
 
         if path == "/media/radio":

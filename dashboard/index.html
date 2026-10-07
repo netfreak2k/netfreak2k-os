@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-update1">
-  <link rel="stylesheet" href="media-center.css?v=20261007-media-layout2">
+  <link rel="stylesheet" href="styles.css?v=20261007-rds1">
+  <link rel="stylesheet" href="media-center.css?v=20261007-rds1">
 </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -132,6 +132,9 @@
             <span class="top-media-art">♪</span>
             <span class="top-media-copy"><small id="top-media-status">MEDIA · BEREIT</small><strong id="top-media-title">Noch kein Titel</strong><em id="top-media-subtitle">Radio · Eigene Musik · Streaming</em></span>
           </button>
+          <label class="top-media-volume" title="Lautstärke">
+            <span>🔊</span><input id="top-media-volume" type="range" min="0" max="100" value="72" aria-label="Lautstärke">
+          </label>
           <div class="top-media-controls" aria-label="Wiedergabesteuerung">
             <button id="top-media-prev" title="Vorheriger Sender">‹</button>
             <button id="top-media-play" title="Play">▶</button>
@@ -657,7 +660,7 @@
             <div class="media-now-playing">
               <div class="media-cover" id="media-cover"><span>N2K</span><strong>MEDIA</strong></div>
               <div class="media-now-copy">
-                <small id="media-source-label">NOW PLAYING</small>
+                <div class="media-source-line"><small id="media-source-label">NOW PLAYING</small><span id="media-rds-badge" class="media-rds-badge hidden">RDS LIVE</span></div>
                 <h3 id="media-title">Noch nichts ausgewählt</h3>
                 <p id="media-subtitle">Wähle Radio, eigene Musik oder einen Streaming-Dienst.</p>
                 <div class="media-progress"><span id="media-live-dot"></span><div><i id="media-progress-fill"></i></div><strong id="media-time">LIVE</strong></div>
@@ -716,7 +719,7 @@
                 <div class="media-service-grid">
                   <button class="media-service apple" data-media-service="https://music.apple.com/de/"><span>♪</span><strong>Apple Music</strong><small>Musik</small></button>
                   <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Musik & Podcasts</small></button>
-                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Musik</small></button>
+                  <button class="media-service appletv" data-media-service="https://tv.apple.com/de/"><span>tv</span><strong>Apple TV</strong><small>Filme & Serien</small></button>
                   <button class="media-service netflix" data-media-service="https://www.netflix.com/de/"><span>N</span><strong>Netflix</strong><small>Filme & Serien</small></button>
                   <button class="media-service youtube" data-media-service="https://www.youtube.com/"><span>▶</span><strong>YouTube</strong><small>Video & Live</small></button>
                   <button id="media-more-services" class="media-service more"><span>＋</span><strong>Weitere</strong><small>Dienste & Mediatheken</small></button>
@@ -986,6 +989,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-update1"></script>
+  <script src="app.js?v=20261007-rds1"></script>
 </body>
 </html>

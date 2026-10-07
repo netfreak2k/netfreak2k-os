@@ -166,6 +166,11 @@ jobs:
           grep -q 'data-media-section="settings"' dashboard/index.html
           grep -q 'top-media-subtitle' dashboard/index.html
           grep -q 'data-media-group="settings"' dashboard/index.html
+          grep -q 'radio_stream_metadata' server/api/server.py
+          grep -q '/media/radio/metadata' server/api/server.py
+          grep -q 'media-rds-badge' dashboard/index.html
+          grep -q 'top-media-volume' dashboard/index.html
+          grep -q 'pollRadioMetadata' dashboard/app.js
           grep -q 'N2K_SEARCH_COMMANDS' dashboard/app.js
           grep -q 'renderMediaQueue' dashboard/app.js
           grep -q 'n2k-toast-stack' dashboard/index.html
