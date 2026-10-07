@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Hardware Maintenance sanity
+        run: |
+          grep -q 'hardware-maintenance-card' dashboard/index.html
+          grep -q 'loadHardwareMaintenance' dashboard/app.js
+          grep -q '/hardware' server/api/server.py
+          grep -q '/power/action' server/api/server.py
+          grep -q 'hardware_status_payload' host/vm-agent.py
+          grep -q 'host_power_action' host/vm-agent.py
+          grep -q 'hardware-summary-grid' dashboard/styles.css
+
       - name: Users Security sanity
         run: |
           grep -q 'security-panel' dashboard/index.html
