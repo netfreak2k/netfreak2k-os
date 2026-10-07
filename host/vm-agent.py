@@ -22,13 +22,15 @@ ALLOWED = {
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
     "backup_list", "backup_create", "backup_restore", "vm_list",
-    "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect"
+    "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
+    "audio_multiroom_set", "audio_multiroom_clear"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
 BLUETOOTH_MAC_RE = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
 AUDIO_NODE_RE = re.compile(r"^[0-9]{1,6}$")
 BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
+MULTIROOM_STATE = Path("/run/netfreak2k/media-multiroom.json")
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -205,6 +207,110 @@ def pipewire_sinks():
     return sinks
 
 
+def pulse_sinks():
+    result = run_audio_user("pactl", "list", "short", "sinks", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "pactl_sinks_failed")
+    default_result = run_audio_user("pactl", "get-default-sink", timeout=5)
+    default_name = default_result.stdout.strip() if default_result.returncode == 0 else ""
+    sinks = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        index, name = parts[0].strip(), parts[1].strip()
+        if not index.isdigit() or not name:
+            continue
+        sinks.append({
+            "id": index,
+            "pulse_name": name,
+            "name": name,
+            "kind": classify_audio_sink(name),
+            "default": name == default_name,
+            "backend": "PipeWire/Pulse",
+        })
+    return sinks
+
+
+def read_multiroom_state():
+    try:
+        data = json.loads(MULTIROOM_STATE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_multiroom_state(data):
+    MULTIROOM_STATE.parent.mkdir(parents=True, exist_ok=True)
+    MULTIROOM_STATE.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+
+
+def multiroom_clear():
+    state = read_multiroom_state()
+    module_id = str(state.get("module_id") or "").strip()
+    if module_id.isdigit():
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+    previous = str(state.get("previous_default") or "").strip()
+    available = {sink["pulse_name"] for sink in pulse_sinks()}
+    if previous and previous in available:
+        run_audio_user("pactl", "set-default-sink", previous, timeout=8)
+    try:
+        MULTIROOM_STATE.unlink()
+    except OSError:
+        pass
+    return audio_status_payload()
+
+
+def multiroom_set(sink_names):
+    if not isinstance(sink_names, list):
+        raise RuntimeError("invalid_multiroom_sinks")
+    requested = []
+    for value in sink_names:
+        name = str(value or "").strip()
+        if name and name not in requested:
+            requested.append(name)
+    if len(requested) < 2 or len(requested) > 8:
+        raise RuntimeError("multiroom_requires_2_to_8_sinks")
+
+    available_sinks = pulse_sinks()
+    available_names = {sink["pulse_name"] for sink in available_sinks}
+    if any(name not in available_names for name in requested):
+        raise RuntimeError("multiroom_sink_not_found")
+
+    previous_default = next((sink["pulse_name"] for sink in available_sinks if sink.get("default")), "")
+    old = read_multiroom_state()
+    old_module = str(old.get("module_id") or "").strip()
+    if old_module.isdigit():
+        run_audio_user("pactl", "unload-module", old_module, timeout=8)
+
+    result = run_audio_user(
+        "pactl", "load-module", "module-combine-sink",
+        "sink_name=n2k_multiroom",
+        "slaves=" + ",".join(requested),
+        "sink_properties=device.description=N2K_Multiroom",
+        timeout=10,
+    )
+    if result.returncode != 0 or not result.stdout.strip().isdigit():
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "multiroom_create_failed")
+    module_id = result.stdout.strip()
+    set_default = run_audio_user("pactl", "set-default-sink", "n2k_multiroom", timeout=8)
+    if set_default.returncode != 0:
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+        raise RuntimeError(set_default.stderr.strip() or "multiroom_default_failed")
+
+    state = {
+        "active": True,
+        "module_id": module_id,
+        "sink_name": "n2k_multiroom",
+        "members": requested,
+        "previous_default": previous_default,
+        "updated_at": int(time.time()),
+    }
+    write_multiroom_state(state)
+    time.sleep(0.2)
+    return audio_status_payload()
+
+
 def bluetooth_devices():
     devices = []
     result = run("bluetoothctl", "devices")
@@ -266,8 +372,10 @@ def audio_status_payload():
             "note": "DLNA/UPnP-Ausgang verfügbar" if dlna_sinks else "Kein DLNA/UPnP-Ausgang in PipeWire gefunden",
         },
         "multiroom": {
-            "available": len([sink for sink in sinks if sink.get("kind") in {"airplay", "dlna", "bluetooth"}]) >= 2,
+            "available": shutil.which("pactl") is not None,
             "network_sinks": [sink for sink in sinks if sink.get("kind") in {"airplay", "dlna"}],
+            "state": read_multiroom_state(),
+            "pulse_sinks": pulse_sinks() if shutil.which("pactl") else [],
         },
     }
 
@@ -700,6 +808,12 @@ def execute(action, request):
 
     if action in {"bluetooth_connect", "bluetooth_disconnect"}:
         return bluetooth_action(action, request.get("mac"))
+
+    if action == "audio_multiroom_set":
+        return multiroom_set(request.get("sinks"))
+
+    if action == "audio_multiroom_clear":
+        return multiroom_clear()
 
     if action == "backup_restore":
         return backup_restore(str(request.get("backup_id", "")))
