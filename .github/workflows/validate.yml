@@ -183,6 +183,16 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: System Health sanity
+        run: |
+          grep -q 'health-panel' dashboard/index.html
+          grep -q 'loadSystemHealth' dashboard/app.js
+          grep -q 'health_status_payload' host/vm-agent.py
+          grep -q 'CREATE TABLE IF NOT EXISTS health_samples' server/api/server.py
+          grep -q '/health' server/api/server.py
+          grep -q 'smartmontools' install.sh
+          grep -q 'smartmontools' scripts/update-server.sh
+
       - name: Network inventory sanity
         run: |
           grep -q 'network-device-inventory' dashboard/index.html
