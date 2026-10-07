@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-rds1">
+  <link rel="stylesheet" href="styles.css?v=20261007-systemgroup1">
   <link rel="stylesheet" href="media-center.css?v=20261007-rds1">
 </head>
 <body>
@@ -88,10 +88,17 @@
         <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
         <button class="nav-item" data-target="media-center-panel"><span>♪</span>Media Center</button>
         <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
-        <button class="nav-item" data-target="vms-panel"><span>▣</span>VMs</button>
-        <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
-        <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
-        <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+        <div id="system-nav-group" class="nav-group">
+          <button id="system-nav-toggle" class="nav-item nav-group-toggle" type="button" aria-expanded="false">
+            <span>▣</span><b>System</b><i>⌄</i>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-item nav-subitem" data-target="vms-panel"><span>▣</span>VMs</button>
+            <button class="nav-item nav-subitem" data-target="storage-panel"><span>◉</span>Speicher</button>
+            <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
+            <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+          </div>
+        </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
         <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
@@ -172,7 +179,7 @@
           <div class="mini-metrics">
             <button class="mini-metric" data-view="system">
               <div class="metric-ring" id="cpu-ring"><span id="overview-cpu">–</span></div>
-              <div><small>CPU</small><strong id="overview-cpu-label">wird gemessen</strong></div>
+              <div class="cpu-metric-copy"><small>CPU</small><strong id="overview-cpu-label">wird gemessen</strong><span id="overview-cpu-cores">Kerne werden erkannt</span></div>
             </button>
             <button class="mini-metric" data-view="system">
               <div class="metric-ring" id="ram-ring"><span id="overview-ram">–</span></div>
@@ -989,6 +996,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-rds1"></script>
+  <script src="app.js?v=20261007-systemgroup1"></script>
 </body>
 </html>

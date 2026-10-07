@@ -456,11 +456,25 @@ async function loadOverview() {
     const storage = data.storage || {};
     const network = data.network || {};
     const cpu = data.cpu_percent;
+    const cpuInfo = data.cpu || {};
 
     document.getElementById("overview-cpu").textContent =
       Number.isFinite(cpu) ? `${Math.round(cpu)}%` : "…";
     document.getElementById("overview-cpu-label").textContent =
       Number.isFinite(cpu) ? "Auslastung" : "wird gemessen";
+    const coreCopy = document.getElementById("overview-cpu-cores");
+    if (coreCopy) {
+      const logical = Number(cpuInfo.logical_cores);
+      const physical = Number(cpuInfo.physical_cores);
+      if (Number.isFinite(logical) && logical > 0) {
+        coreCopy.textContent = Number.isFinite(physical) && physical > 0 && physical !== logical
+          ? `${physical} Kerne · ${logical} Threads`
+          : `${logical} Kerne`;
+        if (cpuInfo.model) coreCopy.title = cpuInfo.model;
+      } else {
+        coreCopy.textContent = "Kerne nicht erkannt";
+      }
+    }
     setRing("cpu-ring", cpu);
 
     document.getElementById("overview-ram").textContent =
@@ -2364,14 +2378,40 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
+const systemNavTargets = new Set(["vms-panel","storage-panel","backups-panel","network-panel"]);
+
+function setSystemNavOpen(open) {
+  const group = document.getElementById("system-nav-group");
+  const toggle = document.getElementById("system-nav-toggle");
+  if (!group || !toggle) return;
+  group.classList.toggle("open", Boolean(open));
+  toggle.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function syncSystemNavState(targetId) {
+  const group = document.getElementById("system-nav-group");
+  const toggle = document.getElementById("system-nav-toggle");
+  if (!group || !toggle) return;
+  const childActive = systemNavTargets.has(targetId);
+  group.classList.toggle("active", childActive);
+  toggle.classList.toggle("active", childActive);
+  if (childActive) setSystemNavOpen(true);
+}
+
+document.getElementById("system-nav-toggle")?.addEventListener("click", () => {
+  const group = document.getElementById("system-nav-group");
+  setSystemNavOpen(!group?.classList.contains("open"));
+});
+
 function switchView(targetId) {
   activeView = targetId || "dashboard-top";
   const overview = document.getElementById("dashboard-top");
   const grid = document.getElementById("module-grid");
 
-  document.querySelectorAll(".nav-item").forEach(item => {
+  document.querySelectorAll(".nav-item[data-target]").forEach(item => {
     item.classList.toggle("active", item.dataset.target === activeView);
   });
+  syncSystemNavState(activeView);
 
   if (activeView === "dashboard-top" || activeView === "system") {
     show(overview, true);
