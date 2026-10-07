@@ -21,7 +21,7 @@ Target candidate: **1.0.0-rc1**
 - [ ] HTTPS local gateway verified on ports selected by installer
 - [ ] Mobile UI pass on phone-sized viewport
 - [ ] Project-wide license for Netfreak2k-owned code selected and committed
-- [ ] THIRD_PARTY_NOTICES.md reviewed for shipped runtime/app dependencies
+- [x] THIRD_PARTY_NOTICES.md reviewed against installer, API container dependencies and managed app catalog
 - [ ] Stable VERSION changed from 1.0.0-rc1 to 1.0.0
 - [ ] Stable release/tag created only after the gates above are complete
 
