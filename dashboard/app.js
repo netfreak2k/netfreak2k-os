@@ -3355,6 +3355,7 @@ async function pollRadioMetadata(station) {
       const badge = document.getElementById("media-rds-badge");
       if (badge) badge.classList.remove("hidden");
       updateMediaPlaybackUi();
+      renderMediaStations();
     } else {
       station.now_playing = null;
       const badge = document.getElementById("media-rds-badge");
@@ -3526,7 +3527,9 @@ function renderMediaStations() {
       logo.appendChild(image);
     }
     row.querySelector("strong").textContent = station.name;
-    row.querySelector("small").textContent = `${station.genre} · ${station.bitrate}`;
+    row.querySelector("small").textContent = station.now_playing?.title
+      ? `RDS · ${[station.now_playing.artist, station.now_playing.title].filter(Boolean).join(" — ")}`
+      : `${station.genre} · ${station.bitrate}`;
     const fav = row.querySelector(".media-fav");
     fav.textContent = favorites.has(station.id) ? "♥" : "♡";
     fav.addEventListener("click", event => {
