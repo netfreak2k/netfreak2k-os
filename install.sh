@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 N2K_REPO="netfreak2k/netfreak2k-os"
 N2K_REF="${N2K_REF:-main}"
+N2K_UPDATE_CHANNEL="${N2K_UPDATE_CHANNEL:-development}"
 N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 N2K_PUBLIC_HTTP_PORT="${N2K_PUBLIC_HTTP_PORT:-${N2K_HTTP_PORT:-}}"
 N2K_PUBLIC_HTTPS_PORT="${N2K_PUBLIC_HTTPS_PORT:-}"
@@ -33,6 +34,11 @@ case "${N2K_DIR}" in
   /|/bin|/boot|/dev|/etc|/home|/lib|/lib64|/media|/mnt|/opt|/proc|/root|/run|/sbin|/srv|/sys|/tmp|/usr|/var)
     die "Unsicherer Installationspfad: ${N2K_DIR}"
     ;;
+esac
+
+case "${N2K_UPDATE_CHANNEL}" in
+  stable|beta|development) ;;
+  *) die "Ungültiger Update-Kanal: ${N2K_UPDATE_CHANNEL}" ;;
 esac
 
 export DEBIAN_FRONTEND=noninteractive
@@ -103,6 +109,8 @@ archive_fingerprint="$(sha256sum "${tmp}/netfreak2k.tar.gz" | awk '{print $1}')"
 mkdir -p "${tmp}/src"
 tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
 [[ -f "${tmp}/src/server/docker-compose.yml" ]] || die "Ungültiges Netfreak2k-Archiv."
+[[ -s "${tmp}/src/VERSION" ]] || die "VERSION-Datei fehlt im Netfreak2k-Archiv."
+source_version="$(tr -d '\r\n' < "${tmp}/src/VERSION")"
 
 mkdir -p "${N2K_DIR}"
 find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
@@ -110,6 +118,7 @@ cp -a "${tmp}/src/." "${N2K_DIR}/"
 chmod 0755 "${N2K_DIR}/scripts/"*.sh
 install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
 install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
+install -m 0755 "${N2K_DIR}/scripts/rollback-server.sh" /usr/local/sbin/netfreak2k-rollback
 printf 'N2K_BACKEND_PORT=%s\nN2K_PUBLIC_HTTP_PORT=%s\nN2K_PUBLIC_HTTPS_PORT=%s\n' "${N2K_BACKEND_PORT}" "${N2K_PUBLIC_HTTP_PORT}" "${N2K_PUBLIC_HTTPS_PORT}" > "${N2K_DIR}/server/.env"
 
 log "Installiere eingeschränkten Netfreak2k VM-Agenten."
@@ -158,7 +167,8 @@ log "Aktiviere lokalen HTTP/HTTPS-Gateway."
 "${N2K_DIR}/scripts/configure-gateway.sh" local
 
 mkdir -p /var/lib/netfreak2k
-printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+printf '%s\n' "${N2K_UPDATE_CHANNEL}" > /var/lib/netfreak2k/update-channel
+printf '{"repo":"%s","ref":"%s","version":"%s","channel":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${source_version}" "${N2K_UPDATE_CHANNEL}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
