@@ -3910,6 +3910,80 @@ document.getElementById("ha-start")?.addEventListener("click", () => homeAssista
 document.getElementById("ha-restart")?.addEventListener("click", () => homeAssistantAction("restart"));
 document.getElementById("ha-shutdown")?.addEventListener("click", () => homeAssistantAction("shutdown"));
 
+let updatePreflightReady = false;
+let updateAvailableNow = false;
+
+function renderUpdatePreflight(data = {}) {
+  updatePreflightReady = Boolean(data.ready);
+  const badge = document.getElementById("update-preflight-badge");
+  if (badge) {
+    badge.textContent = data.ready ? "BEREIT" : "BLOCKIERT";
+    badge.className = `health-badge ${data.ready ? "ok" : "bad"}`;
+  }
+  setHealthText("update-preflight-score", `${data.required_ok ?? 0} / ${data.required_total ?? 0} OK`);
+  setHealthText("update-preflight-time", Number.isFinite(Number(data.checked_at)) ? formatDateTime(Number(data.checked_at)) : "–");
+  setHealthText("update-backup-mode", data.automatic_backup ? "Automatisch + verifiziert" : "Manuell");
+
+  const latest = data.latest_backup || {};
+  setHealthText("update-last-backup", latest.id || "Noch keines");
+  const backupMeta = latest.created_at
+    ? `${formatDateTime(Number(latest.created_at))} · ${latest.verified === true ? "verifiziert" : latest.verified === false ? "Fehler" : "ungeprüft"}`
+    : "Vor dem Update wird ein neuer Recovery-Punkt erzeugt.";
+  setHealthText("update-last-backup-meta", backupMeta);
+
+  const list = document.getElementById("update-preflight-list");
+  if (list) {
+    list.innerHTML = "";
+    const checks = Array.isArray(data.checks) ? data.checks : [];
+    checks.forEach(check => {
+      const row = document.createElement("div");
+      row.className = "update-preflight-row";
+      row.innerHTML = "<span class='update-preflight-dot'></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector(".update-preflight-dot").classList.add(check.ok ? "ok" : check.required ? "bad" : "warn");
+      row.querySelector("strong").textContent = check.label || check.id || "Prüfung";
+      row.querySelector("small").textContent = check.detail || "–";
+      row.querySelector("em").textContent = check.ok ? "OK" : check.required ? "BLOCKIERT" : "HINWEIS";
+      list.appendChild(row);
+    });
+    if (!checks.length) list.innerHTML = '<div class="health-empty">Keine Preflight-Daten verfügbar.</div>';
+  }
+
+  const install = document.getElementById("install-update");
+  if (install) {
+    const blocked = currentRole !== "admin" || !updatePreflightReady || !updateAvailableNow;
+    install.disabled = blocked;
+    install.title = currentRole !== "admin"
+      ? "Nur Administratoren dürfen Systemupdates installieren."
+      : !updateAvailableNow
+        ? "Kein neuer Stand verfügbar."
+        : !updatePreflightReady
+          ? "Mindestens eine Pflichtprüfung blockiert das Update."
+          : "Vor der Installation wird automatisch ein verifiziertes Backup erstellt.";
+  }
+}
+
+async function loadUpdatePreflight() {
+  if (!document.getElementById("update-preflight-list")) return null;
+  try {
+    const data = await request("/api/updates/preflight", {headers:{}});
+    renderUpdatePreflight(data);
+    return data;
+  } catch (error) {
+    console.error(error);
+    updatePreflightReady = false;
+    const badge = document.getElementById("update-preflight-badge");
+    if (badge) {
+      badge.textContent = "NICHT VERFÜGBAR";
+      badge.className = "health-badge bad";
+    }
+    const list = document.getElementById("update-preflight-list");
+    if (list) list.innerHTML = '<div class="health-empty">Preflight konnte nicht geladen werden.</div>';
+    const install = document.getElementById("install-update");
+    if (install) install.disabled = true;
+    return null;
+  }
+}
+
 async function loadUpdates() {
   const title = document.getElementById("update-title");
   const detail = document.getElementById("update-detail");
@@ -3977,6 +4051,8 @@ async function loadUpdates() {
     }
 
     if (!data.available) {
+      updateAvailableNow = false;
+      await loadUpdatePreflight();
       title.textContent = "Update-Status noch nicht verfügbar";
       detail.textContent = "Die nächste automatische GitHub-Prüfung aktualisiert diesen Bereich.";
       if (topText) topText.textContent = "Update unbekannt";
@@ -3985,6 +4061,10 @@ async function loadUpdates() {
     }
 
     if (runtimeState === "running") {
+      updateAvailableNow = Boolean(data.update_available);
+      await loadUpdatePreflight();
+      const install = document.getElementById("install-update");
+      if (install) install.disabled = true;
       title.textContent = "Systemupdate läuft";
       detail.textContent = progress.message || "Netfreak2k wird aktualisiert.";
       if (topText) topText.textContent = "Update läuft";
@@ -3993,12 +4073,17 @@ async function loadUpdates() {
     }
 
     if (runtimeState === "failed") {
+      updateAvailableNow = Boolean(data.update_available);
+      await loadUpdatePreflight();
       title.textContent = "Update fehlgeschlagen";
       detail.textContent = progress.message || "Der Update-Vorgang konnte nicht abgeschlossen werden.";
       if (topText) topText.textContent = "Update fehlgeschlagen";
       if (topDot) topDot.className = "health-dot warn";
       return;
     }
+
+    updateAvailableNow = Boolean(data.update_available);
+    await loadUpdatePreflight();
 
     if (data.update_available) {
       title.textContent = "Neue Version verfügbar";
@@ -4298,22 +4383,40 @@ document.getElementById("update-experience-reload")?.addEventListener("click", (
 
 document.getElementById("install-update")?.addEventListener("click", async () => {
   const button = document.getElementById("install-update");
-  if (!confirm("Netfreak2k Server-OS jetzt aktualisieren? Die Oberfläche bleibt während des Updates in einem sicheren Wartungsmodus geöffnet.")) return;
+  if (currentRole !== "admin") return;
+  const preflight = await loadUpdatePreflight();
+  if (!preflight?.ready) {
+    showN2KToast("Update blockiert: Preflight-Prüfungen sind nicht vollständig grün.", "error");
+    return;
+  }
+  if (!confirm("Netfreak2k Server-OS sicher aktualisieren? Zuerst wird automatisch ein Backup erstellt und verifiziert. Erst danach startet die Installation.")) return;
   const original = button.textContent;
   button.disabled = true;
-  button.textContent = "Update wird gestartet …";
+  button.textContent = "Erstelle Recovery-Punkt …";
   try {
-    await request("/api/updates/install", {
+    const result = await request("/api/updates/install", {
       method: "POST",
       body: "{}",
       headers: {"X-CSRF-Token": csrfToken}
     });
+    const backup = result.backup || {};
+    if (backup.id) {
+      setHealthText("update-last-backup", backup.id);
+      setHealthText("update-last-backup-meta", `Gerade erstellt · verifiziert${backup.replicated ? " · extern repliziert" : ""}`);
+      showN2KToast(`Recovery-Punkt ${backup.id} erstellt. Update startet.`, "success");
+    }
     openUpdateExperience();
   } catch (error) {
     console.error(error);
     button.disabled = false;
     button.textContent = original;
-    showN2KToast("Update konnte nicht gestartet werden.", "error");
+    await loadUpdatePreflight();
+    showN2KToast(
+      error.code === "update_backup_verification_failed"
+        ? "Update abgebrochen: Das Sicherungsbackup konnte nicht verifiziert werden."
+        : "Sicheres Update konnte nicht gestartet werden.",
+      "error"
+    );
   }
 });
 
