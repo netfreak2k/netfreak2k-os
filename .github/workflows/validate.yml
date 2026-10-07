@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Jobs Scheduler 2.0 sanity
+        run: |
+          grep -q 'scheduler-panel' dashboard/index.html
+          grep -q 'loadScheduler' dashboard/app.js
+          grep -q '/scheduler/run' server/api/server.py
+          grep -q 'scheduler_status_payload' host/vm-agent.py
+          grep -q 'systemd_timer_inventory' host/vm-agent.py
+          grep -q 'scheduler_run' host/vm-agent.py
+          grep -q 'scheduler-job-row' dashboard/styles.css
+
       - name: Remote Connectivity 2.0 sanity
         run: |
           grep -q 'remote-connectivity-grid' dashboard/index.html
