@@ -42,7 +42,7 @@ fi
 
 log "Installiere Netfreak2k-Laufzeitabhängigkeiten."
 apt-get update
-apt-get install -y   ca-certificates curl xz-utils python3 socat   qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf
+apt-get install -y   ca-certificates curl xz-utils python3 socat   qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf   pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon
 
 if ! command -v docker >/dev/null 2>&1; then
   apt-get install -y docker.io docker-compose-v2
@@ -52,6 +52,8 @@ fi
 
 systemctl enable --now docker
 systemctl enable --now libvirtd
+systemctl enable --now bluetooth
+systemctl enable --now avahi-daemon
 
 [[ -e /dev/kvm ]] || die "/dev/kvm fehlt trotz installierter KVM-Pakete. Virtualisierung im BIOS/UEFI prüfen."
 docker compose version >/dev/null || die "Docker Compose v2 ist nicht verfügbar."
