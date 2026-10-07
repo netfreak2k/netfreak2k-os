@@ -3054,7 +3054,7 @@ async function refreshMediaDevices() {
       const label = device.label || `Browser-Ausgang ${index + 1}`;
       const canRoute = typeof audio.setSinkId === "function";
       addRow("◌",label,canRoute ? "Direkt aus N2K auswählbar" : "Vom System verwaltet",canRoute ? "wählen" : "bereit",
-        canRoute ? async () => {
+        canRoute ? async event => {
           try {
             await audio.setSinkId(device.deviceId);
             Array.from(list.querySelectorAll("em")).forEach(node => {
