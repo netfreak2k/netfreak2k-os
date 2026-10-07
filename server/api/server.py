@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2707,6 +2707,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(security_payload(session["username"]))
             return
 
+        if path == "/remote-access":
+            session = self.require_auth()
+            if not session:
+                return
+            result = vm_agent("remote_access_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/status":
             if not self.require_auth():
                 return
@@ -3017,6 +3028,37 @@ class Handler(BaseHTTPRequestHandler):
         viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
         if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
             self.send_json({"error": "read_only_role"}, 403)
+            return
+
+        if path == "/remote-access/configure":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                mode = str(data.get("mode", "")).strip()
+                domain = str(data.get("domain", "")).strip()
+                email = str(data.get("email", "")).strip()
+                result = vm_agent("remote_access_configure", {"mode": mode, "domain": domain, "email": email})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "remote_access_configure", f"{mode}:{domain}"[:500], self.client_address[0] if self.client_address else "")
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/remote-access/renew":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            result = vm_agent("remote_access_renew")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            audit_event(session["username"], "certificate_renew", "", self.client_address[0] if self.client_address else "")
+            self.send_json(result)
             return
 
         if path == "/security/users/create":
