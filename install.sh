@@ -158,7 +158,8 @@ log "Aktiviere lokalen HTTP/HTTPS-Gateway."
 "${N2K_DIR}/scripts/configure-gateway.sh" local
 
 mkdir -p /var/lib/netfreak2k
-printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+product_version="$(tr -d '\\r\\n' < "${N2K_DIR}/VERSION" 2>/dev/null || true)"
+printf '{"repo":"%s","ref":"%s","version":"%s","fingerprint":"%s","installed_at":%s}\\n'   "${N2K_REPO}" "${N2K_REF}" "${product_version}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
