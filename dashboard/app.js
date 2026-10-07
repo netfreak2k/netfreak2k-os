@@ -1803,10 +1803,126 @@ async function loadOverview() {
 }
 
 
+let selectedAppContainer = "";
+
+function ensureAppDiagnosticsModal() {
+  if (document.getElementById("app-diagnostics-modal")) return;
+  const modal = document.createElement("div");
+  modal.id = "app-diagnostics-modal";
+  modal.className = "service-diagnostics-modal hidden";
+  modal.innerHTML = `
+    <div class="service-diagnostics-dialog app-diagnostics-dialog">
+      <div class="service-diagnostics-head">
+        <div><small>DOCKER DIAGNOSE</small><strong id="app-diag-title">Container</strong><span id="app-diag-image">–</span></div>
+        <button id="app-diag-close" class="secondary compact">Schließen</button>
+      </div>
+      <div class="app-diag-metrics">
+        <div><small>STATUS</small><strong id="app-diag-state">–</strong></div>
+        <div><small>CPU</small><strong id="app-diag-cpu">–</strong></div>
+        <div><small>RAM</small><strong id="app-diag-ram">–</strong></div>
+        <div><small>NETZWERK</small><strong id="app-diag-net">–</strong></div>
+      </div>
+      <div class="app-diag-detail-grid">
+        <section><small>PORTS</small><div id="app-diag-ports">–</div></section>
+        <section><small>VOLUMES</small><div id="app-diag-volumes">–</div></section>
+        <section><small>RESTART POLICY</small><div id="app-diag-restart">–</div></section>
+        <section><small>UPDATE</small><div id="app-diag-update">Noch nicht geprüft</div></section>
+      </div>
+      <div class="service-diagnostics-status">
+        <span id="app-diag-log-count">Logs werden geladen …</span>
+        <button id="app-diag-update-check" class="secondary compact">Update prüfen</button>
+        <button id="app-diag-refresh" class="secondary compact">↻ Logs</button>
+      </div>
+      <pre id="app-diag-log" class="service-diagnostics-log">Logs werden geladen …</pre>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("app-diag-close")?.addEventListener("click", () => modal.classList.add("hidden"));
+  document.getElementById("app-diag-refresh")?.addEventListener("click", () => loadSelectedAppLogs());
+  document.getElementById("app-diag-update-check")?.addEventListener("click", () => checkSelectedAppUpdate());
+  modal.addEventListener("click", event => { if (event.target === modal) modal.classList.add("hidden"); });
+}
+
+function formatContainerPorts(ports) {
+  const rows = Array.isArray(ports) ? ports : [];
+  return rows.length ? rows.map(port => {
+    const pub = port.public ? `${port.host_ip && port.host_ip !== "0.0.0.0" ? port.host_ip + ":" : ""}${port.public} → ` : "";
+    return `${pub}${port.private || "–"}`;
+  }).join(" · ") : "Keine veröffentlichten Ports";
+}
+
+function formatContainerVolumes(mounts) {
+  const rows = Array.isArray(mounts) ? mounts : [];
+  return rows.length ? rows.map(mount => {
+    const source = mount.name || mount.source || mount.type || "Volume";
+    return `${source} → ${mount.destination || "–"}${mount.read_only ? " (RO)" : ""}`;
+  }).join(" · ") : "Keine Volumes";
+}
+
+async function openAppDiagnostics(item) {
+  ensureAppDiagnosticsModal();
+  selectedAppContainer = item?.name || "";
+  setHealthText("app-diag-title", item?.name || "Container");
+  setHealthText("app-diag-image", item?.image || "–");
+  setHealthText("app-diag-state", item?.state || "unknown");
+  setHealthText("app-diag-cpu", item?.stats?.cpu_percent || "–");
+  setHealthText("app-diag-ram", item?.stats?.memory_usage || "–");
+  setHealthText("app-diag-net", item?.stats?.network_io || "–");
+  setHealthText("app-diag-ports", formatContainerPorts(item?.ports));
+  setHealthText("app-diag-volumes", formatContainerVolumes(item?.mounts));
+  setHealthText("app-diag-restart", item?.restart_policy || "no");
+  setHealthText("app-diag-update", "Noch nicht geprüft");
+  const updateButton = document.getElementById("app-diag-update-check");
+  if (updateButton) updateButton.classList.toggle("hidden", currentRole === "viewer");
+  document.getElementById("app-diagnostics-modal")?.classList.remove("hidden");
+  await loadSelectedAppLogs();
+}
+
+async function loadSelectedAppLogs() {
+  if (!selectedAppContainer) return;
+  setHealthText("app-diag-log-count", "Journal wird geladen …");
+  const log = document.getElementById("app-diag-log");
+  if (log) log.textContent = "Logs werden geladen …";
+  try {
+    const data = await request(`/api/apps/logs?name=${encodeURIComponent(selectedAppContainer)}&lines=160`, {headers:{}});
+    const lines = Array.isArray(data.lines) ? data.lines : [];
+    if (log) log.textContent = lines.length ? lines.join("\n") : "Keine Log-Einträge vorhanden.";
+    setHealthText("app-diag-log-count", `${data.line_count || lines.length} Log-Zeilen`);
+  } catch (error) {
+    console.error(error);
+    if (log) log.textContent = "Container-Logs konnten nicht geladen werden.";
+    setHealthText("app-diag-log-count", "Logs nicht verfügbar");
+  }
+}
+
+async function checkSelectedAppUpdate() {
+  if (!selectedAppContainer || currentRole === "viewer") return;
+  const button = document.getElementById("app-diag-update-check");
+  if (button) { button.disabled = true; button.textContent = "Prüfe …"; }
+  setHealthText("app-diag-update", "Registry wird geprüft …");
+  try {
+    const data = await request("/api/apps/update-check", {
+      method:"POST",
+      body:JSON.stringify({name:selectedAppContainer}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    const text = data.update_available === true ? "Update verfügbar" :
+      data.update_available === false ? "Image ist aktuell" : "Nicht eindeutig prüfbar";
+    setHealthText("app-diag-update", text);
+    showN2KToast(text, data.update_available ? "success" : "info");
+  } catch (error) {
+    console.error(error);
+    setHealthText("app-diag-update", "Update-Prüfung fehlgeschlagen");
+    showN2KToast("Update-Prüfung konnte nicht durchgeführt werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Update prüfen"; }
+  }
+}
+
 async function loadApps() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   const summary = document.getElementById("apps-summary");
   const list = document.getElementById("apps-list");
+  if (!summary || !list) return;
   try {
     const data = await request("/api/apps", {headers: {}});
     const containers = Array.isArray(data.containers) ? data.containers : [];
@@ -1815,36 +1931,61 @@ async function loadApps() {
       list.innerHTML = "";
       return;
     }
-    const running = containers.filter(item => item.state === "running").length;
+    const meta = data.summary || {};
+    const running = Number.isFinite(Number(meta.running)) ? Number(meta.running) : containers.filter(item => item.state === "running").length;
+    setHealthText("apps-total", String(meta.total ?? containers.length));
+    setHealthText("apps-running", String(running));
+    setHealthText("apps-managed", String(meta.managed ?? containers.filter(item => item.managed).length));
+    setHealthText("apps-core", String(meta.core ?? containers.filter(item => item.core).length));
     summary.textContent = `${containers.length} Container · ${running} aktiv`;
     list.innerHTML = "";
+
     for (const item of containers) {
-      const row = document.createElement("div");
-      row.className = "app-row";
-      const ports = (item.ports || []).map(port => `${port.public}→${port.private}/${port.protocol}`).join(", ");
+      const row = document.createElement("article");
+      row.className = "app-row app-row-v2";
       row.innerHTML = `
-        <div>
-          <strong></strong>
-          <small></small>
+        <div class="app-v2-head">
+          <div class="app-v2-icon"></div>
+          <div class="app-v2-title"><strong></strong><small></small></div>
+          <span class="state-pill"></span>
         </div>
-        <div class="app-meta">
-          <div class="app-state-line">
-            <span class="state-pill"></span>
-            <span class="app-role"></span>
-          </div>
-          <small class="app-ports"></small>
+        <div class="app-v2-metrics">
+          <div><small>CPU</small><strong class="app-cpu">–</strong></div>
+          <div><small>RAM</small><strong class="app-ram">–</strong></div>
+          <div><small>NET I/O</small><strong class="app-net">–</strong></div>
+          <div><small>PIDs</small><strong class="app-pids">–</strong></div>
+        </div>
+        <div class="app-v2-detail">
+          <span class="app-ports"></span>
+          <span class="app-volumes"></span>
+        </div>
+        <div class="app-v2-footer">
+          <span class="app-role"></span>
           <div class="app-actions"></div>
         </div>`;
-      row.querySelector("strong").textContent = item.name || item.id || "Container";
-      row.querySelector("small").textContent = item.image || "unbekanntes Image";
+      row.querySelector(".app-v2-icon").textContent = item.core ? "SYS" : "APP";
+      row.querySelector(".app-v2-title strong").textContent = item.name || item.id || "Container";
+      row.querySelector(".app-v2-title small").textContent = item.image || "unbekanntes Image";
       const pill = row.querySelector(".state-pill");
       pill.textContent = item.state || "unknown";
       pill.classList.toggle("running", item.state === "running");
-      row.querySelector(".app-ports").textContent = ports || "keine veröffentlichten Ports";
+      row.querySelector(".app-cpu").textContent = item.stats?.cpu_percent || "–";
+      row.querySelector(".app-ram").textContent = item.stats?.memory_usage || "–";
+      row.querySelector(".app-net").textContent = item.stats?.network_io || "–";
+      row.querySelector(".app-pids").textContent = item.stats?.pids || "–";
+      row.querySelector(".app-ports").textContent = formatContainerPorts(item.ports);
+      row.querySelector(".app-volumes").textContent = `${(item.mounts || []).length} Volume${(item.mounts || []).length === 1 ? "" : "s"} · Restart: ${item.restart_policy || "no"}`;
+
       const role = row.querySelector(".app-role");
-      role.textContent = item.core ? "System" : (item.managed ? "verwaltet" : "");
+      role.textContent = item.core ? "N2K Core · geschützt" : item.managed ? "N2K App · verwaltet" : "Container";
       const actions = row.querySelector(".app-actions");
-      if (item.managed) {
+      const details = document.createElement("button");
+      details.className = "mini-action";
+      details.textContent = "Details";
+      details.addEventListener("click", () => openAppDiagnostics(item));
+      actions.appendChild(details);
+
+      if (item.managed && currentRole !== "viewer") {
         const makeButton = (label, action) => {
           const button = document.createElement("button");
           button.className = "mini-action";
@@ -1862,7 +2003,7 @@ async function loadApps() {
       list.appendChild(row);
     }
     if (!containers.length) {
-      list.innerHTML = '<div class="app-empty">Keine Docker-Container gefunden.</div>';
+      list.innerHTML = '<div class="app-empty">Keine N2K Docker-Container gefunden.</div>';
     }
   } catch (error) {
     if (error.status === 401) {
@@ -1877,6 +2018,7 @@ async function loadApps() {
 }
 
 async function appAction(name, action) {
+  if (currentRole === "viewer") return;
   if (!confirm(`${name}: ${action} wirklich ausführen?`)) return;
   try {
     await request("/api/apps/action", {
@@ -1884,10 +2026,11 @@ async function appAction(name, action) {
       body: JSON.stringify({name, action}),
       headers: {"X-CSRF-Token": csrfToken}
     });
-    setTimeout(loadApps, 800);
+    showN2KToast("Container-Aktion ausgeführt.", "success");
+    setTimeout(loadApps, 700);
   } catch (error) {
     console.error(error);
-    showN2KToast("App-Aktion konnte nicht ausgeführt werden.");
+    showN2KToast("App-Aktion konnte nicht ausgeführt werden.", "error");
   }
 }
 
