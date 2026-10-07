@@ -693,6 +693,34 @@
               </section>
             </div>
 
+            <section class="hardware-maintenance-card">
+              <div class="health-card-head">
+                <div><small>HARDWARE</small><strong>Server-Hardware</strong></div>
+                <span id="hardware-state-badge" class="health-badge">LÄDT</span>
+              </div>
+              <div class="hardware-summary-grid">
+                <div><small>SYSTEM</small><strong id="hardware-system">–</strong><span id="hardware-board">–</span></div>
+                <div><small>CPU</small><strong id="hardware-cpu-model">–</strong><span id="hardware-cpu-meta">–</span></div>
+                <div><small>RAM</small><strong id="hardware-memory">–</strong><span id="hardware-uptime">–</span></div>
+                <div><small>KERNEL</small><strong id="hardware-kernel">–</strong><span id="hardware-os">–</span></div>
+              </div>
+              <div class="hardware-body-grid">
+                <section class="hardware-drives-card">
+                  <div class="hardware-subhead"><div><small>DATENTRÄGER</small><strong>Laufwerke & SMART</strong></div><span id="hardware-drive-count">0</span></div>
+                  <div id="hardware-drive-list" class="hardware-drive-list"><div class="health-empty">Laufwerke werden geladen …</div></div>
+                </section>
+                <section class="maintenance-actions-card">
+                  <div class="hardware-subhead"><div><small>WARTUNG</small><strong>Host-Steuerung</strong></div></div>
+                  <p>Diese Aktionen betreffen den Host und seine laufenden Dienste.</p>
+                  <div class="maintenance-action-row">
+                    <button id="host-reboot" class="secondary">↻ Neu starten</button>
+                    <button id="host-poweroff" class="danger">⏻ Ausschalten</button>
+                  </div>
+                  <div id="host-power-note" class="maintenance-note">Nur Administratoren können Host-Aktionen ausführen.</div>
+                </section>
+              </div>
+            </section>
+
             <section class="health-alerts-card">
               <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
               <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
