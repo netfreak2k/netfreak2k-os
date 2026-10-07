@@ -183,6 +183,131 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: Release process sanity
+        run: |
+          grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9.]+)?
+        run: |
+          grep -q 'remote-access-card' dashboard/index.html
+          grep -q 'loadRemoteAccess' dashboard/app.js
+          grep -q '/remote-access/configure' server/api/server.py
+          grep -q 'remote_access_configure' host/vm-agent.py
+          grep -q 'N2K_BACKEND_PORT' server/docker-compose.yml
+          grep -q 'configure-gateway.sh' install.sh
+          grep -q 'configure-gateway.sh' scripts/update-server.sh
+          grep -q 'nginx' scripts/configure-gateway.sh
+          grep -q 'certbot' scripts/configure-gateway.sh
+          test -f host/netfreak2k-cert-renew.service
+          test -f host/netfreak2k-cert-renew.timer
+
+      - name: Users Security sanity
+        run: |
+          grep -q 'security-panel' dashboard/index.html
+          grep -q 'login-totp' dashboard/index.html
+          grep -q 'loadSecurity' dashboard/app.js
+          grep -q 'CREATE TABLE IF NOT EXISTS audit_log' server/api/server.py
+          grep -q 'def totp_code' server/api/server.py
+          grep -q 'def require_admin' server/api/server.py
+          grep -q '/security/users/create' server/api/server.py
+          grep -q '/security/totp/confirm' server/api/server.py
+          grep -q '/security/session/revoke' server/api/server.py
+
+      - name: Backup Recovery sanity
+        run: |
+          grep -q 'backup-recovery-panel' dashboard/index.html
+          grep -q 'saveBackupPolicy' dashboard/app.js
+          grep -q 'testRestoreBackup' dashboard/app.js
+          grep -q 'backup_test_restore' host/vm-agent.py
+          grep -q 'backup_scheduled_tick' host/vm-agent.py
+          grep -q '/backups/test-restore' server/api/server.py
+          grep -q '/backups/policy' server/api/server.py
+          grep -q 'netfreak2k-backup-scheduler.timer' install.sh
+          grep -q 'netfreak2k-backup-scheduler.timer' scripts/update-server.sh
+          test -f host/netfreak2k-backup-scheduler.service
+          test -f host/netfreak2k-backup-scheduler.timer
+          test -x scripts/backup-scheduler.sh || test -f scripts/backup-scheduler.sh
+
+      - name: Notification center sanity
+        run: |
+          grep -q 'notification-panel' dashboard/index.html
+          grep -q 'loadNotifications' dashboard/app.js
+          grep -q 'CREATE TABLE IF NOT EXISTS notifications' server/api/server.py
+          grep -q 'notifications_payload' server/api/server.py
+          grep -q '/notifications/read' server/api/server.py
+
+      - name: System Health sanity
+        run: |
+          grep -q 'health-panel' dashboard/index.html
+          grep -q 'loadSystemHealth' dashboard/app.js
+          grep -q 'health_status_payload' host/vm-agent.py
+          grep -q 'CREATE TABLE IF NOT EXISTS health_samples' server/api/server.py
+          grep -q '/health' server/api/server.py
+          grep -q 'smartmontools' install.sh
+          grep -q 'smartmontools' scripts/update-server.sh
+
+      - name: Network inventory sanity
+        run: |
+          grep -q 'network-device-inventory' dashboard/index.html
+          grep -q 'network-device-card-grid' dashboard/index.html
+          grep -q 'network-device-card' dashboard/styles.css
+          grep -q 'scanNetworkInventory' dashboard/app.js
+          grep -q 'network_device_analyze' host/vm-agent.py
+          grep -q 'network_scan_payload' host/vm-agent.py
+          grep -q '/network/devices' server/api/server.py
+          grep -q '/network/scan' server/api/server.py
+          grep -q 'arp-scan' install.sh
+          grep -q 'nmap' scripts/update-server.sh
+
+      - name: HAOS provisioning sanity
+        run: |
+          grep -q 'haos_ova-' scripts/provision-haos.sh
+          grep -q -- '--boot uefi' scripts/provision-haos.sh
+          grep -q 'netfreak2k-homeassistant' scripts/provision-haos.sh
+          grep -q 'qemu-kvm' install.sh
+          grep -q 'libvirt-daemon-system' install.sh
+
+      - name: Wallpaper asset sanity
+        run: |
+          test "$(find dashboard/assets/wallpapers -maxdepth 1 -type f -name '*.webp' | wc -l)" -eq 10
+          grep -q 'N2K PERSONALISIERUNG' dashboard/index.html
+          grep -q '09-cyber-city' dashboard/app.js
+          grep -q 'N2K wallpaper collection' THIRD_PARTY_NOTICES.md
+
+      - name: Update experience sanity
+        run: |
+          grep -q 'CREATE TABLE IF NOT EXISTS sessions' server/api/server.py
+          grep -q 'session_token_hash' server/api/server.py
+          grep -q 'update-experience' dashboard/index.html
+          grep -q 'pollUpdateExperience' dashboard/app.js
+          grep -q '/update/progress' server/api/server.py
+
+      - name: GitHub update sanity
+        run: |
+          grep -q 'archive/refs/heads' scripts/check-updates.sh
+          grep -q 'sha256sum' scripts/check-updates.sh
+          grep -q 'installed_fingerprint' scripts/check-updates.sh
+          grep -q 'fingerprint' scripts/update-server.sh
+          grep -q 'netfreak2k-update-check.timer' install.sh
+
+      - name: Stop test stack
+        if: always()
+        env:
+          N2K_HTTP_PORT: "18080"
+        run: docker compose -f server/docker-compose.yml down -v --remove-orphans
+ VERSION
+          grep -q '0.2.0-beta.1' server/docker-compose.yml
+          grep -q 'stable|beta|development' scripts/check-updates.sh
+          grep -q 'ROLLBACK_DIR' scripts/update-server.sh
+          grep -q 'update_rollback' host/vm-agent.py
+          grep -q '/updates/channel' server/api/server.py
+          grep -q '/updates/rollback' server/api/server.py
+          grep -q 'update-channel-select' dashboard/index.html
+          grep -q 'triggerUpdateRollback' dashboard/app.js
+          test -f CHANGELOG.md
+          test -f docs/RELEASES.md
+          test -f scripts/rollback-server.sh
+          test -f .github/workflows/release.yml
+          bash -n scripts/rollback-server.sh
+
       - name: HTTPS Remote Access sanity
         run: |
           grep -q 'remote-access-card' dashboard/index.html
