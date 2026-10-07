@@ -545,6 +545,7 @@ function enterApp(username, role = "viewer") {
   loadVms();
   loadBackups();
   loadSystemHealth();
+  loadHardwareMaintenance();
   loadSecurity();
   loadRemoteAccess();
   loadNotifications();
@@ -1290,6 +1291,102 @@ async function restartSelectedService() {
     showN2KToast("Dienstaktion fehlgeschlagen.", "error");
   } finally {
     if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
+function hardwareSmartForDrive(hardware, drive) {
+  const rows = Array.isArray(hardware?.smart?.drives) ? hardware.smart.drives : [];
+  return rows.find(item => item.device === drive.path || item.device === `/dev/${drive.name}`) || null;
+}
+
+function renderHardwareMaintenance(data) {
+  const badge = document.getElementById("hardware-state-badge");
+  if (badge) {
+    badge.textContent = "ERKANNT";
+    badge.className = "health-badge ok";
+  }
+  setHealthText("hardware-system", data.hostname || "Linux Host");
+  const board = data.board || {};
+  setHealthText("hardware-board", [board.system_vendor || board.vendor, board.product || board.name].filter(Boolean).join(" · ") || "Hardwareplattform nicht gemeldet");
+  setHealthText("hardware-cpu-model", data.cpu_model || "CPU nicht erkannt");
+  setHealthText("hardware-cpu-meta", `${data.logical_cores || 0} logische Kerne · ${data.architecture || "Architektur –"}`);
+  setHealthText("hardware-memory", data.memory_total_bytes ? formatBytes(data.memory_total_bytes) : "–");
+  setHealthText("hardware-uptime", `Uptime ${formatUptime(Number(data.uptime_seconds))}`);
+  setHealthText("hardware-kernel", data.kernel || "–");
+  setHealthText("hardware-os", data.os || "Linux");
+
+  const drives = Array.isArray(data.drives) ? data.drives : [];
+  setHealthText("hardware-drive-count", String(drives.length));
+  const list = document.getElementById("hardware-drive-list");
+  if (list) {
+    list.innerHTML = "";
+    if (!drives.length) {
+      list.innerHTML = '<div class="health-empty">Keine physischen Laufwerke erkannt.</div>';
+    } else {
+      drives.forEach(drive => {
+        const smart = hardwareSmartForDrive(data, drive);
+        const row = document.createElement("div");
+        row.className = "hardware-drive-row";
+        row.innerHTML = "<span class='hardware-drive-icon'>SSD</span><div class='hardware-drive-copy'><strong></strong><small></small><span></span></div><div class='hardware-drive-health'><b></b><small></small></div>";
+        row.querySelector(".hardware-drive-icon").textContent = drive.rotational ? "HDD" : drive.type === "rom" ? "ROM" : "SSD";
+        row.querySelector(".hardware-drive-copy strong").textContent = [drive.vendor, drive.model].filter(Boolean).join(" ") || drive.path || drive.name;
+        row.querySelector(".hardware-drive-copy small").textContent = `${drive.path || "–"} · ${formatBytes(Number(drive.size_bytes))} · ${drive.transport || "intern"}`;
+        row.querySelector(".hardware-drive-copy span").textContent = drive.serial ? `S/N ${drive.serial}` : (drive.mountpoints || []).join(" · ") || "Kein Mountpoint";
+        const health = smart?.health || "unknown";
+        row.querySelector(".hardware-drive-health b").textContent = health === "passed" ? "SMART OK" : health === "failed" ? "SMART FEHLER" : "SMART –";
+        row.querySelector(".hardware-drive-health b").className = health === "passed" ? "ok" : health === "failed" ? "bad" : "";
+        row.querySelector(".hardware-drive-health small").textContent = Number.isFinite(Number(smart?.temperature_c)) ? `${smart.temperature_c} °C` : "Temperatur –";
+        list.appendChild(row);
+      });
+    }
+  }
+
+  const reboot = document.getElementById("host-reboot");
+  const poweroff = document.getElementById("host-poweroff");
+  const canPower = currentRole === "admin";
+  if (reboot) reboot.disabled = !canPower;
+  if (poweroff) poweroff.disabled = !canPower;
+  setHealthText("host-power-note", canPower ? "Admin-Modus · Aktionen werden protokolliert." : "Nur Administratoren können Host-Aktionen ausführen.");
+}
+
+async function loadHardwareMaintenance() {
+  if (!document.getElementById("hardware-state-badge") || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/hardware", {headers:{}});
+    renderHardwareMaintenance(data);
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("hardware-state-badge");
+    if (badge) {
+      badge.textContent = "NICHT VERFÜGBAR";
+      badge.className = "health-badge warn";
+    }
+  }
+}
+
+async function hostPowerAction(operation) {
+  if (currentRole !== "admin") return;
+  const label = operation === "reboot" ? "neu starten" : "ausschalten";
+  if (!window.confirm(`Server wirklich ${label}? Laufende VMs und Dienste werden dabei beendet.`)) return;
+  const reboot = document.getElementById("host-reboot");
+  const poweroff = document.getElementById("host-poweroff");
+  if (reboot) reboot.disabled = true;
+  if (poweroff) poweroff.disabled = true;
+  setHealthText("host-power-note", operation === "reboot" ? "Neustart wird vorbereitet …" : "Server wird heruntergefahren …");
+  try {
+    await request("/api/power/action", {
+      method:"POST",
+      body:JSON.stringify({operation}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast(operation === "reboot" ? "Server-Neustart wurde ausgelöst." : "Server wird ausgeschaltet.", "success");
+    setConnection(false, operation === "reboot" ? "Server startet neu …" : "Server fährt herunter …");
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Host-Aktion konnte nicht ausgeführt werden.", "error");
+    if (reboot) reboot.disabled = false;
+    if (poweroff) poweroff.disabled = false;
+    setHealthText("host-power-note", "Host-Aktion fehlgeschlagen.");
   }
 }
 
@@ -3470,6 +3567,9 @@ if (notificationDesktopToggle) {
     typeof Notification !== "undefined" && Notification.permission === "granted";
 }
 
+document.getElementById("host-reboot")?.addEventListener("click", () => hostPowerAction("reboot"));
+document.getElementById("host-poweroff")?.addEventListener("click", () => hostPowerAction("poweroff"));
+
 document.getElementById("remote-save")?.addEventListener("click", saveRemoteAccess);
 document.getElementById("remote-renew")?.addEventListener("click", renewRemoteCertificate);
 document.querySelectorAll('input[name="remote-mode"]').forEach(input => input.addEventListener("change", () => {
@@ -4432,6 +4532,7 @@ setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
+setInterval(loadHardwareMaintenance, 120000);
 setInterval(loadNotifications, 60000);
 setInterval(loadSecurity, 120000);
 setInterval(loadRemoteAccess, 120000);
