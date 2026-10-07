@@ -13,7 +13,7 @@ Target candidate: **1.0.0-rc1**
 
 ## Required before 1.0.0 stable
 
-- [x] GitHub Actions Validate workflow completes successfully on the release commit (`b550f58d`, Validate run 472)
+- [x] GitHub Actions Validate workflow completes successfully on the current RC head (`ecd2831b`, Validate run 477)
 - [ ] Fresh install smoke test on supported amd64 Linux Mint/Ubuntu host
 - [ ] Upgrade smoke test from an existing Netfreak2k installation
 - [ ] Backup verification and restore-test pass on a real installation
