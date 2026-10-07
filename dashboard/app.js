@@ -2773,6 +2773,7 @@ let mediaAudio = null;
 let mediaStations = [...N2K_RADIO_STATIONS];
 let mediaRadioRequest = 0;
 let mediaRadioSearchTimer = null;
+let mediaMultiroomSelection = new Set();
 let mediaCountry = "DE";
 let mediaStationIndex = -1;
 let mediaInitialized = false;
@@ -3015,54 +3016,78 @@ async function setBluetoothConnection(mac, connect) {
   }
 }
 
+async function applyMediaMultiroom(clear = false) {
+  try {
+    const body = clear
+      ? {action: "clear"}
+      : {action: "set", sinks: Array.from(mediaMultiroomSelection)};
+    if (!clear && body.sinks.length < 2) {
+      alert("Bitte mindestens zwei Ausgänge für Multiroom auswählen.");
+      return;
+    }
+    await request("/api/media/multiroom", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    if (clear) mediaMultiroomSelection.clear();
+    await refreshMediaDevices();
+  } catch (error) {
+    console.error(error);
+    alert(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.");
+  }
+}
+
 function renderMediaRooms(routing = {}) {
   const grid = document.getElementById("media-room-grid");
   if (!grid) return;
-  const sinks = Array.isArray(routing.pipewire?.sinks) ? routing.pipewire.sinks : [];
-  const bluetooth = Array.isArray(routing.bluetooth?.devices) ? routing.bluetooth.devices : [];
-  const endpoints = [
-    ...sinks.filter(sink => ["airplay","dlna","bluetooth"].includes(sink.kind)).map(sink => ({
-      type: sink.kind,
-      id: sink.id,
-      name: sink.name,
-      active: Boolean(sink.default),
-      detail: sink.kind === "airplay" ? "AirPlay / RAOP" : sink.kind === "dlna" ? "DLNA / UPnP" : "Bluetooth / PipeWire",
-      action: sink.default ? null : () => setHostAudioOutput(sink.id)
-    })),
-    ...bluetooth.filter(device => device.connected).filter(device =>
-      !sinks.some(sink => sink.kind === "bluetooth" && (sink.name || "").toLowerCase().includes((device.name || "").toLowerCase()))
-    ).map(device => ({
-      type: "bluetooth",
-      id: device.mac,
-      name: device.name || device.mac,
-      active: true,
-      detail: "Bluetooth verbunden",
-      action: null
-    }))
-  ];
+  const pulseSinks = Array.isArray(routing.multiroom?.pulse_sinks) ? routing.multiroom.pulse_sinks : [];
+  const state = routing.multiroom?.state || {};
+  const activeMembers = new Set(Array.isArray(state.members) ? state.members : []);
+
+  if (state.active && activeMembers.size) {
+    mediaMultiroomSelection = new Set(activeMembers);
+  }
 
   grid.innerHTML = "";
-  if (!endpoints.length) {
+  const candidates = pulseSinks.filter(sink => sink.pulse_name && sink.pulse_name !== "n2k_multiroom");
+  if (!candidates.length) {
     const empty = document.createElement("div");
     empty.className = "media-room-empty";
-    empty.innerHTML = "<strong>Noch keine Netzwerk-Lautsprecher aktiv</strong><small>AirPlay-, DLNA- oder Bluetooth-Ausgänge erscheinen hier automatisch, sobald PipeWire sie bereitstellt.</small>";
+    empty.innerHTML = "<strong>Noch keine gruppierbaren Ausgänge aktiv</strong><small>PipeWire/Pulse-Ausgänge erscheinen hier automatisch.</small>";
     grid.appendChild(empty);
     return;
   }
 
-  endpoints.forEach(endpoint => {
+  candidates.forEach(sink => {
     const button = document.createElement("button");
-    button.className = endpoint.active ? "active-room" : "";
+    const selected = mediaMultiroomSelection.has(sink.pulse_name);
+    button.className = selected ? "selected-room" : "";
     button.innerHTML = "<span></span><strong></strong><small></small>";
     button.querySelector("span").textContent =
-      endpoint.type === "airplay" ? "◉" : endpoint.type === "dlna" ? "⌂" : "BT";
-    button.querySelector("strong").textContent = endpoint.name;
+      sink.kind === "airplay" ? "◉" :
+      sink.kind === "dlna" ? "⌂" :
+      sink.kind === "bluetooth" ? "BT" :
+      sink.kind === "hdmi" ? "▣" :
+      sink.kind === "usb" ? "USB" : "♪";
+    button.querySelector("strong").textContent = sink.name || sink.pulse_name;
     button.querySelector("small").textContent =
-      endpoint.active ? `${endpoint.detail} · aktiv` : `${endpoint.detail} · auswählen`;
-    if (endpoint.action) button.addEventListener("click", endpoint.action);
-    else button.disabled = endpoint.active;
+      selected ? "für Multiroom ausgewählt" : (sink.default ? "aktueller Standardausgang" : "antippen zum Auswählen");
+    button.addEventListener("click", () => {
+      if (mediaMultiroomSelection.has(sink.pulse_name)) mediaMultiroomSelection.delete(sink.pulse_name);
+      else mediaMultiroomSelection.add(sink.pulse_name);
+      renderMediaRooms(routing);
+    });
     grid.appendChild(button);
   });
+
+  const apply = document.getElementById("media-multiroom-apply");
+  const clear = document.getElementById("media-multiroom-clear");
+  if (apply) {
+    apply.disabled = mediaMultiroomSelection.size < 2;
+    apply.textContent = state.active ? "Gruppe aktualisieren" : "Gruppe starten";
+  }
+  if (clear) clear.disabled = !state.active;
 }
 
 async function refreshMediaDevices() {
