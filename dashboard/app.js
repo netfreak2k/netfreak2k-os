@@ -1,4 +1,5 @@
 let csrfToken = "";
+let currentRole = "viewer";
 let workspaceArea = "documents";
 let workspacePath = "";
 let calendarCursor = new Date();
@@ -67,7 +68,7 @@ async function bootstrapAuth() {
   const session = await request("/api/session");
   if (session.authenticated) {
     csrfToken = session.csrf || "";
-    enterApp(session.username);
+    enterApp(session.username, session.role || "viewer");
     return;
   }
 
@@ -276,7 +277,161 @@ async function configureDesktopNotifications(enabled) {
   showN2KToast(allowed ? "Desktop-Hinweise aktiviert." : "Desktop-Hinweise wurden nicht freigegeben.", allowed ? "success" : "info");
 }
 
-function enterApp(username) {
+
+async function loadSecurity() {
+  const panel = document.getElementById("security-panel");
+  if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/security", {headers:{}});
+    const me = data.me || {};
+    currentRole = me.role || currentRole || "viewer";
+    document.getElementById("security-me").textContent = me.username || "–";
+    document.getElementById("security-me-role").textContent =
+      currentRole === "admin" ? "Administrator" : currentRole === "operator" ? "Operator" : "Viewer · Nur Lesen";
+    const roleBadge = document.getElementById("security-role-badge");
+    if (roleBadge) roleBadge.textContent = currentRole.toUpperCase();
+
+    const totpEnabled = Boolean(me.totp_enabled);
+    document.getElementById("security-2fa-state").textContent = totpEnabled ? "Aktiv" : "Nicht aktiv";
+    const twoBadge = document.getElementById("security-2fa-badge");
+    if (twoBadge) {
+      twoBadge.textContent = totpEnabled ? "AKTIV" : "AUS";
+      twoBadge.className = "security-badge " + (totpEnabled ? "ok" : "warn");
+    }
+    document.getElementById("security-totp-begin")?.classList.toggle("hidden", totpEnabled);
+    document.getElementById("security-totp-disable")?.classList.toggle("hidden", !totpEnabled);
+    if (totpEnabled) document.getElementById("security-totp-setup")?.classList.add("hidden");
+
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    document.getElementById("security-session-count").textContent = String(sessions.length);
+    const sessionList = document.getElementById("security-session-list");
+    if (sessionList) {
+      sessionList.innerHTML = "";
+      sessions.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "security-list-row";
+        row.innerHTML = '<span class="security-device-icon">◫</span><div><strong></strong><small></small></div><button class="secondary compact">Abmelden</button>';
+        row.querySelector("strong").textContent = item.username + " · " + (item.remote_addr || "lokal");
+        row.querySelector("small").textContent =
+          (item.user_agent ? item.user_agent.split(" ").slice(0,4).join(" ") : "Browser") + " · seit " + formatDateTime(item.created_at);
+        row.querySelector("button").addEventListener("click", () => revokeSecuritySession(item.id));
+        sessionList.appendChild(row);
+      });
+      if (!sessions.length) sessionList.innerHTML = '<div class="app-empty">Keine aktiven Sitzungen gefunden.</div>';
+    }
+
+    const adminOnly = currentRole === "admin";
+    document.getElementById("security-users-card")?.classList.toggle("hidden", !adminOnly);
+    document.getElementById("security-audit-card")?.classList.toggle("hidden", !adminOnly);
+    const users = Array.isArray(data.users) ? data.users : [];
+    document.getElementById("security-user-count").textContent = adminOnly ? String(users.length) : "–";
+    const userList = document.getElementById("security-user-list");
+    if (adminOnly && userList) {
+      userList.innerHTML = "";
+      users.forEach(user => {
+        const row = document.createElement("div");
+        row.className = "security-list-row security-user-row";
+        row.innerHTML = '<span class="security-user-avatar"></span><div><strong></strong><small></small></div><select class="security-role-select"><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="admin">Admin</option></select><label class="security-enable"><input type="checkbox"> Aktiv</label>';
+        row.querySelector(".security-user-avatar").textContent = (user.username || "?").slice(0,1).toUpperCase();
+        row.querySelector("strong").textContent = user.username;
+        row.querySelector("small").textContent =
+          (user.totp_enabled ? "2FA aktiv" : "ohne 2FA") + (user.last_login_at ? " · Login " + formatDateTime(user.last_login_at) : " · noch kein Login");
+        const roleSelect = row.querySelector(".security-role-select");
+        roleSelect.value = user.role || "viewer";
+        const enabled = row.querySelector(".security-enable input");
+        enabled.checked = Boolean(user.enabled);
+        const update = () => updateSecurityUser(user.username, roleSelect.value, enabled.checked);
+        roleSelect.addEventListener("change", update);
+        enabled.addEventListener("change", update);
+        userList.appendChild(row);
+      });
+    }
+
+    const audit = Array.isArray(data.audit) ? data.audit : [];
+    const auditList = document.getElementById("security-audit-list");
+    if (adminOnly && auditList) {
+      auditList.innerHTML = "";
+      audit.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "security-audit-row";
+        row.innerHTML = "<span></span><div><strong></strong><small></small></div><em></em>";
+        row.querySelector("span").textContent = "◆";
+        row.querySelector("strong").textContent = item.action + " · " + item.username;
+        row.querySelector("small").textContent = item.detail || item.remote_addr || "Sicherheitsereignis";
+        row.querySelector("em").textContent = formatDateTime(item.created_at);
+        auditList.appendChild(row);
+      });
+      if (!audit.length) auditList.innerHTML = '<div class="app-empty">Noch keine Audit-Ereignisse.</div>';
+    }
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("security-role-badge");
+    if (badge) badge.textContent = "FEHLER";
+  }
+}
+
+async function beginTotpSetup() {
+  try {
+    const data = await request("/api/security/totp/begin", {method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}});
+    document.getElementById("security-totp-secret").value = data.secret || "";
+    document.getElementById("security-totp-uri").value = data.otpauth_uri || "";
+    document.getElementById("security-totp-code").value = "";
+    document.getElementById("security-totp-setup").classList.remove("hidden");
+  } catch (error) { console.error(error); showN2KToast("2FA-Einrichtung konnte nicht gestartet werden.", "error"); }
+}
+
+async function confirmTotpSetup() {
+  const code = document.getElementById("security-totp-code")?.value.trim() || "";
+  try {
+    await request("/api/security/totp/confirm", {method:"POST", body:JSON.stringify({code}), headers:{"X-CSRF-Token":csrfToken}});
+    showN2KToast("Zwei-Faktor-Anmeldung ist jetzt aktiv.", "success");
+    await loadSecurity();
+  } catch (error) { console.error(error); showN2KToast("Der Authenticator-Code ist nicht gültig.", "error"); }
+}
+
+async function disableTotpSetup() {
+  if (!confirm("Zwei-Faktor-Anmeldung für dein Konto deaktivieren?")) return;
+  try {
+    await request("/api/security/totp/disable", {method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}});
+    showN2KToast("2FA wurde deaktiviert.", "success");
+    await loadSecurity();
+  } catch (error) { console.error(error); showN2KToast("2FA konnte nicht deaktiviert werden.", "error"); }
+}
+
+async function createSecurityUser() {
+  const username = document.getElementById("security-new-username")?.value.trim() || "";
+  const password = document.getElementById("security-new-password")?.value || "";
+  const role = document.getElementById("security-new-role")?.value || "viewer";
+  try {
+    await request("/api/security/users/create", {method:"POST", body:JSON.stringify({username,password,role}), headers:{"X-CSRF-Token":csrfToken}});
+    document.getElementById("security-user-create").classList.add("hidden");
+    showN2KToast("Benutzerkonto erstellt.", "success");
+    await loadSecurity();
+  } catch (error) { console.error(error); showN2KToast("Benutzer konnte nicht erstellt werden.", "error"); }
+}
+
+async function updateSecurityUser(username, role, enabled) {
+  try {
+    await request("/api/security/users/update", {method:"POST", body:JSON.stringify({username,role,enabled}), headers:{"X-CSRF-Token":csrfToken}});
+    showN2KToast("Benutzerrechte aktualisiert.", "success");
+    await loadSecurity();
+  } catch (error) {
+    console.error(error);
+    showN2KToast(error.code === "last_admin" ? "Der letzte aktive Admin kann nicht herabgestuft werden." : "Benutzer konnte nicht geändert werden.", "error");
+    await loadSecurity();
+  }
+}
+
+async function revokeSecuritySession(id) {
+  try {
+    await request("/api/security/session/revoke", {method:"POST", body:JSON.stringify({id}), headers:{"X-CSRF-Token":csrfToken}});
+    showN2KToast("Sitzung beendet.", "success");
+    await loadSecurity();
+  } catch (error) { console.error(error); showN2KToast("Sitzung konnte nicht beendet werden.", "error"); }
+}
+
+function enterApp(username, role = "viewer") {
+  currentRole = role || "viewer";
   show(document.getElementById("auth-shell"), false);
   show(document.getElementById("app-shell"), true);
   document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
@@ -293,6 +448,7 @@ function enterApp(username) {
   loadVms();
   loadBackups();
   loadSystemHealth();
+  loadSecurity();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -324,7 +480,7 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
       body: JSON.stringify({username, password})
     });
     csrfToken = data.csrf || "";
-    enterApp(data.username);
+    enterApp(data.username, data.role || "admin");
   } catch (error) {
     authError(apiErrorMessage(error.code));
   }
@@ -335,15 +491,21 @@ document.getElementById("login-form").addEventListener("submit", async event => 
   authError();
   const username = document.getElementById("login-username").value.trim();
   const password = document.getElementById("login-password").value;
+  const totp = document.getElementById("login-totp")?.value.trim() || "";
   try {
     const data = await request("/api/login", {
       method: "POST",
-      body: JSON.stringify({username, password})
+      body: JSON.stringify({username, password, totp})
     });
     csrfToken = data.csrf || "";
-    enterApp(data.username);
+    enterApp(data.username, data.role || "viewer");
   } catch (error) {
-    authError(apiErrorMessage(error.code));
+    if (error.code === "totp_required") {
+      authError("Bitte den 6-stelligen Code aus deiner Authenticator-App eingeben.");
+      document.getElementById("login-totp")?.focus();
+    } else {
+      authError(apiErrorMessage(error.code));
+    }
   }
 });
 
@@ -3127,6 +3289,14 @@ if (notificationDesktopToggle) {
     typeof Notification !== "undefined" && Notification.permission === "granted";
 }
 
+document.getElementById("security-totp-begin")?.addEventListener("click", beginTotpSetup);
+document.getElementById("security-totp-confirm")?.addEventListener("click", confirmTotpSetup);
+document.getElementById("security-totp-disable")?.addEventListener("click", disableTotpSetup);
+document.getElementById("security-user-create-toggle")?.addEventListener("click", () => {
+  document.getElementById("security-user-create")?.classList.toggle("hidden");
+});
+document.getElementById("security-user-create-save")?.addEventListener("click", createSecurityUser);
+
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
   loadOverview();
@@ -3410,6 +3580,7 @@ const viewGroups = {
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
   "health-panel": ["health-panel"],
+  "security-panel": ["security-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -3422,7 +3593,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -4074,6 +4245,7 @@ setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
 setInterval(loadNotifications, 60000);
+setInterval(loadSecurity, 120000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
