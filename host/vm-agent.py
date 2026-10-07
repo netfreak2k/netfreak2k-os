@@ -886,6 +886,11 @@ def network_scan_payload():
                 latency = None
         name = old.get("custom_name") or hostname or discovered.get("vendor") or ip
         dtype = old.get("device_type") or classify_network_device(name, discovered.get("vendor"), services, ip, topology.get("gateway"))
+        history = list(old.get("history") or [])[-39:]
+        if not old:
+            history.append({"at": now, "state": "discovered"})
+        elif not old.get("online"):
+            history.append({"at": now, "state": "online"})
         devices.append({
             "id": hashlib.sha256(key.encode("utf-8")).hexdigest()[:20],
             "ip": ip,
@@ -904,6 +909,7 @@ def network_scan_payload():
             "notes": old.get("notes") or "",
             "trusted": bool(old.get("trusted")),
             "deep_scan": old.get("deep_scan") or {},
+            "history": history,
         })
 
     found_keys = {item.get("mac") or item.get("ip") for item in devices}
@@ -912,6 +918,10 @@ def network_scan_payload():
         if not key or key in found_keys:
             continue
         stale = dict(old)
+        if old.get("online"):
+            history = list(stale.get("history") or [])[-39:]
+            history.append({"at": now, "state": "offline"})
+            stale["history"] = history
         stale["online"] = False
         stale["new"] = False
         devices.append(stale)
