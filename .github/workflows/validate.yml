@@ -197,6 +197,15 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Logs Events 2.0 sanity
+        run: |
+          grep -q 'events-panel' dashboard/index.html
+          grep -q 'loadEventCenter' dashboard/app.js
+          grep -q '/events' server/api/server.py
+          grep -q 'event_center_payload' server/api/server.py
+          grep -q 'event_logs_payload' host/vm-agent.py
+          grep -q 'event-row' dashboard/styles.css
+
       - name: Jobs Scheduler 2.0 sanity
         run: |
           grep -q 'scheduler-panel' dashboard/index.html
