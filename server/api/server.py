@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action"} else 12 if action in {"service_logs","hardware_status"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount"} else 12 if action in {"service_logs","hardware_status","storage_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -3082,6 +3082,40 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(result, 503)
                     return
                 audit_event(session["username"], "host_power_action", operation, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/storage/mount":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                device = str(data.get("device", "")).strip()
+                result = vm_agent("storage_mount", {"device": device})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "storage_mount", device[:300], self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/storage/unmount":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                device = str(data.get("device", "")).strip()
+                result = vm_agent("storage_unmount", {"device": device})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "storage_unmount", device[:300], self.client_ip())
                 self.send_json(result)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
