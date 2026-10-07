@@ -1703,3 +1703,18 @@ body::after{
 .recent-widget,.activity-widget,.quick-widget,.matrix-widget,.usenext-widget{background-color:rgba(8,14,21,.27)}
 .recent-widget,.activity-widget,.quick-widget{border-color:rgba(255,229,168,.055)}
 @media(max-width:820px){.n2k-toast-stack{top:176px;right:10px}}
+
+.mini-action.primary-mini{
+  color:#dceaff;border-color:rgba(102,164,255,.17);
+  background:rgba(69,116,215,.10)
+}
+.mini-action.primary-mini:hover{background:rgba(69,116,215,.17);color:#fff}
+.search-result.search-command strong{color:#f1dfad}
+.search-result.search-service strong{color:#b9d7ff}
+.search-result.search-radio strong,.search-result.search-local-audio strong{color:#d9e8ff}
+.command-search-wrap{position:relative}
+.global-search-results{max-height:min(520px,65vh);overflow:auto}
+@media(max-width:620px){
+  .global-search-results{left:0!important;right:0!important;width:100%!important}
+  .file-actions{gap:4px}
+}
