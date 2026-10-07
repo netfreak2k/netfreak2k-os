@@ -23,7 +23,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -1297,6 +1297,173 @@ def managed_service_action(unit, operation):
     return {"action": operation, "service": system_service_state(unit)}
 
 
+def docker_container_inspect(name):
+    result = run("docker", "inspect", name, timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError("container_not_found")
+    try:
+        rows = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise RuntimeError("container_inspect_failed")
+    if not rows:
+        raise RuntimeError("container_not_found")
+    return rows[0]
+
+
+def docker_container_allowed(info):
+    name = str(info.get("Name") or "").lstrip("/")
+    labels = (info.get("Config") or {}).get("Labels") or {}
+    return name.startswith("netfreak2k-") or str(labels.get("netfreak2k.managed") or "").lower() == "true"
+
+
+def docker_container_details(info):
+    name = str(info.get("Name") or "").lstrip("/")
+    config = info.get("Config") or {}
+    host = info.get("HostConfig") or {}
+    state = info.get("State") or {}
+    network = info.get("NetworkSettings") or {}
+    labels = config.get("Labels") or {}
+    mounts = []
+    for mount in info.get("Mounts") or []:
+        mounts.append({
+            "type": mount.get("Type") or "",
+            "name": mount.get("Name") or "",
+            "source": mount.get("Source") or "",
+            "destination": mount.get("Destination") or "",
+            "read_only": not bool(mount.get("RW", True)),
+        })
+    ports = []
+    for private, bindings in (network.get("Ports") or {}).items():
+        for binding in bindings or [{}]:
+            ports.append({
+                "private": private,
+                "public": binding.get("HostPort") or "",
+                "host_ip": binding.get("HostIp") or "",
+            })
+    managed = str(labels.get("netfreak2k.managed") or "").lower() == "true"
+    return {
+        "id": str(info.get("Id") or "")[:12],
+        "name": name,
+        "image": config.get("Image") or "",
+        "image_id": str(info.get("Image") or ""),
+        "state": state.get("Status") or "unknown",
+        "started_at": state.get("StartedAt") or "",
+        "exit_code": state.get("ExitCode"),
+        "restart_policy": (host.get("RestartPolicy") or {}).get("Name") or "no",
+        "managed": managed,
+        "core": name.startswith("netfreak2k-") and not managed,
+        "app_id": labels.get("netfreak2k.app") or "",
+        "ports": ports,
+        "mounts": mounts,
+    }
+
+
+def docker_apps_payload():
+    if not shutil.which("docker"):
+        return {"available": False, "containers": [], "summary": {"total": 0, "running": 0}}
+    result = run("docker", "ps", "-aq", "--filter", "name=netfreak2k-", timeout=8)
+    if result.returncode != 0:
+        return {"available": False, "containers": [], "summary": {"total": 0, "running": 0}}
+    ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    containers = []
+    for container_id in ids[:80]:
+        try:
+            info = docker_container_inspect(container_id)
+        except RuntimeError:
+            continue
+        if not docker_container_allowed(info):
+            continue
+        containers.append(docker_container_details(info))
+
+    stats_map = {}
+    if containers:
+        stats = run("docker", "stats", "--no-stream", "--format", "{{json .}}", *[item["name"] for item in containers], timeout=15)
+        if stats.returncode == 0:
+            for line in stats.stdout.splitlines():
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                name = row.get("Name") or row.get("Container") or ""
+                stats_map[name] = {
+                    "cpu_percent": row.get("CPUPerc") or "–",
+                    "memory_usage": row.get("MemUsage") or "–",
+                    "memory_percent": row.get("MemPerc") or "–",
+                    "network_io": row.get("NetIO") or "–",
+                    "block_io": row.get("BlockIO") or "–",
+                    "pids": row.get("PIDs") or "–",
+                }
+    for item in containers:
+        item["stats"] = stats_map.get(item["name"], {})
+    containers.sort(key=lambda item: (not item.get("core"), item.get("name", "")))
+    return {
+        "available": True,
+        "containers": containers,
+        "summary": {
+            "total": len(containers),
+            "running": sum(1 for item in containers if item.get("state") == "running"),
+            "managed": sum(1 for item in containers if item.get("managed")),
+            "core": sum(1 for item in containers if item.get("core")),
+        },
+    }
+
+
+def docker_app_logs(name, lines=120):
+    info = docker_container_inspect(str(name or "").strip())
+    if not docker_container_allowed(info):
+        raise RuntimeError("container_not_allowed")
+    try:
+        lines = max(20, min(300, int(lines)))
+    except (TypeError, ValueError):
+        lines = 120
+    container = docker_container_details(info)
+    result = run("docker", "logs", "--timestamps", "--tail", str(lines), container["name"], timeout=12)
+    output = (result.stdout or "") + (result.stderr or "")
+    log_lines = [line[:1600] for line in output.splitlines()[-lines:]]
+    return {"container": container, "lines": log_lines, "line_count": len(log_lines)}
+
+
+def docker_app_update_check(name):
+    info = docker_container_inspect(str(name or "").strip())
+    if not docker_container_allowed(info):
+        raise RuntimeError("container_not_allowed")
+    container = docker_container_details(info)
+    image = container.get("image") or ""
+    if not image or "@" in image:
+        return {"name": container["name"], "image": image, "status": "unknown", "update_available": None}
+
+    local = run("docker", "image", "inspect", "--format", "{{json .RepoDigests}}", image, timeout=8)
+    local_digests = []
+    if local.returncode == 0:
+        try:
+            local_digests = json.loads(local.stdout.strip() or "[]") or []
+        except json.JSONDecodeError:
+            local_digests = []
+
+    remote = run("docker", "manifest", "inspect", "--verbose", image, timeout=25)
+    remote_digest = ""
+    if remote.returncode == 0:
+        try:
+            payload = json.loads(remote.stdout)
+            if isinstance(payload, dict):
+                descriptor = payload.get("Descriptor") or payload.get("descriptor") or {}
+                remote_digest = str(descriptor.get("digest") or "")
+        except json.JSONDecodeError:
+            pass
+
+    local_values = [str(value).split("@", 1)[-1] for value in local_digests if "@" in str(value)]
+    if not remote_digest:
+        return {"name": container["name"], "image": image, "status": "unknown", "update_available": None, "local_digests": local_values[:4]}
+    update_available = bool(local_values) and remote_digest not in local_values
+    return {
+        "name": container["name"], "image": image,
+        "status": "update_available" if update_available else "current",
+        "update_available": update_available,
+        "remote_digest": remote_digest,
+        "local_digests": local_values[:4],
+    }
+
+
 def docker_health_payload():
     if not shutil.which("docker"):
         return {"available": False, "running": 0, "total": 0, "containers": []}
@@ -2219,6 +2386,15 @@ def execute(action, request):
 
     if action == "app_catalog":
         return catalog_payload()
+
+    if action == "app_diagnostics":
+        return docker_apps_payload()
+
+    if action == "app_logs":
+        return docker_app_logs(request.get("name"), request.get("lines", 120))
+
+    if action == "app_update_check":
+        return docker_app_update_check(request.get("name"))
 
     if action == "app_install":
         return install_catalog_app(str(request.get("app_id", "")), request.get("options") or {})
