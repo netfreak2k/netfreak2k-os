@@ -27,7 +27,8 @@ ALLOWED = {
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
-    "network_inventory", "network_scan", "network_device_analyze", "network_device_update"
+    "network_inventory", "network_scan", "network_device_analyze", "network_device_update",
+    "health_status"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -1036,6 +1037,178 @@ def network_device_analyze(device_id):
     write_network_inventory(data)
     return item
 
+
+def cpu_temperature_payload():
+    readings = []
+    roots = [Path("/sys/class/thermal"), Path("/sys/class/hwmon")]
+    for root in roots:
+        try:
+            paths = list(root.glob("thermal_zone*/temp")) if root.name == "thermal" else list(root.glob("hwmon*/temp*_input"))
+        except OSError:
+            paths = []
+        for path in paths:
+            try:
+                raw = path.read_text(encoding="utf-8").strip()
+                value = float(raw)
+                celsius = value / 1000.0 if abs(value) > 500 else value
+                if -20 <= celsius <= 150:
+                    label = path.parent.name
+                    if root.name == "hwmon":
+                        name_file = path.parent / "name"
+                        try:
+                            label = name_file.read_text(encoding="utf-8").strip() or label
+                        except OSError:
+                            pass
+                    readings.append({"label": label[:80], "celsius": round(celsius, 1)})
+            except (OSError, ValueError):
+                continue
+    if not readings:
+        return {"available": False, "current_c": None, "max_c": None, "sensors": []}
+    values = [item["celsius"] for item in readings]
+    return {
+        "available": True,
+        "current_c": round(sum(values) / len(values), 1),
+        "max_c": round(max(values), 1),
+        "sensors": readings[:24],
+    }
+
+
+def smart_health_payload():
+    if not shutil.which("smartctl"):
+        return {"available": False, "drives": [], "overall": "unknown", "error": "smartctl_unavailable"}
+    scan = run("smartctl", "--scan-open", timeout=12)
+    devices = []
+    overall = "passed"
+    for line in scan.stdout.splitlines()[:12]:
+        device = line.split()[0] if line.strip() else ""
+        if not device.startswith("/dev/"):
+            continue
+        result = run("smartctl", "-H", "-A", "-j", device, timeout=15)
+        if not result.stdout.strip().startswith("{"):
+            continue
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            continue
+        passed = (data.get("smart_status") or {}).get("passed")
+        temperature = (data.get("temperature") or {}).get("current")
+        model = data.get("model_name") or data.get("product") or data.get("device", {}).get("name") or device
+        serial = data.get("serial_number") or ""
+        health = "passed" if passed is True else "failed" if passed is False else "unknown"
+        if health == "failed":
+            overall = "failed"
+        elif health == "unknown" and overall == "passed":
+            overall = "unknown"
+        devices.append({
+            "device": device,
+            "model": str(model)[:160],
+            "serial": str(serial)[:80],
+            "health": health,
+            "temperature_c": temperature if isinstance(temperature, (int, float)) else None,
+        })
+    return {"available": bool(devices), "drives": devices, "overall": overall if devices else "unknown"}
+
+
+def system_service_state(unit):
+    result = run("systemctl", "is-active", unit, timeout=5)
+    state = result.stdout.strip() or "unknown"
+    return {"unit": unit, "state": state, "ok": state == "active"}
+
+
+def docker_health_payload():
+    if not shutil.which("docker"):
+        return {"available": False, "running": 0, "total": 0, "containers": []}
+    result = run("docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Status}}", timeout=8)
+    containers = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) < 2:
+            continue
+        name, state = parts[0], parts[1]
+        status = parts[2] if len(parts) > 2 else state
+        if name.startswith("netfreak2k-"):
+            containers.append({"name": name, "state": state, "status": status[:160], "ok": state == "running"})
+    return {
+        "available": result.returncode == 0,
+        "running": sum(1 for item in containers if item["ok"]),
+        "total": len(containers),
+        "containers": containers,
+    }
+
+
+def health_status_payload():
+    usage = shutil.disk_usage("/")
+    storage_used = usage.total - usage.free
+    storage_percent = round((storage_used / usage.total) * 100, 1) if usage.total else None
+    temp = cpu_temperature_payload()
+    smart = smart_health_payload()
+    docker = docker_health_payload()
+    services = [
+        system_service_state("docker.service"),
+        system_service_state("libvirtd.service"),
+        system_service_state("netfreak2k-vm-agent.service"),
+        system_service_state("netfreak2k-ha-proxy.service"),
+    ]
+    vm = payload()
+    backups = backup_list_payload()
+    latest_backup = backups.get("backups", [None])[0] if backups.get("backups") else None
+
+    warnings = []
+    max_temp = temp.get("max_c")
+    if isinstance(max_temp, (int, float)) and max_temp >= 85:
+        warnings.append({"kind": "temperature", "level": "critical", "title": "CPU-Temperatur kritisch", "detail": f"{max_temp:.1f} °C"})
+    elif isinstance(max_temp, (int, float)) and max_temp >= 75:
+        warnings.append({"kind": "temperature", "level": "warning", "title": "CPU-Temperatur erhöht", "detail": f"{max_temp:.1f} °C"})
+    if isinstance(storage_percent, (int, float)) and storage_percent >= 90:
+        warnings.append({"kind": "storage", "level": "critical", "title": "Speicher fast voll", "detail": f"{storage_percent:.1f}% belegt"})
+    elif isinstance(storage_percent, (int, float)) and storage_percent >= 80:
+        warnings.append({"kind": "storage", "level": "warning", "title": "Speicher wird knapp", "detail": f"{storage_percent:.1f}% belegt"})
+    if smart.get("overall") == "failed":
+        warnings.append({"kind": "smart", "level": "critical", "title": "SMART-Fehler erkannt", "detail": "Mindestens ein Datenträger meldet einen Fehler."})
+    for service in services:
+        if not service["ok"]:
+            warnings.append({"kind": "service", "level": "warning", "title": f"{service['unit']} nicht aktiv", "detail": service["state"]})
+    if docker.get("available") and docker.get("running") != docker.get("total"):
+        warnings.append({"kind": "docker", "level": "warning", "title": "Container prüfen", "detail": f"{docker.get('running', 0)} von {docker.get('total', 0)} N2K-Containern laufen."})
+    if vm.get("installed") and (vm.get("state") != "running" or not vm.get("reachable")):
+        warnings.append({"kind": "haos", "level": "warning", "title": "Home Assistant prüfen", "detail": vm.get("state") or "nicht erreichbar"})
+    if latest_backup and isinstance(latest_backup.get("created_at"), (int, float)):
+        age = int(time.time()) - int(latest_backup["created_at"])
+        if age > 3 * 86400:
+            warnings.append({"kind": "backup", "level": "warning", "title": "Backup ist veraltet", "detail": f"Letztes Backup vor {age // 86400} Tagen."})
+    elif not latest_backup:
+        warnings.append({"kind": "backup", "level": "warning", "title": "Kein Backup vorhanden", "detail": "Es wurde noch kein N2K-Backup gefunden."})
+
+    score = 100
+    for item in warnings:
+        score -= 25 if item["level"] == "critical" else 10
+    score = max(0, score)
+    overall = "critical" if any(i["level"] == "critical" for i in warnings) else "warning" if warnings else "healthy"
+
+    return {
+        "sampled_at": int(time.time()),
+        "overall": overall,
+        "score": score,
+        "cpu_temperature": temp,
+        "storage": {
+            "total_bytes": usage.total,
+            "used_bytes": storage_used,
+            "free_bytes": usage.free,
+            "used_percent": storage_percent,
+        },
+        "smart": smart,
+        "docker": docker,
+        "services": services,
+        "homeassistant": {
+            "installed": bool(vm.get("installed")),
+            "state": vm.get("state"),
+            "reachable": bool(vm.get("reachable")),
+        },
+        "backup": latest_backup,
+        "warnings": warnings,
+    }
+
+
 def storage_payload():
     usage = shutil.disk_usage("/")
     used = usage.total - usage.free
@@ -1198,6 +1371,9 @@ def execute(action, request):
 
     if action == "storage_status":
         return storage_payload()
+
+    if action == "health_status":
+        return health_status_payload()
 
     if action == "network_inventory":
         return network_inventory_payload()

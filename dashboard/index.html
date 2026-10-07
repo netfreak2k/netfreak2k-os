@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-polish1">
+  <link rel="stylesheet" href="styles.css?v=20261007-health1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -93,6 +93,7 @@
             <span>▣</span><b>System</b><i>⌄</i>
           </button>
           <div class="nav-submenu">
+            <button class="nav-item nav-subitem" data-target="health-panel"><span>♥</span>Systemstatus</button>
             <button class="nav-item nav-subitem" data-target="vms-panel"><span>▣</span>VMs</button>
             <button class="nav-item nav-subitem" data-target="storage-panel"><span>◉</span>Speicher</button>
             <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
@@ -519,6 +520,66 @@
             <div id="catalog-list" class="catalog-list">
               <div class="app-empty">Katalog wird geladen …</div>
             </div>
+          </article>
+
+          <article id="health-panel" class="panel health-panel section-anchor">
+            <div class="health-hero">
+              <div>
+                <p class="eyebrow">N2K SYSTEM HEALTH</p>
+                <h2>Systemstatus & Monitoring</h2>
+                <p>Gesundheit, Temperaturen, Speicher, Docker, Home Assistant und Serververlauf an einem Ort.</p>
+              </div>
+              <div class="health-score-block">
+                <div id="health-score-ring" class="health-score-ring"><strong id="health-score">–</strong><span>HEALTH</span></div>
+                <div><small>GESAMTZUSTAND</small><strong id="health-overall">Wird geprüft …</strong><span id="health-sampled-at">–</span></div>
+              </div>
+            </div>
+
+            <div class="health-toolbar">
+              <div class="health-range-tabs">
+                <button class="active" data-health-range="24h">24 Stunden</button>
+                <button data-health-range="7d">7 Tage</button>
+              </div>
+              <button id="health-refresh" class="secondary compact">↻ Neu messen</button>
+            </div>
+
+            <div class="health-kpi-grid">
+              <section class="health-kpi"><span class="health-kpi-icon">CPU</span><div><small>CPU-AUSLASTUNG</small><strong id="health-cpu">–</strong><span id="health-cpu-detail">–</span></div></section>
+              <section class="health-kpi"><span class="health-kpi-icon temp">°C</span><div><small>TEMPERATUR</small><strong id="health-temp">–</strong><span id="health-temp-detail">Sensoren werden geprüft</span></div></section>
+              <section class="health-kpi"><span class="health-kpi-icon">RAM</span><div><small>ARBEITSSPEICHER</small><strong id="health-ram">–</strong><span id="health-ram-detail">–</span></div></section>
+              <section class="health-kpi"><span class="health-kpi-icon">SSD</span><div><small>SPEICHER</small><strong id="health-storage">–</strong><span id="health-storage-detail">–</span></div></section>
+              <section class="health-kpi"><span class="health-kpi-icon">LD</span><div><small>LOAD AVERAGE</small><strong id="health-load">–</strong><span id="health-load-detail">1 / 5 / 15 Min.</span></div></section>
+              <section class="health-kpi"><span class="health-kpi-icon">NET</span><div><small>NETZWERK</small><strong id="health-network">–</strong><span id="health-network-detail">–</span></div></section>
+            </div>
+
+            <section class="health-chart-card">
+              <div class="health-chart-head">
+                <div><small>SYSTEMVERLAUF</small><strong id="health-chart-title">CPU · RAM · Temperatur · Speicher</strong></div>
+                <div class="health-chart-legend"><span class="cpu"></span>CPU <span class="ram"></span>RAM <span class="temp"></span>Temp. <span class="storage"></span>Speicher</div>
+              </div>
+              <canvas id="health-history-chart" width="1100" height="280" aria-label="Systemzustand Verlauf"></canvas>
+              <div class="health-chart-scale"><span id="health-history-points">Noch keine Historie</span><span id="health-history-range">24 Stunden</span></div>
+            </section>
+
+            <div class="health-status-grid">
+              <section class="health-status-card">
+                <div class="health-card-head"><div><small>DATENTRÄGER</small><strong>SMART</strong></div><span id="health-smart-badge" class="health-badge">–</span></div>
+                <div id="health-smart-list" class="health-list"><div class="health-empty">SMART-Daten werden geladen …</div></div>
+              </section>
+              <section class="health-status-card">
+                <div class="health-card-head"><div><small>PLATTFORM</small><strong>Docker & Dienste</strong></div><span id="health-services-badge" class="health-badge">–</span></div>
+                <div id="health-service-list" class="health-list"><div class="health-empty">Dienste werden geladen …</div></div>
+              </section>
+              <section class="health-status-card">
+                <div class="health-card-head"><div><small>WORKLOAD</small><strong>Home Assistant & Backup</strong></div><span id="health-workload-badge" class="health-badge">–</span></div>
+                <div id="health-workload-list" class="health-list"><div class="health-empty">Workloads werden geladen …</div></div>
+              </section>
+            </div>
+
+            <section class="health-alerts-card">
+              <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
+              <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
+            </section>
           </article>
 
           <article id="vms-panel" class="panel vm-panel section-anchor">
@@ -1096,6 +1157,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-polish1"></script>
+  <script src="app.js?v=20261007-health1"></script>
 </body>
 </html>

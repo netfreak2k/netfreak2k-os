@@ -172,6 +172,22 @@ def db_connect():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS health_samples (
+            sampled_at INTEGER PRIMARY KEY,
+            cpu_percent REAL,
+            ram_percent REAL,
+            storage_percent REAL,
+            temperature_c REAL,
+            load_1m REAL,
+            network_down_bps REAL,
+            network_up_bps REAL,
+            health_score INTEGER
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_health_samples_time ON health_samples(sampled_at)")
     columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)").fetchall()}
     if "uid" not in columns:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN uid TEXT")
@@ -1734,6 +1750,108 @@ def upcoming_events_payload(username, limit=4):
     ]
 
 
+
+def record_health_sample(current):
+    sampled_at = int(current.get("sampled_at") or time.time())
+    with db_connect() as conn:
+        latest = conn.execute("SELECT MAX(sampled_at) FROM health_samples").fetchone()
+        if latest and latest[0] and sampled_at - int(latest[0]) < 45:
+            return
+        conn.execute(
+            """INSERT OR REPLACE INTO health_samples
+               (sampled_at,cpu_percent,ram_percent,storage_percent,temperature_c,load_1m,
+                network_down_bps,network_up_bps,health_score)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (
+                sampled_at,
+                current.get("cpu_percent"),
+                (current.get("memory") or {}).get("used_percent"),
+                (current.get("storage") or {}).get("used_percent"),
+                (current.get("cpu_temperature") or {}).get("max_c"),
+                (current.get("load") or {}).get("1m"),
+                (current.get("network") or {}).get("down_bps"),
+                (current.get("network") or {}).get("up_bps"),
+                current.get("score"),
+            ),
+        )
+        cutoff = sampled_at - 8 * 86400
+        conn.execute("DELETE FROM health_samples WHERE sampled_at<?", (cutoff,))
+        conn.commit()
+
+
+def health_history_payload(period="24h"):
+    period = str(period or "24h").lower()
+    seconds = 7 * 86400 if period == "7d" else 24 * 3600
+    bucket = 1800 if period == "7d" else 300
+    since = int(time.time()) - seconds
+    with db_connect() as conn:
+        rows = conn.execute(
+            """SELECT
+                 (sampled_at / ?) * ? AS bucket_at,
+                 AVG(cpu_percent), AVG(ram_percent), AVG(storage_percent), AVG(temperature_c),
+                 AVG(load_1m), AVG(network_down_bps), AVG(network_up_bps), AVG(health_score)
+               FROM health_samples
+               WHERE sampled_at>=?
+               GROUP BY bucket_at
+               ORDER BY bucket_at ASC""",
+            (bucket, bucket, since),
+        ).fetchall()
+    return [
+        {
+            "sampled_at": int(row[0]),
+            "cpu_percent": row[1],
+            "ram_percent": row[2],
+            "storage_percent": row[3],
+            "temperature_c": row[4],
+            "load_1m": row[5],
+            "network_down_bps": row[6],
+            "network_up_bps": row[7],
+            "health_score": row[8],
+        }
+        for row in rows
+    ]
+
+
+def system_health_payload(period="24h"):
+    host = vm_agent("health_status")
+    memory = parse_meminfo()
+    network = network_details()
+    load = parse_load()
+    cpu = parse_cpu_percent()
+    updates = update_payload()
+
+    current = {
+        "sampled_at": int(time.time()),
+        "cpu_percent": cpu,
+        "cpu": cpu_topology(),
+        "memory": memory,
+        "load": load,
+        "network": network,
+        "storage": host.get("storage") or {},
+        "cpu_temperature": host.get("cpu_temperature") or {},
+        "smart": host.get("smart") or {},
+        "docker": host.get("docker") or {},
+        "services": host.get("services") or [],
+        "homeassistant": host.get("homeassistant") or {},
+        "backup": host.get("backup"),
+        "warnings": host.get("warnings") or [],
+        "score": host.get("score") if isinstance(host.get("score"), int) else 0,
+        "overall": host.get("overall") or "unknown",
+        "host_available": bool(host.get("available")),
+        "update": {
+            "available": bool(updates.get("available")),
+            "update_available": bool(updates.get("update_available")),
+            "ok": bool(updates.get("ok")),
+        },
+    }
+    record_health_sample(current)
+    return {
+        "current": current,
+        "period": "7d" if str(period).lower() == "7d" else "24h",
+        "history": health_history_payload(period),
+    }
+
+
 def overview_payload(username):
     memory = parse_meminfo()
     network = network_details()
@@ -2219,6 +2337,15 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             self.send_json(overview_payload(session["username"]))
+            return
+
+        if path == "/health":
+            if not self.require_auth():
+                return
+            period = (query.get("range") or ["24h"])[0]
+            if period not in {"24h", "7d"}:
+                period = "24h"
+            self.send_json(system_health_payload(period))
             return
 
         if path == "/apps":

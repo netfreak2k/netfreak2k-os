@@ -108,6 +108,7 @@ function enterApp(username) {
   loadStorage();
   loadVms();
   loadBackups();
+  loadSystemHealth();
   loadNetworkInventory();
   loadWorkspace();
   loadFavorites();
@@ -683,6 +684,262 @@ async function analyzeNetworkDevice() {
       button.disabled = false;
       button.textContent = original;
     }
+  }
+}
+
+
+let healthRange = "24h";
+let healthHistory = [];
+
+function setHealthText(id, value) {
+  const node = document.getElementById(id);
+  if (node) node.textContent = value;
+}
+
+function healthStateClass(ok, warn=false) {
+  return ok ? "ok" : warn ? "warn" : "bad";
+}
+
+function renderHealthHistoryChart() {
+  const canvas = document.getElementById("health-history-chart");
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(500, Math.round(rect.width || 900));
+  const height = Math.max(180, Math.round(rect.height || 250));
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  const pad = {left:38, right:14, top:16, bottom:24};
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+
+  ctx.strokeStyle = "rgba(255,255,255,.055)";
+  ctx.lineWidth = 1;
+  ctx.font = "9px sans-serif";
+  ctx.fillStyle = "rgba(190,201,211,.48)";
+  for (let p = 0; p <= 100; p += 25) {
+    const y = pad.top + chartH - (p / 100) * chartH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+    ctx.fillText(`${p}`, 8, y + 3);
+  }
+
+  if (!healthHistory.length) {
+    ctx.fillStyle = "rgba(190,201,211,.55)";
+    ctx.textAlign = "center";
+    ctx.fillText("Historie baut sich mit den Messungen auf.", width / 2, height / 2);
+    return;
+  }
+
+  const metrics = [
+    {key:"cpu_percent", stroke:"rgba(105,170,255,.95)"},
+    {key:"ram_percent", stroke:"rgba(173,122,255,.92)"},
+    {key:"temperature_c", stroke:"rgba(255,179,92,.92)"},
+    {key:"storage_percent", stroke:"rgba(91,218,159,.90)"}
+  ];
+
+  for (const metric of metrics) {
+    ctx.strokeStyle = metric.stroke;
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    let started = false;
+    healthHistory.forEach((item, index) => {
+      const raw = Number(item[metric.key]);
+      if (!Number.isFinite(raw)) return;
+      const value = Math.max(0, Math.min(100, raw));
+      const x = pad.left + (healthHistory.length === 1 ? 0 : (index / (healthHistory.length - 1)) * chartW);
+      const y = pad.top + chartH - (value / 100) * chartH;
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  const first = healthHistory[0]?.sampled_at;
+  const last = healthHistory[healthHistory.length - 1]?.sampled_at;
+  ctx.fillStyle = "rgba(190,201,211,.45)";
+  ctx.font = "8px sans-serif";
+  ctx.textAlign = "left";
+  if (first) ctx.fillText(new Date(first * 1000).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}), pad.left, height - 5);
+  ctx.textAlign = "right";
+  if (last) ctx.fillText(new Date(last * 1000).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}), width - pad.right, height - 5);
+}
+
+function renderHealthStatus(data) {
+  const current = data.current || {};
+  const score = Number(current.score);
+  const scoreNode = document.getElementById("health-score-ring");
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  if (scoreNode) {
+    scoreNode.style.setProperty("--health-score-angle", `${safeScore * 3.6}deg`);
+    scoreNode.classList.toggle("warn", current.overall === "warning");
+    scoreNode.classList.toggle("bad", current.overall === "critical");
+  }
+  setHealthText("health-score", Number.isFinite(score) ? String(Math.round(score)) : "–");
+  const overallLabel = current.overall === "healthy" ? "System gesund" : current.overall === "warning" ? "Hinweise vorhanden" : current.overall === "critical" ? "Kritischer Zustand" : "Status unbekannt";
+  setHealthText("health-overall", overallLabel);
+  setHealthText("health-sampled-at", current.sampled_at ? `Messung ${formatDateTime(current.sampled_at)}` : "–");
+
+  setHealthText("health-cpu", Number.isFinite(current.cpu_percent) ? `${Math.round(current.cpu_percent)}%` : "–");
+  const cpu = current.cpu || {};
+  setHealthText("health-cpu-detail", cpu.logical_cores ? `${cpu.physical_cores || cpu.logical_cores} Kerne · ${cpu.logical_cores} Threads` : "CPU-Topologie unbekannt");
+
+  const temp = current.cpu_temperature || {};
+  setHealthText("health-temp", Number.isFinite(temp.max_c) ? `${Number(temp.max_c).toFixed(1)} °C` : "–");
+  setHealthText("health-temp-detail", temp.available ? `${(temp.sensors || []).length} Sensoren · Ø ${Number.isFinite(temp.current_c) ? Number(temp.current_c).toFixed(1) : "–"} °C` : "Kein Temperatursensor erkannt");
+
+  const memory = current.memory || {};
+  setHealthText("health-ram", Number.isFinite(memory.used_percent) ? `${Math.round(memory.used_percent)}%` : "–");
+  setHealthText("health-ram-detail", memory.total_bytes ? `${formatBytes(memory.used_bytes)} / ${formatBytes(memory.total_bytes)}` : "–");
+
+  const storage = current.storage || {};
+  setHealthText("health-storage", Number.isFinite(storage.used_percent) ? `${Math.round(storage.used_percent)}%` : "–");
+  setHealthText("health-storage-detail", storage.total_bytes ? `${formatBytes(storage.free_bytes)} frei` : "–");
+
+  const load = current.load || {};
+  setHealthText("health-load", Number.isFinite(load["1m"]) ? load["1m"].toFixed(2) : "–");
+  setHealthText("health-load-detail", `${Number.isFinite(load["1m"]) ? load["1m"].toFixed(2) : "–"} / ${Number.isFinite(load["5m"]) ? load["5m"].toFixed(2) : "–"} / ${Number.isFinite(load["15m"]) ? load["15m"].toFixed(2) : "–"}`);
+
+  const network = current.network || {};
+  setHealthText("health-network", `${formatRate(network.down_bps)} ↓`);
+  setHealthText("health-network-detail", `${formatRate(network.up_bps)} ↑ · ${Number.isFinite(network.ping_ms) ? network.ping_ms + " ms" : "Ping –"}`);
+
+  const smart = current.smart || {};
+  const smartBadge = document.getElementById("health-smart-badge");
+  const smartOk = smart.overall === "passed";
+  if (smartBadge) {
+    smartBadge.textContent = smart.available ? (smartOk ? "OK" : smart.overall === "failed" ? "FEHLER" : "UNBEKANNT") : "N/A";
+    smartBadge.className = `health-badge ${healthStateClass(smartOk, smart.overall !== "failed")}`;
+  }
+  const smartList = document.getElementById("health-smart-list");
+  if (smartList) {
+    smartList.innerHTML = "";
+    const drives = Array.isArray(smart.drives) ? smart.drives : [];
+    if (!drives.length) {
+      smartList.innerHTML = '<div class="health-empty">Keine SMART-Daten verfügbar.</div>';
+    } else {
+      drives.forEach(drive => {
+        const row = document.createElement("div");
+        row.className = "health-list-row";
+        row.innerHTML = "<span class='health-dot-mini'></span><div><strong></strong><small></small></div><em></em>";
+        row.querySelector("strong").textContent = drive.model || drive.device;
+        row.querySelector("small").textContent = `${drive.device}${drive.serial ? ` · ${drive.serial}` : ""}`;
+        row.querySelector("em").textContent = Number.isFinite(drive.temperature_c) ? `${drive.temperature_c} °C` : drive.health;
+        row.querySelector(".health-dot-mini").classList.add(drive.health === "passed" ? "ok" : drive.health === "failed" ? "bad" : "warn");
+        smartList.appendChild(row);
+      });
+    }
+  }
+
+  const serviceList = document.getElementById("health-service-list");
+  const services = Array.isArray(current.services) ? current.services : [];
+  const docker = current.docker || {};
+  const serviceOk = services.every(item => item.ok) && (!docker.available || docker.running === docker.total);
+  const serviceBadge = document.getElementById("health-services-badge");
+  if (serviceBadge) {
+    serviceBadge.textContent = serviceOk ? "ONLINE" : "PRÜFEN";
+    serviceBadge.className = `health-badge ${serviceOk ? "ok" : "warn"}`;
+  }
+  if (serviceList) {
+    serviceList.innerHTML = "";
+    const dockerRow = document.createElement("div");
+    dockerRow.className = "health-list-row";
+    dockerRow.innerHTML = "<span class='health-dot-mini'></span><div><strong>Docker Container</strong><small></small></div><em></em>";
+    dockerRow.querySelector("small").textContent = `${docker.running || 0} von ${docker.total || 0} N2K-Containern`;
+    dockerRow.querySelector("em").textContent = docker.available ? "Docker" : "nicht verfügbar";
+    dockerRow.querySelector(".health-dot-mini").classList.add(docker.available && docker.running === docker.total ? "ok" : "warn");
+    serviceList.appendChild(dockerRow);
+    services.forEach(service => {
+      const row = document.createElement("div");
+      row.className = "health-list-row";
+      row.innerHTML = "<span class='health-dot-mini'></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector("strong").textContent = service.unit.replace(".service","");
+      row.querySelector("small").textContent = "systemd Dienst";
+      row.querySelector("em").textContent = service.state || "unknown";
+      row.querySelector(".health-dot-mini").classList.add(service.ok ? "ok" : "warn");
+      serviceList.appendChild(row);
+    });
+  }
+
+  const workloadList = document.getElementById("health-workload-list");
+  const ha = current.homeassistant || {};
+  const backup = current.backup;
+  const workloadOk = (!ha.installed || (ha.state === "running" && ha.reachable)) && Boolean(backup);
+  const workloadBadge = document.getElementById("health-workload-badge");
+  if (workloadBadge) {
+    workloadBadge.textContent = workloadOk ? "OK" : "PRÜFEN";
+    workloadBadge.className = `health-badge ${workloadOk ? "ok" : "warn"}`;
+  }
+  if (workloadList) {
+    workloadList.innerHTML = "";
+    const rows = [
+      {
+        title:"Home Assistant OS",
+        detail:ha.installed ? `${ha.state || "unknown"} · ${ha.reachable ? "erreichbar" : "nicht erreichbar"}` : "nicht installiert",
+        meta:ha.reachable ? "ONLINE" : "PRÜFEN",
+        ok:!ha.installed || (ha.state === "running" && ha.reachable)
+      },
+      {
+        title:"Letztes N2K Backup",
+        detail:backup?.created_at ? formatDateTime(backup.created_at) : "Kein Backup vorhanden",
+        meta:backup?.size_bytes ? formatBytes(backup.size_bytes) : "–",
+        ok:Boolean(backup)
+      },
+      {
+        title:"Systemupdate",
+        detail:current.update?.update_available ? "Neuer Stand verfügbar" : "Installierter Stand aktuell",
+        meta:current.update?.update_available ? "UPDATE" : "OK",
+        ok:!current.update?.update_available
+      }
+    ];
+    rows.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "health-list-row";
+      row.innerHTML = "<span class='health-dot-mini'></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector("strong").textContent = item.title;
+      row.querySelector("small").textContent = item.detail;
+      row.querySelector("em").textContent = item.meta;
+      row.querySelector(".health-dot-mini").classList.add(item.ok ? "ok" : "warn");
+      workloadList.appendChild(row);
+    });
+  }
+
+  const warnings = Array.isArray(current.warnings) ? current.warnings : [];
+  setHealthText("health-alert-count", String(warnings.length));
+  const alertList = document.getElementById("health-alert-list");
+  if (alertList) {
+    alertList.innerHTML = "";
+    if (!warnings.length) {
+      alertList.innerHTML = '<div class="health-empty health-all-good">✓ Keine kritischen Systemhinweise.</div>';
+    } else {
+      warnings.forEach(item => {
+        const row = document.createElement("div");
+        row.className = `health-alert-row ${item.level || "warning"}`;
+        row.innerHTML = "<span></span><div><strong></strong><small></small></div>";
+        row.querySelector("span").textContent = item.level === "critical" ? "!" : "•";
+        row.querySelector("strong").textContent = item.title || "Systemhinweis";
+        row.querySelector("small").textContent = item.detail || "";
+        alertList.appendChild(row);
+      });
+    }
+  }
+
+  healthHistory = Array.isArray(data.history) ? data.history : [];
+  setHealthText("health-history-points", `${healthHistory.length} Messpunkte`);
+  setHealthText("health-history-range", data.period === "7d" ? "7 Tage · 30-Minuten-Mittel" : "24 Stunden · 5-Minuten-Mittel");
+  renderHealthHistoryChart();
+}
+
+async function loadSystemHealth() {
+  if (!document.getElementById("health-panel") || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request(`/api/health?range=${encodeURIComponent(healthRange)}`, {headers:{}});
+    renderHealthStatus(data);
+  } catch (error) {
+    console.error(error);
+    setHealthText("health-overall", "Monitoring nicht erreichbar");
   }
 }
 
@@ -2455,6 +2712,16 @@ document.getElementById("network-device-modal")?.addEventListener("click", event
 document.getElementById("network-device-save")?.addEventListener("click", saveNetworkDevice);
 document.getElementById("network-device-analyze")?.addEventListener("click", analyzeNetworkDevice);
 
+document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
+document.querySelectorAll("[data-health-range]").forEach(button => button.addEventListener("click", () => {
+  healthRange = button.dataset.healthRange || "24h";
+  document.querySelectorAll("[data-health-range]").forEach(item => item.classList.toggle("active", item === button));
+  loadSystemHealth();
+}));
+window.addEventListener("resize", () => {
+  if (activeView === "health-panel") renderHealthHistoryChart();
+});
+
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
   loadOverview();
@@ -2726,6 +2993,7 @@ const viewGroups = {
   "workspace-panel": ["workspace-panel", "drive-management-panel"],
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
+  "health-panel": ["health-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -2738,7 +3006,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["vms-panel","storage-panel","backups-panel","network-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -3388,6 +3656,7 @@ setInterval(loadTorBrowserStatus, 30000);
 setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
+setInterval(loadSystemHealth, 60000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
