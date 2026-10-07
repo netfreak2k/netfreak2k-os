@@ -3088,3 +3088,19 @@ body::after{
   .release-readiness-summary{grid-template-columns:1fr}
   .release-readiness-grid{grid-template-columns:1fr}
 }
+
+
+.release-manual-row{
+  grid-template-columns:24px minmax(0,1fr) auto
+}
+.release-manual-copy{min-width:0}
+.release-manual-copy em{
+  display:block;margin-top:3px;font-size:6px;font-style:normal;color:#68747e
+}
+.release-gate-toggle{
+  align-self:center;white-space:nowrap
+}
+@media(max-width:620px){
+  .release-manual-row{grid-template-columns:24px minmax(0,1fr)}
+  .release-gate-toggle{grid-column:2;justify-self:start;margin-top:3px}
+}
