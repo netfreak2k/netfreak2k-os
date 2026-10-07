@@ -1,3 +1,4 @@
+# Release hardening validation
 name: Validate
 
 on:
