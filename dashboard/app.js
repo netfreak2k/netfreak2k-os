@@ -514,6 +514,73 @@ async function revokeSecuritySession(id) {
 }
 
 
+function renderRemoteConnectivity(data = {}) {
+  setHealthText("remote-public-ip", data.public_ip || "Nicht erkannt");
+  setHealthText("remote-public-ip-note", data.public_ip ? "Öffentliche IPv4 vom Host aus erkannt" : "WAN-IP konnte nicht ermittelt werden");
+
+  setHealthText("remote-dns-match", data.domain
+    ? (data.dns_matches_public_ip ? "PASST" : "ABWEICHUNG")
+    : "NICHT AKTIV");
+  setHealthText("remote-dns-values",
+    data.domain
+      ? `DNS: ${(data.dns_addresses || []).join(", ") || "–"} · WAN: ${data.public_ip || "–"}`
+      : "Kein Domain-Modus konfiguriert");
+
+  const listeners = data.listeners || {};
+  setHealthText("remote-port-state", listeners.http && listeners.https ? "80 + 443 AKTIV" :
+    listeners.https ? "443 AKTIV" : "PRÜFEN");
+  setHealthText("remote-port-detail",
+    `HTTP ${listeners.http ? "✓" : "–"} · HTTPS ${listeners.https ? "✓" : "–"}`);
+
+  const probe = data.self_probe || {};
+  setHealthText("remote-selftest-state",
+    probe.attempted ? (probe.ok ? "ERREICHBAR" : "FEHLER") : "NICHT AKTIV");
+  setHealthText("remote-selftest-detail", probe.detail || "–");
+
+  const list = document.getElementById("remote-connectivity-checks");
+  if (list) {
+    list.innerHTML = "";
+    const checks = Array.isArray(data.checks) ? data.checks : [];
+    checks.forEach(check => {
+      const row = document.createElement("div");
+      row.className = "remote-connectivity-row";
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector("span").className = "remote-connectivity-dot " + (check.ok ? "ok" : "bad");
+      row.querySelector("strong").textContent = check.label || check.id || "Prüfung";
+      row.querySelector("small").textContent = check.detail || "–";
+      row.querySelector("em").textContent = check.ok ? "OK" : "PRÜFEN";
+      list.appendChild(row);
+    });
+    if (!checks.length) list.innerHTML = '<div class="app-empty">Keine Connectivity-Prüfungen verfügbar.</div>';
+  }
+
+  const outside = document.getElementById("remote-outside-note");
+  if (outside) {
+    outside.textContent = data.outside_in_verified
+      ? "Outside-In-Prüfung bestätigt externe Erreichbarkeit."
+      : (data.outside_in_note || "Echter externer Zugriff wurde nicht aus einem fremden Netz geprüft.");
+    outside.classList.toggle("verified", Boolean(data.outside_in_verified));
+  }
+
+  const badge = document.getElementById("remote-access-badge");
+  if (badge && data.mode === "domain") {
+    badge.textContent = data.domain_ready ? "DOMAIN BEREIT" : data.local_ready ? "LOKAL BEREIT" : "PRÜFEN";
+    badge.className = "security-badge " + (data.domain_ready ? "ok" : data.local_ready ? "warn" : "bad");
+  }
+}
+
+async function loadRemoteConnectivity() {
+  if (!document.getElementById("remote-connectivity-checks")) return;
+  try {
+    const data = await request("/api/remote-access/connectivity", {headers:{}});
+    renderRemoteConnectivity(data);
+  } catch (error) {
+    console.error(error);
+    const list = document.getElementById("remote-connectivity-checks");
+    if (list) list.innerHTML = '<div class="app-empty">Connectivity-Diagnose nicht erreichbar.</div>';
+  }
+}
+
 async function loadRemoteAccess() {
   const card = document.getElementById("remote-access-card");
   if (!card || document.getElementById("app-shell")?.classList.contains("hidden")) return;
@@ -553,6 +620,7 @@ async function loadRemoteAccess() {
     if (emailInput) emailInput.value = data.email || "";
     document.getElementById("remote-domain-config")?.classList.toggle("hidden", data.mode !== "domain");
     document.getElementById("remote-admin-config")?.classList.toggle("hidden", currentRole !== "admin");
+    await loadRemoteConnectivity();
   } catch (error) {
     console.error(error);
     const badge = document.getElementById("remote-access-badge");
