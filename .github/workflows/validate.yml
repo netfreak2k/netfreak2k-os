@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Virtualization 2.0 sanity
+        run: |
+          grep -q 'vm-kpi-grid' dashboard/index.html
+          grep -q 'createVmSnapshot' dashboard/app.js
+          grep -q '/vms/action' server/api/server.py
+          grep -q '/vms/snapshot' server/api/server.py
+          grep -q 'vm_details' host/vm-agent.py
+          grep -q 'vm_snapshot_create' host/vm-agent.py
+          grep -q 'vm-card-v2' dashboard/styles.css
+
       - name: Network 2.0 sanity
         run: |
           grep -q 'network-device-wake' dashboard/index.html
