@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -1681,6 +1681,166 @@ def docker_health_payload():
     }
 
 
+SCHEDULER_STATE_FILE = Path("/var/lib/netfreak2k/scheduler-state.json")
+
+
+def scheduler_state_payload():
+    try:
+        data = json.loads(SCHEDULER_STATE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_scheduler_state(data):
+    SCHEDULER_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = SCHEDULER_STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, SCHEDULER_STATE_FILE)
+
+
+def systemd_timer_inventory():
+    if not shutil.which("systemctl"):
+        return []
+    units = run("systemctl", "list-units", "--type=timer", "--all", "--no-legend", "--plain", "--no-pager", timeout=10)
+    if units.returncode != 0:
+        return []
+    names = []
+    for line in units.stdout.splitlines():
+        parts = line.split()
+        if parts and parts[0].endswith(".timer") and parts[0] not in names:
+            names.append(parts[0])
+
+    timers = []
+    for name in names[:80]:
+        result = run(
+            "systemctl", "show", name,
+            "--property=Id,Description,ActiveState,SubState,Unit,NextElapseUSecRealtime,LastTriggerUSec",
+            "--no-pager",
+            timeout=5,
+        )
+        props = {}
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    props[key] = value.strip()
+        enabled = run("systemctl", "is-enabled", name, timeout=4)
+        timers.append({
+            "unit": name,
+            "description": props.get("Description") or name,
+            "active_state": props.get("ActiveState") or "unknown",
+            "sub_state": props.get("SubState") or "unknown",
+            "activates": props.get("Unit") or "",
+            "next": props.get("NextElapseUSecRealtime") or "",
+            "last": props.get("LastTriggerUSec") or "",
+            "enabled": enabled.returncode == 0,
+        })
+    timers.sort(key=lambda item: (item.get("active_state") != "active", item.get("unit", "")))
+    return timers
+
+
+def scheduler_managed_jobs():
+    state = scheduler_state_payload()
+    backup_policy = backup_policy_payload()
+    return [
+        {
+            "id": "backup-schedule",
+            "label": "Backup-Plan prüfen",
+            "description": "Prüft, ob das geplante N2K-Backup fällig ist und erstellt es gegebenenfalls.",
+            "role": "admin",
+            "target": "backups-panel",
+            "schedule": (
+                f"{backup_policy.get('frequency','daily')} · {int(backup_policy.get('hour') or 0):02d}:00"
+                if backup_policy.get("enabled") else "deaktiviert"
+            ),
+            **(state.get("backup-schedule") or {}),
+        },
+        {
+            "id": "update-check",
+            "label": "Update-Prüfung",
+            "description": "Prüft den konfigurierten Netfreak2k-Upstream auf einen neuen Stand.",
+            "role": "operator",
+            "target": "updates-panel",
+            "schedule": "automatische Prüfung + manuell",
+            **(state.get("update-check") or {}),
+        },
+        {
+            "id": "network-scan",
+            "label": "LAN-Gerätescan",
+            "description": "Aktualisiert das bekannte Geräteinventar im Heimnetz.",
+            "role": "operator",
+            "target": "network-panel",
+            "schedule": "manuell / Dashboard",
+            **(state.get("network-scan") or {}),
+        },
+        {
+            "id": "health-check",
+            "label": "System Health Check",
+            "description": "Prüft Temperatur, Speicher, SMART, Dienste und Workloads.",
+            "role": "operator",
+            "target": "health-panel",
+            "schedule": "Dashboard · 60 Sekunden",
+            **(state.get("health-check") or {}),
+        },
+    ]
+
+
+def scheduler_status_payload():
+    timers = systemd_timer_inventory()
+    jobs = scheduler_managed_jobs()
+    return {
+        "sampled_at": int(time.time()),
+        "timers": timers,
+        "jobs": jobs,
+        "summary": {
+            "system_timers": len(timers),
+            "active_timers": sum(1 for item in timers if item.get("active_state") == "active"),
+            "enabled_timers": sum(1 for item in timers if item.get("enabled")),
+            "managed_jobs": len(jobs),
+            "failed_jobs": sum(1 for item in jobs if item.get("last_ok") is False),
+        },
+    }
+
+
+def scheduler_run(job_id):
+    job_id = str(job_id or "").strip()
+    started = int(time.time())
+    state = scheduler_state_payload()
+    try:
+        if job_id == "backup-schedule":
+            result = backup_scheduled_tick()
+            detail = "Backup erstellt" if result.get("created") else "Kein Backup fällig"
+        elif job_id == "update-check":
+            result = check_updates_now()
+            detail = "Update-Prüfung abgeschlossen"
+        elif job_id == "network-scan":
+            result = network_scan_payload()
+            detail = f"{(result.get('summary') or {}).get('online', 0)} Geräte online"
+        elif job_id == "health-check":
+            result = health_status_payload()
+            detail = f"Health Score {result.get('score', '–')}"
+        else:
+            raise RuntimeError("unknown_scheduler_job")
+        state[job_id] = {
+            "last_run": started,
+            "last_finished": int(time.time()),
+            "last_ok": True,
+            "last_detail": detail[:240],
+        }
+        write_scheduler_state(state)
+        return {"job_id": job_id, "ok": True, "detail": detail, "result": result}
+    except Exception as exc:
+        state[job_id] = {
+            "last_run": started,
+            "last_finished": int(time.time()),
+            "last_ok": False,
+            "last_detail": str(exc)[:240],
+        }
+        write_scheduler_state(state)
+        raise
+
+
 def security_listening_sockets():
     if not shutil.which("ss"):
         return []
@@ -3130,6 +3290,12 @@ def execute(action, request):
 
     if action == "service_action":
         return managed_service_action(request.get("unit"), request.get("operation"))
+
+    if action == "scheduler_status":
+        return scheduler_status_payload()
+
+    if action == "scheduler_run":
+        return scheduler_run(request.get("job_id"))
 
     if action == "security_status":
         return security_status_payload()
