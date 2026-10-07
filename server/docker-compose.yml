@@ -35,8 +35,11 @@ services:
       N2K_AGENT_TOKEN_FILE: "/host/netfreak2k/agent.token"
       N2K_UPDATE_FILE: "/host/netfreak2k/update-status.json"
       N2K_WORKSPACE_ROOT: "/workspace"
+      N2K_SYS_ROOT: "/host/sys"
     volumes:
       - /proc:/host/proc:ro
+      - /sys/class/sound:/host/sys/class/sound:ro
+      - /sys/class/bluetooth:/host/sys/class/bluetooth:ro
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/hostname:/host/etc/hostname:ro
       - /run/netfreak2k:/run/netfreak2k
