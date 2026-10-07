@@ -3256,21 +3256,13 @@ function renderMediaServiceDirectory() {
   const list = document.getElementById("media-service-directory-list");
   if (!list) return;
   list.innerHTML = "";
-  let currentCategory = "";
   for (const service of [...N2K_GERMANY_MEDIA_SERVICES].sort((a,b) => a.rank - b.rank)) {
-    if (service.category !== currentCategory) {
-      currentCategory = service.category;
-      const heading = document.createElement("div");
-      heading.className = "media-directory-category";
-      heading.textContent = currentCategory;
-      list.appendChild(heading);
-    }
     const button = document.createElement("button");
     button.className = "media-directory-service";
     button.innerHTML = '<span class="media-directory-rank"></span><div><strong></strong><small></small></div><em>↗</em>';
     button.querySelector(".media-directory-rank").textContent = String(service.rank).padStart(2, "0");
     button.querySelector("strong").textContent = service.name;
-    button.querySelector("small").textContent = service.detail;
+    button.querySelector("small").textContent = `${service.category} · ${service.detail}`;
     button.addEventListener("click", () => window.open(service.url, "n2k-media-streaming", "noopener,noreferrer"));
     list.appendChild(button);
   }
