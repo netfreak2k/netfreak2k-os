@@ -380,6 +380,40 @@ def parse_cpu_percent():
     return round((busy / total_delta) * 100, 1)
 
 
+def cpu_topology():
+    logical = 0
+    raw_stat = read_text(HOST_PROC / "stat")
+    for line in raw_stat.splitlines():
+        if re.match(r"^cpu\d+\s", line):
+            logical += 1
+
+    model = ""
+    physical_pairs = set()
+    physical_id = None
+    core_id = None
+    raw_info = read_text(HOST_PROC / "cpuinfo")
+    for block in raw_info.split("\n\n"):
+        values = {}
+        for line in block.splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            values[key.strip().lower()] = value.strip()
+        if not model:
+            model = values.get("model name") or values.get("hardware") or values.get("processor") or ""
+        physical_id = values.get("physical id")
+        core_id = values.get("core id")
+        if physical_id is not None and core_id is not None:
+            physical_pairs.add((physical_id, core_id))
+
+    physical = len(physical_pairs) if physical_pairs else logical
+    return {
+        "logical_cores": logical or None,
+        "physical_cores": physical or None,
+        "model": model[:160],
+    }
+
+
 def parse_default_gateway():
     raw = read_text(HOST_PROC / "net/route")
     for line in raw.splitlines()[1:]:
@@ -1749,6 +1783,7 @@ def overview_payload(username):
     healthy = not any(item["level"] in {"warning", "critical"} for item in warnings)
     return {
         "cpu_percent": parse_cpu_percent(),
+        "cpu": cpu_topology(),
         "memory": memory,
         "network": network,
         "storage": host_storage,
@@ -1861,6 +1896,7 @@ def status_payload():
             "memory": parse_meminfo(),
             "load": parse_load(),
             "cpu_percent": parse_cpu_percent(),
+            "cpu": cpu_topology(),
             "network": network_details(),
         },
     }
