@@ -159,6 +159,21 @@ def run_audio_user(*args, timeout=12):
     return result
 
 
+def classify_audio_sink(name):
+    text = str(name or "").lower()
+    if any(token in text for token in ("raop", "airplay", "airport", "homepod")):
+        return "airplay"
+    if any(token in text for token in ("dlna", "upnp", "chromecast", "cast")):
+        return "dlna"
+    if any(token in text for token in ("bluez", "bluetooth")):
+        return "bluetooth"
+    if "hdmi" in text:
+        return "hdmi"
+    if any(token in text for token in ("usb", "dac", "fiio", "scarlett", "focusrite")):
+        return "usb"
+    return "local"
+
+
 def pipewire_sinks():
     result = run_audio_user("wpctl", "status", "--name", timeout=8)
     if result.returncode != 0:
@@ -179,9 +194,11 @@ def pipewire_sinks():
         match = re.search(r"([*]?)\s*(\d+)\.\s+(.+?)(?:\s+\[vol:.*)?$", stripped)
         if not match:
             continue
+        sink_name = match.group(3).strip()
         sinks.append({
             "id": match.group(2),
-            "name": match.group(3).strip(),
+            "name": sink_name,
+            "kind": classify_audio_sink(sink_name),
             "default": match.group(1) == "*",
             "backend": "PipeWire",
         })
@@ -222,6 +239,8 @@ def audio_status_payload():
             sinks = pipewire_sinks()
         except Exception as exc:
             pipewire_error = str(exc)
+    airplay_sinks = [sink for sink in sinks if sink.get("kind") == "airplay"]
+    dlna_sinks = [sink for sink in sinks if sink.get("kind") == "dlna"]
     return {
         "pipewire": {
             "available": pipewire_available and pipewire_error is None,
@@ -235,12 +254,20 @@ def audio_status_payload():
             "devices": bluetooth_devices() if shutil.which("bluetoothctl") else [],
         },
         "airplay": {
-            "available": shutil.which("raop-discover") is not None,
-            "note": "PipeWire RAOP discovery" if shutil.which("raop-discover") else "RAOP discovery service not installed",
+            "available": bool(airplay_sinks),
+            "sinks": airplay_sinks,
+            "discovery_helper": shutil.which("avahi-browse") is not None,
+            "note": "AirPlay/RAOP-Ausgang in PipeWire verfügbar" if airplay_sinks else "Kein AirPlay/RAOP-Ausgang in PipeWire gefunden",
         },
         "dlna": {
-            "available": shutil.which("gmediarender") is not None or shutil.which("upmpdcli") is not None,
-            "note": "DLNA helper detected" if (shutil.which("gmediarender") or shutil.which("upmpdcli")) else "DLNA helper not installed",
+            "available": bool(dlna_sinks),
+            "sinks": dlna_sinks,
+            "helper": shutil.which("gmediarender") or shutil.which("upmpdcli"),
+            "note": "DLNA/UPnP-Ausgang verfügbar" if dlna_sinks else "Kein DLNA/UPnP-Ausgang in PipeWire gefunden",
+        },
+        "multiroom": {
+            "available": len([sink for sink in sinks if sink.get("kind") in {"airplay", "dlna", "bluetooth"}]) >= 2,
+            "network_sinks": [sink for sink in sinks if sink.get("kind") in {"airplay", "dlna"}],
         },
     }
 
