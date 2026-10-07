@@ -21,7 +21,7 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
@@ -550,6 +550,142 @@ def check_updates_now():
         return json.loads(status_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {"ok": False, "note": "update_status_unavailable"}
+
+
+def update_preflight_payload():
+    checks = []
+    update_target = UPDATE_COMMAND if Path(UPDATE_COMMAND).is_file() else UPDATE_SCRIPT
+    target_ok = Path(update_target).is_file()
+    checks.append({
+        "id": "update_script",
+        "label": "Update-Engine",
+        "ok": target_ok,
+        "required": True,
+        "detail": update_target if target_ok else "Update-Skript fehlt",
+    })
+
+    systemd_ok = bool(shutil.which("systemd-run"))
+    checks.append({
+        "id": "systemd",
+        "label": "Systemd Runner",
+        "ok": systemd_ok,
+        "required": True,
+        "detail": "systemd-run verfügbar" if systemd_ok else "systemd-run fehlt",
+    })
+
+    usage = shutil.disk_usage("/")
+    min_free = 2 * 1024 * 1024 * 1024
+    checks.append({
+        "id": "disk",
+        "label": "Freier Speicher",
+        "ok": usage.free >= min_free,
+        "required": True,
+        "detail": f"{round(usage.free / (1024 ** 3), 1)} GiB frei · mindestens 2 GiB erforderlich",
+        "free_bytes": usage.free,
+    })
+
+    docker = run("docker", "info", "--format", "{{.ServerVersion}}", timeout=8) if shutil.which("docker") else None
+    docker_ok = bool(docker and docker.returncode == 0)
+    checks.append({
+        "id": "docker",
+        "label": "Docker Engine",
+        "ok": docker_ok,
+        "required": True,
+        "detail": f"Docker {docker.stdout.strip()}" if docker_ok else "Docker nicht erreichbar",
+    })
+
+    backup_ok = True
+    backup_detail = "Backup-Ziel beschreibbar"
+    try:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        probe = BACKUP_DIR / ".update-preflight"
+        probe.write_text(str(int(time.time())), encoding="utf-8")
+        probe.unlink(missing_ok=True)
+    except OSError:
+        backup_ok = False
+        backup_detail = "Backup-Ziel nicht beschreibbar"
+    checks.append({
+        "id": "backup_target",
+        "label": "Backup-Ziel",
+        "ok": backup_ok,
+        "required": True,
+        "detail": backup_detail,
+    })
+
+    running = run("systemctl", "is-active", "netfreak2k-web-update.service", timeout=5)
+    update_running = running.returncode == 0 and running.stdout.strip() in {"active", "activating"}
+    checks.append({
+        "id": "update_idle",
+        "label": "Update-Status",
+        "ok": not update_running,
+        "required": True,
+        "detail": "Kein Update aktiv" if not update_running else "Ein Update läuft bereits",
+    })
+
+    backups = backup_list_payload().get("backups") or []
+    latest = backups[0] if backups else None
+    recent = False
+    if latest and isinstance(latest.get("created_at"), (int, float)):
+        recent = int(time.time()) - int(latest["created_at"]) <= 3 * 86400
+    checks.append({
+        "id": "recent_backup",
+        "label": "Vorhandenes Backup",
+        "ok": recent,
+        "required": False,
+        "detail": "Aktuelles Backup vorhanden" if recent else "Kein Backup der letzten 3 Tage · vor dem Update wird automatisch eines erstellt",
+    })
+
+    vm_state_result = run("virsh", "--connect", "qemu:///system", "domstate", VM_NAME, timeout=6) if shutil.which("virsh") else None
+    ha_running = bool(vm_state_result and vm_state_result.returncode == 0 and vm_state_result.stdout.strip().lower() == "running")
+    checks.append({
+        "id": "workloads",
+        "label": "Workloads",
+        "ok": True,
+        "required": False,
+        "detail": "Home Assistant läuft · kurze Unterbrechung möglich" if ha_running else "Keine laufende HA-VM erkannt",
+    })
+
+    ready = all(item["ok"] for item in checks if item.get("required"))
+    return {
+        "ready": ready,
+        "checked_at": int(time.time()),
+        "checks": checks,
+        "required_ok": sum(1 for item in checks if item.get("required") and item.get("ok")),
+        "required_total": sum(1 for item in checks if item.get("required")),
+        "automatic_backup": True,
+        "backup_verification_required": True,
+    }
+
+
+def safe_trigger_update():
+    preflight = update_preflight_payload()
+    if not preflight.get("ready"):
+        failed = [item.get("id") for item in preflight.get("checks", []) if item.get("required") and not item.get("ok")]
+        raise RuntimeError("update_preflight_failed:" + ",".join(failed))
+
+    backup = backup_create(reason="update")
+    backup_item = backup.get("backup") or {}
+    backup_id = str(backup_item.get("id") or "")
+    if not BACKUP_ID_RE.fullmatch(backup_id):
+        raise RuntimeError("update_backup_missing")
+
+    verification = backup_verify(backup_id)
+    if not verification.get("ok"):
+        raise RuntimeError("update_backup_verification_failed")
+
+    started = trigger_update()
+    return {
+        "accepted": bool(started.get("accepted")),
+        "already_running": bool(started.get("already_running")),
+        "preflight": preflight,
+        "backup": {
+            "id": backup_id,
+            "created_at": backup_item.get("created_at"),
+            "size_bytes": backup_item.get("size_bytes"),
+            "verified": True,
+            "replicated": bool(backup_item.get("replicated")),
+        },
+    }
 
 
 def trigger_update():
@@ -2387,7 +2523,7 @@ def backup_create(reason="manual"):
         "created_at": int(time.time()),
         "apps": apps,
         "includes": ["netfreak2k-admin-db", "managed-app-data", "server-env"],
-        "reason": "scheduled" if reason == "scheduled" else "manual",
+        "reason": reason if reason in {"scheduled", "manual", "update"} else "manual",
         "target": policy.get("target", "local"),
         "verified": None,
         "verified_at": None,
@@ -2600,6 +2736,12 @@ def execute(action, request):
 
     if action == "update_netfreak2k":
         return trigger_update()
+
+    if action == "update_preflight":
+        return update_preflight_payload()
+
+    if action == "update_safe_netfreak2k":
+        return safe_trigger_update()
 
     if action == "check_updates":
         return check_updates_now()
