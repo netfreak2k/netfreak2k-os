@@ -1765,6 +1765,7 @@ function renderBackupArchive(backups = []) {
       </div>
       <div class="backup-row-actions">
         <button class="secondary compact backup-verify-btn">Prüfen</button>
+        <button class="secondary compact backup-test-btn">Restore-Test</button>
         <button class="secondary compact backup-restore-btn">Wiederherstellen</button>
       </div>`;
     row.querySelector(".backup-row-title strong").textContent = backup.id;
@@ -1779,7 +1780,8 @@ function renderBackupArchive(backups = []) {
     const tagValues = [
       backup.reason === "scheduled" ? "Automatisch" : "Manuell",
       backup.replicated ? "Externe Kopie" : "Lokal",
-      backup.verified_at ? "Prüfung " + formatDateTime(backup.verified_at) : ""
+      backup.verified_at ? "Prüfung " + formatDateTime(backup.verified_at) : "",
+      backup.restore_ready === true ? "Restore-Test OK" : backup.restore_ready === false ? "Restore-Test Fehler" : ""
     ].filter(Boolean);
     tagValues.forEach(value => {
       const tag = document.createElement("span");
@@ -1788,6 +1790,7 @@ function renderBackupArchive(backups = []) {
     });
 
     row.querySelector(".backup-verify-btn").addEventListener("click", () => verifyBackup(backup.id));
+    row.querySelector(".backup-test-btn").addEventListener("click", () => testRestoreBackup(backup.id));
     row.querySelector(".backup-restore-btn").addEventListener("click", () => restoreBackup(backup.id));
     list.appendChild(row);
   }
@@ -1852,6 +1855,29 @@ async function verifyBackup(backupId) {
   } catch (error) {
     console.error(error);
     showN2KToast("Backup konnte nicht verifiziert werden.", "error");
+  } finally {
+    buttons.forEach(button => button.disabled = false);
+  }
+}
+
+async function testRestoreBackup(backupId) {
+  const buttons = document.querySelectorAll(".backup-test-btn");
+  buttons.forEach(button => button.disabled = true);
+  try {
+    const result = await request("/api/backups/test-restore", {
+      method: "POST",
+      body: JSON.stringify({backup_id: backupId}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    const failed = Array.isArray(result.checks) ? result.checks.filter(item => !item.ok) : [];
+    showN2KToast(
+      result.ok ? "Restore-Test erfolgreich: Backup ist wiederherstellbar." : "Restore-Test meldet " + failed.length + " Problem(e).",
+      result.ok ? "success" : "error"
+    );
+    await loadBackups();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Restore-Test konnte nicht abgeschlossen werden.", "error");
   } finally {
     buttons.forEach(button => button.disabled = false);
   }
