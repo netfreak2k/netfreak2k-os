@@ -3149,14 +3149,22 @@ function renderMediaStations() {
 
 function normalizeFavoriteStation(station) {
   if (!station || !station.id || !station.url) return null;
+  const source = station.source === "local" ? "local" : "radio";
   return {
     id: String(station.id),
-    country: String(station.country || ""),
-    name: String(station.name || "Radiosender"),
-    genre: String(station.genre || "Radio"),
+    source,
+    country: String(station.country || (source === "local" ? "N2K AUDIO" : "")),
+    name: String(station.name || station.title || (source === "local" ? "Lokaler Titel" : "Radiosender")),
+    title: String(station.title || station.name || ""),
+    artist: String(station.artist || ""),
+    album: String(station.album || ""),
+    genre: String(station.genre || (source === "local" ? "Lokale Musik" : "Radio")),
     bitrate: String(station.bitrate || ""),
     url: String(station.url),
-    favicon: String(station.favicon || "")
+    favicon: String(station.favicon || ""),
+    artwork_url: String(station.artwork_url || ""),
+    path: String(station.path || ""),
+    duration_seconds: Number.isFinite(Number(station.duration_seconds)) ? Number(station.duration_seconds) : null
   };
 }
 
@@ -3174,7 +3182,7 @@ function getMediaFavoriteStations() {
   } catch (_) {}
 
   if (legacyIds.length) {
-    const known = [...mediaStations, ...N2K_RADIO_STATIONS];
+    const known = [...mediaStations, ...N2K_RADIO_STATIONS, ...mediaLocalTracks];
     for (const id of legacyIds) {
       if (saved.some(item => item.id === id)) continue;
       const station = known.find(item => String(item.id) === id);
@@ -3199,28 +3207,26 @@ function saveMediaFavoriteStations(stations) {
 function toggleMediaFavorite(stationOrId) {
   const station = typeof stationOrId === "object"
     ? stationOrId
-    : mediaStations.find(item => String(item.id) === String(stationOrId)) ||
-      N2K_RADIO_STATIONS.find(item => String(item.id) === String(stationOrId));
+    : [...mediaStations, ...N2K_RADIO_STATIONS, ...mediaLocalTracks]
+      .find(item => String(item.id) === String(stationOrId));
   if (!station) return;
   const favorites = getMediaFavoriteStations();
   const existing = favorites.findIndex(item => item.id === String(station.id));
-  if (existing >= 0) favorites.splice(existing, 1);
-  else favorites.push(station);
+  const adding = existing < 0;
+  if (adding) favorites.push(station);
+  else favorites.splice(existing, 1);
   saveMediaFavoriteStations(favorites);
   updateMediaFavoriteButton();
   renderMediaFavorites();
+  renderMediaLibrary();
+  showN2KToast(adding ? "Zu Meine Medien hinzugefügt." : "Aus Meine Medien entfernt.", adding ? "success" : "info");
 }
 
 function updateMediaFavoriteButton() {
   const button = document.getElementById("media-favorite");
   const station = mediaCurrentStation();
   if (!button) return;
-  if (station?.source === "local") {
-    button.textContent = "–";
-    button.disabled = true;
-    return;
-  }
-  button.disabled = false;
+  button.disabled = !station;
   if (!station) {
     button.textContent = "♡";
     return;
@@ -3230,12 +3236,25 @@ function updateMediaFavoriteButton() {
 }
 
 function playFavoriteStation(station) {
+  if (station.source === "local") {
+    const index = mediaLocalTracks.findIndex(item => String(item.id) === String(station.id));
+    if (index >= 0) {
+      playLocalTrack(index);
+      return;
+    }
+    showN2KToast("Die lokale Datei ist nicht mehr im Audio-Ordner vorhanden.", "error");
+    return;
+  }
   let index = mediaStations.findIndex(item => String(item.id) === String(station.id));
   if (index < 0) {
     mediaStations = [...mediaStations, station];
     index = mediaStations.length - 1;
   }
   playMediaStation(index);
+}
+
+function favoriteArtwork(station) {
+  return station.source === "local" ? station.artwork_url : station.favicon;
 }
 
 function renderMediaFavorites() {
@@ -3251,13 +3270,16 @@ function renderMediaFavorites() {
       const row = document.createElement("div");
       row.className = "media-favorite-row";
       row.innerHTML = '<span class="media-station-logo">♪</span><div><strong></strong><small></small></div><button class="media-favorite-remove" title="Favorit entfernen">♥</button><button class="media-station-play" title="Abspielen">▶</button>';
-      row.querySelector("strong").textContent = station.name;
-      row.querySelector("small").textContent = [station.country, station.genre].filter(Boolean).join(" · ");
+      row.querySelector("strong").textContent = station.title || station.name;
+      row.querySelector("small").textContent = station.source === "local"
+        ? [station.artist, station.album, "Eigene Musik"].filter(Boolean).join(" · ")
+        : [station.country, station.genre].filter(Boolean).join(" · ");
       const logo = row.querySelector(".media-station-logo");
-      if (station.favicon) {
+      const artwork = favoriteArtwork(station);
+      if (artwork) {
         logo.textContent = "";
         const image = document.createElement("img");
-        image.src = station.favicon;
+        image.src = artwork;
         image.alt = "";
         image.loading = "lazy";
         image.referrerPolicy = "no-referrer";
@@ -3269,7 +3291,7 @@ function renderMediaFavorites() {
       row.addEventListener("dblclick", () => playFavoriteStation(station));
       list.appendChild(row);
     }
-    if (!favorites.length) list.innerHTML = '<div class="media-empty">Noch keine Favoriten gespeichert.</div>';
+    if (!favorites.length) list.innerHTML = '<div class="media-empty">Noch keine Medien-Favoriten gespeichert.</div>';
   }
 
   if (overview) {
@@ -3278,12 +3300,12 @@ function renderMediaFavorites() {
       const button = document.createElement("button");
       button.className = "overview-media-favorite";
       button.innerHTML = "<span>♪</span><strong></strong>";
-      button.querySelector("strong").textContent = station.name;
-      button.title = `${station.name} abspielen`;
+      button.querySelector("strong").textContent = station.title || station.name;
+      button.title = `${station.title || station.name} abspielen`;
       button.addEventListener("click", () => playFavoriteStation(station));
       overview.appendChild(button);
     }
-    if (!favorites.length) overview.innerHTML = '<span class="widget-empty">Noch keine Radio-Favoriten.</span>';
+    if (!favorites.length) overview.innerHTML = '<span class="widget-empty">Noch keine Medien-Favoriten.</span>';
   }
 }
 
