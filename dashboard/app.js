@@ -2723,7 +2723,7 @@ function renderBackupArchive(backups = []) {
 
     const tags = row.querySelector(".backup-row-tags");
     const tagValues = [
-      backup.reason === "scheduled" ? "Automatisch" : "Manuell",
+      backup.reason === "scheduled" ? "Automatisch" : backup.reason === "update" ? "Update-Recovery" : "Manuell",
       backup.replicated ? "Externe Kopie" : "Lokal",
       backup.verified_at ? "Prüfung " + formatDateTime(backup.verified_at) : "",
       backup.restore_ready === true ? "Restore-Test OK" : backup.restore_ready === false ? "Restore-Test Fehler" : ""
