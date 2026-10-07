@@ -2466,28 +2466,153 @@ async function loadStorage() {
   }
 }
 
+function formatVmDisks(disks = []) {
+  return disks.length ? disks.map(disk => {
+    const size = Number.isFinite(Number(disk.size_bytes)) ? ` · ${formatBytes(Number(disk.size_bytes))}` : "";
+    return `${disk.target || "disk"} · ${disk.device || disk.type || "storage"}${size}`;
+  }).join(" · ") : "Keine Datenträgerdaten";
+}
+
+function formatVmNetworks(interfaces = []) {
+  return interfaces.length ? interfaces.map(item => {
+    return [item.source || item.type || "net", item.mac, item.address].filter(Boolean).join(" · ");
+  }).join(" | ") : "Keine Netzwerkschnittstellen";
+}
+
+function renderVmSnapshots(container, vm) {
+  container.innerHTML = "";
+  const snapshots = Array.isArray(vm.snapshots) ? vm.snapshots : [];
+  if (!snapshots.length) {
+    container.innerHTML = '<div class="vm-snapshot-empty">Keine Snapshots vorhanden.</div>';
+    return;
+  }
+  snapshots.slice(0, 8).forEach(snapshot => {
+    const row = document.createElement("div");
+    row.className = "vm-snapshot-row";
+    row.innerHTML = "<strong></strong><span></span><small></small>";
+    row.querySelector("strong").textContent = snapshot.name || "Snapshot";
+    row.querySelector("span").textContent = snapshot.state || "–";
+    row.querySelector("small").textContent = snapshot.created || "Zeit unbekannt";
+    container.appendChild(row);
+  });
+}
+
+async function vmAction(name, operation, button) {
+  if (currentRole === "viewer") return;
+  if (!confirm(`${name}: ${operation} wirklich ausführen?`)) return;
+  const original = button?.textContent || "";
+  if (button) { button.disabled = true; button.textContent = "Bitte warten …"; }
+  try {
+    await request("/api/vms/action", {
+      method:"POST",
+      body:JSON.stringify({name, operation}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast("VM-Aktion ausgeführt.", "success");
+    setTimeout(loadVms, 600);
+  } catch (error) {
+    console.error(error);
+    showN2KToast("VM-Aktion fehlgeschlagen.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
+async function createVmSnapshot(name, button) {
+  if (currentRole !== "admin") return;
+  if (!confirm(`${name}: neuen Snapshot erstellen? Je nach Storage kann das kurz zusätzliche I/O erzeugen.`)) return;
+  const original = button?.textContent || "Snapshot";
+  if (button) { button.disabled = true; button.textContent = "Erstelle …"; }
+  try {
+    await request("/api/vms/snapshot", {
+      method:"POST",
+      body:JSON.stringify({name}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast("VM-Snapshot wurde erstellt.", "success");
+    await loadVms();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Snapshot konnte nicht erstellt werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function loadVms() {
   const list = document.getElementById("vm-list");
   if (!list) return;
   try {
     const data = await request("/api/vms", {headers: {}});
     const vms = Array.isArray(data.vms) ? data.vms : [];
+    const summary = data.summary || {};
+    setHealthText("vm-count-total", String(summary.total ?? vms.length));
+    setHealthText("vm-count-running", String(summary.running ?? vms.filter(vm => vm.state === "running").length));
+    setHealthText("vm-count-autostart", String(summary.autostart ?? vms.filter(vm => vm.autostart).length));
+    setHealthText("vm-count-snapshots", String(summary.snapshots ?? vms.reduce((sum, vm) => sum + (vm.snapshots || []).length, 0)));
+
     list.innerHTML = "";
     for (const vm of vms) {
-      const row = document.createElement("div");
-      row.className = "vm-row";
-      row.innerHTML = `
-        <div class="app-icon small"></div>
-        <div class="vm-copy"><strong></strong><span></span></div>
-        <div class="vm-badge"></div>`;
-      row.querySelector(".app-icon").textContent = vm.managed ? "HA" : "VM";
-      row.querySelector("strong").textContent = vm.managed ? "Home Assistant OS" : vm.name;
-      row.querySelector(".vm-copy span").textContent = vm.name;
-      const badge = row.querySelector(".vm-badge");
-      badge.className = "state-pill" + (vm.state === "running" ? " running" : "");
-      badge.textContent = vm.state || "unknown";
-      list.appendChild(row);
+      const card = document.createElement("article");
+      card.className = "vm-card-v2";
+      card.innerHTML = `
+        <div class="vm-card-head">
+          <div class="app-icon small vm-card-icon"></div>
+          <div class="vm-card-title"><strong></strong><span></span></div>
+          <span class="state-pill vm-card-state"></span>
+        </div>
+        <div class="vm-resource-grid">
+          <div><small>vCPU</small><strong class="vm-vcpu">–</strong></div>
+          <div><small>RAM</small><strong class="vm-ram">–</strong></div>
+          <div><small>AUTOSTART</small><strong class="vm-autostart">–</strong></div>
+          <div><small>CPU TIME</small><strong class="vm-cpu-time">–</strong></div>
+        </div>
+        <div class="vm-detail-lines">
+          <div><small>DISKS</small><span class="vm-disks"></span></div>
+          <div><small>NETZWERK</small><span class="vm-networks"></span></div>
+        </div>
+        <div class="vm-card-actions"></div>
+        <section class="vm-snapshot-card">
+          <div class="vm-snapshot-head"><div><small>SNAPSHOTS</small><strong>Wiederherstellungspunkte</strong></div><button class="secondary compact vm-snapshot-create">+ Snapshot</button></div>
+          <div class="vm-snapshot-list"></div>
+        </section>`;
+      card.querySelector(".vm-card-icon").textContent = vm.managed ? "HA" : "VM";
+      card.querySelector(".vm-card-title strong").textContent = vm.managed ? "Home Assistant OS" : vm.name;
+      card.querySelector(".vm-card-title span").textContent = vm.name;
+      const state = card.querySelector(".vm-card-state");
+      state.textContent = vm.state || "unknown";
+      state.classList.toggle("running", vm.state === "running");
+      card.querySelector(".vm-vcpu").textContent = Number.isFinite(Number(vm.vcpus)) ? String(vm.vcpus) : "–";
+      card.querySelector(".vm-ram").textContent = Number.isFinite(Number(vm.memory_bytes)) ? formatBytes(Number(vm.memory_bytes)) : "–";
+      card.querySelector(".vm-autostart").textContent = vm.autostart ? "AN" : "AUS";
+      card.querySelector(".vm-cpu-time").textContent = vm.cpu_time || "–";
+      card.querySelector(".vm-disks").textContent = formatVmDisks(vm.disks || []);
+      card.querySelector(".vm-networks").textContent = formatVmNetworks(vm.interfaces || []);
+
+      const actions = card.querySelector(".vm-card-actions");
+      if (currentRole !== "viewer") {
+        const make = (label, operation, cls="secondary") => {
+          const button = document.createElement("button");
+          button.className = cls + " compact";
+          button.textContent = label;
+          button.addEventListener("click", () => vmAction(vm.name, operation, button));
+          return button;
+        };
+        if (vm.state === "running") {
+          actions.appendChild(make("↻ Neustart", "restart"));
+          actions.appendChild(make("⏻ Herunterfahren", "shutdown", "danger"));
+        } else {
+          actions.appendChild(make("▶ Starten", "start", "primary"));
+        }
+      }
+
+      const snapshotButton = card.querySelector(".vm-snapshot-create");
+      snapshotButton.classList.toggle("hidden", currentRole !== "admin");
+      snapshotButton.addEventListener("click", () => createVmSnapshot(vm.name, snapshotButton));
+      renderVmSnapshots(card.querySelector(".vm-snapshot-list"), vm);
+      list.appendChild(card);
     }
+
     if (!vms.length) {
       list.innerHTML = '<div class="app-empty">Keine KVM-VMs gefunden.</div>';
     }
