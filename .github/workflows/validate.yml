@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Recovery Center 2.0 sanity
+        run: |
+          grep -q 'recovery-panel' dashboard/index.html
+          grep -q 'loadRecoveryCenter' dashboard/app.js
+          grep -q '/recovery/action' server/api/server.py
+          grep -q 'recovery_status_payload' host/vm-agent.py
+          grep -q 'recovery_action' host/vm-agent.py
+          grep -q 'verify-update-backup' host/vm-agent.py
+          grep -q 'recovery-action-grid' dashboard/styles.css
+
       - name: Logs Events 2.0 sanity
         run: |
           grep -q 'events-panel' dashboard/index.html
