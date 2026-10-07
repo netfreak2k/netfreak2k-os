@@ -16,7 +16,11 @@ printf '=================================\n'
 
 if [[ -f "${N2K_DIR}/VERSION" ]]; then
   version="$(tr -d '\r\n' < "${N2K_DIR}/VERSION")"
-  [[ "$version" == "1.0.0-rc1" || "$version" == "1.0.0" ]] && ok "Version: $version" || fail "Unerwartete Version: $version"
+  if [[ "$version" == "1.0.0-rc1" || "$version" == "1.0.0" ]]; then
+    ok "Version: $version"
+  else
+    fail "Unerwartete Version: $version"
+  fi
 else
   fail "VERSION fehlt unter ${N2K_DIR}"
 fi
@@ -43,7 +47,11 @@ fi
 
 if virsh --connect qemu:///system dominfo netfreak2k-homeassistant >/dev/null 2>&1; then
   state="$(virsh --connect qemu:///system domstate netfreak2k-homeassistant 2>/dev/null | tr -d '\r')"
-  [[ "$state" == "running" ]] && ok "Home Assistant OS VM läuft" || fail "HAOS VM Zustand: $state"
+  if [[ "$state" == "running" ]]; then
+    ok "Home Assistant OS VM läuft"
+  else
+    fail "HAOS VM Zustand: $state"
+  fi
 else
   fail "Home Assistant OS VM fehlt"
 fi
@@ -56,7 +64,11 @@ fi
 
 if [[ -d "${STATE_DIR}/backups" ]]; then
   latest="$(find "${STATE_DIR}/backups" -mindepth 1 -maxdepth 1 -type d -name 'n2k-*' -printf '%f\n' 2>/dev/null | sort -r | head -n1 || true)"
-  [[ -n "$latest" ]] && ok "Backup vorhanden: $latest" || fail "Kein N2K-Backup gefunden"
+  if [[ -n "$latest" ]]; then
+    ok "Backup vorhanden: $latest"
+  else
+    fail "Kein N2K-Backup gefunden"
+  fi
 else
   fail "Backup-Verzeichnis fehlt"
 fi
