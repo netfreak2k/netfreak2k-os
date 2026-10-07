@@ -2987,14 +2987,42 @@ async function loadMediaRadioDirectory() {
   renderMediaStations();
 }
 
+async function setHostAudioOutput(nodeId) {
+  try {
+    await request("/api/media/output", {
+      method: "POST",
+      body: JSON.stringify({node_id: String(nodeId)}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await refreshMediaDevices();
+  } catch (error) {
+    console.error(error);
+    alert("Audio-Ausgang konnte nicht umgeschaltet werden.");
+  }
+}
+
+async function setBluetoothConnection(mac, connect) {
+  try {
+    await request("/api/media/bluetooth", {
+      method: "POST",
+      body: JSON.stringify({mac, action: connect ? "connect" : "disconnect"}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await refreshMediaDevices();
+  } catch (error) {
+    console.error(error);
+    alert(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.");
+  }
+}
+
 async function refreshMediaDevices() {
   const list = document.getElementById("media-device-list");
   if (!list) return;
   list.innerHTML = "";
   const audio = ensureMediaAudio();
-  const addRow = (icon,name,detail,status,action) => {
+  const addRow = (icon,name,detail,status,action,extraClass = "") => {
     const row = document.createElement("div");
-    row.className = "media-device-row";
+    row.className = `media-device-row ${extraClass}`.trim();
     row.innerHTML = '<span></span><div><strong></strong><small></small></div><em></em>';
     row.querySelector("span").textContent = icon;
     row.querySelector("strong").textContent = name;
@@ -3014,27 +3042,64 @@ async function refreshMediaDevices() {
     if (title) badge.title = title;
   };
 
-  addRow("◉","System Audio","Browser-Standardausgang","aktiv");
+  addRow("◉","System Audio","Browser-Standardausgang","Browser");
 
   try {
     const host = await request("/api/media/devices", {headers:{}});
     const hostDevices = Array.isArray(host.devices) ? host.devices : [];
+    const routing = host.routing || {};
+    const pipewire = routing.pipewire || {};
+    const bluetooth = routing.bluetooth || {};
+
     hostDevices.forEach(device => {
       const icons = {hdmi:"▣",usb:"USB",bluetooth:"BT",local:"◉",audio:"♪"};
       addRow(
         icons[device.kind] || "♪",
         device.name || "Audio-Gerät",
         `${device.backend || "Host"} · ${device.detail || "bereit"}`,
-        device.available === false ? "offline" : "Host"
+        device.available === false ? "offline" : "erkannt"
       );
     });
-    const hasHdmi = hostDevices.some(device => device.kind === "hdmi");
-    const hasUsb = hostDevices.some(device => device.kind === "usb");
+
+    const sinks = Array.isArray(pipewire.sinks) ? pipewire.sinks : [];
+    sinks.forEach(sink => {
+      addRow(
+        sink.default ? "●" : "○",
+        sink.name || `PipeWire ${sink.id}`,
+        `PipeWire · Node ${sink.id}`,
+        sink.default ? "Standard" : "wählen",
+        sink.default ? null : () => setHostAudioOutput(sink.id),
+        sink.default ? "active-route" : ""
+      );
+    });
+
+    const btDevices = Array.isArray(bluetooth.devices) ? bluetooth.devices : [];
+    btDevices.forEach(device => {
+      addRow(
+        "BT",
+        device.name || device.mac,
+        `${device.paired ? "gekoppelt" : "bekannt"} · ${device.mac}`,
+        device.connected ? "trennen" : "verbinden",
+        () => setBluetoothConnection(device.mac, !device.connected),
+        device.connected ? "active-route" : ""
+      );
+    });
+
+    const hasHdmi = hostDevices.some(device => device.kind === "hdmi") || sinks.some(sink => /hdmi/i.test(sink.name || ""));
+    const hasUsb = hostDevices.some(device => device.kind === "usb") || sinks.some(sink => /(usb|dac|fiio|scarlett|focusrite)/i.test(sink.name || ""));
     setProtocol("hdmi", hasHdmi, hasHdmi ? "HDMI-Audio am Host erkannt" : "Kein HDMI-Audio erkannt");
     setProtocol("usb", hasUsb, hasUsb ? "USB-Audio am Host erkannt" : "Kein USB-DAC erkannt");
-    setProtocol("bluetooth", Boolean(host.bluetooth?.available), host.bluetooth?.note || "Bluetooth");
-    setProtocol("airplay", host.airplay?.available ? true : null, host.airplay?.note || "AirPlay geplant");
-    setProtocol("dlna", host.dlna?.available ? true : null, host.dlna?.note || "DLNA geplant");
+    setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth-Steuerung aktiv" : (host.bluetooth?.note || "Bluetooth"));
+    setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || host.airplay?.note || "AirPlay vorbereitet");
+    setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || host.dlna?.note || "DLNA vorbereitet");
+
+    if (!routing.available) {
+      addRow("•","PipeWire Routing","Host-Agent noch nicht aktualisiert oder keine Desktop-Audiositzung aktiv","wartet");
+    } else if (pipewire.error) {
+      addRow("•","PipeWire Routing",pipewire.error,"prüfen");
+    } else if (!sinks.length) {
+      addRow("•","PipeWire Routing","Keine aktiven Audio-Sinks gefunden","leer");
+    }
   } catch (error) {
     console.warn("Host audio inventory unavailable", error);
     addRow("•","Host-Audiogeräte","Inventar momentan nicht erreichbar","–");
@@ -3058,10 +3123,10 @@ async function refreshMediaDevices() {
           try {
             await audio.setSinkId(device.deviceId);
             Array.from(list.querySelectorAll("em")).forEach(node => {
-              if (node.textContent === "aktiv") node.textContent = "bereit";
+              if (node.textContent === "Browser aktiv") node.textContent = "bereit";
             });
-            const badge = event?.currentTarget?.querySelector?.("em");
-            if (badge) badge.textContent = "aktiv";
+            const badge = event.currentTarget.querySelector("em");
+            if (badge) badge.textContent = "Browser aktiv";
           } catch (error) {
             console.error(error);
           }
