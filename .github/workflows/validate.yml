@@ -197,6 +197,14 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Manual Release Gates sanity
+        run: |
+          grep -q 'release_gate_confirmations' server/api/server.py
+          grep -q 'release_gate_update' server/api/server.py
+          grep -q '/release/readiness/gate' server/api/server.py
+          grep -q 'updateReleaseGate' dashboard/app.js
+          grep -q 'release-gate-toggle' dashboard/styles.css
+
       - name: Release Readiness sanity
         run: |
           grep -q 'release-readiness-card' dashboard/index.html
