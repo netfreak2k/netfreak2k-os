@@ -85,6 +85,7 @@ install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent
 install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
 install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/check-updates.sh
+install -m 0755 "${N2K_DIR}/scripts/generate-tls.sh" /usr/local/lib/netfreak2k/generate-tls.sh
 install -m 0755 "${N2K_DIR}/scripts/backup-scheduler.sh" /usr/local/lib/netfreak2k/backup-scheduler.sh
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/system/netfreak2k-update-check.timer
@@ -94,9 +95,70 @@ install -m 0644 "${N2K_DIR}/host/netfreak2k-backup-scheduler.timer" /etc/systemd
 log "Installiere Media-Center-Audioabhängigkeiten."
 write_progress "running" 62 "audio" "PipeWire, Bluetooth und AirPlay-Basis werden geprüft."
 apt-get update
-apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools
+apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools openssl
 systemctl enable --now bluetooth
 systemctl enable --now avahi-daemon
+
+if ! grep -q '^N2K_HTTPS_PORT=' "${N2K_DIR}/server/.env"; then
+  https_port=443
+  if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)443 "Host-Dienste werden aktualisiert."
+systemctl daemon-reload
+systemctl restart netfreak2k-vm-agent.service
+systemctl restart netfreak2k-ha-proxy.service
+systemctl enable --now netfreak2k-update-check.timer
+systemctl enable --now netfreak2k-backup-scheduler.timer
+
+install -d -m 0770 -o nobody -g nogroup /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
+
+log "Baue und starte aktualisierte Webplattform."
+write_progress "running" 78 "containers" "Webplattform und Container werden neu gebaut."
+cd "${N2K_DIR}/server"
+docker compose up -d --build
+write_progress "running" 92 "restart" "Neue Webplattform wurde gestartet. Abschlusspruefung laeuft."
+
+mkdir -p "${STATE_DIR}"
+printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
+
+write_progress "running" 97 "verify" "Installierter Stand wird geprueft."
+"${N2K_DIR}/scripts/check-updates.sh" || true
+write_progress "completed" 100 "completed" "Update erfolgreich abgeschlossen." "$(date +%s)"
+
+log "Update abgeschlossen."
+log "Home Assistant OS VM und Nutzerdaten wurden nicht verändert."
+; then
+    https_port=8443
+    if ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8443 "Host-Dienste werden aktualisiert."
+systemctl daemon-reload
+systemctl restart netfreak2k-vm-agent.service
+systemctl restart netfreak2k-ha-proxy.service
+systemctl enable --now netfreak2k-update-check.timer
+systemctl enable --now netfreak2k-backup-scheduler.timer
+
+install -d -m 0770 -o nobody -g nogroup /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
+
+log "Baue und starte aktualisierte Webplattform."
+write_progress "running" 78 "containers" "Webplattform und Container werden neu gebaut."
+cd "${N2K_DIR}/server"
+docker compose up -d --build
+write_progress "running" 92 "restart" "Neue Webplattform wurde gestartet. Abschlusspruefung laeuft."
+
+mkdir -p "${STATE_DIR}"
+printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
+
+write_progress "running" 97 "verify" "Installierter Stand wird geprueft."
+"${N2K_DIR}/scripts/check-updates.sh" || true
+write_progress "completed" 100 "completed" "Update erfolgreich abgeschlossen." "$(date +%s)"
+
+log "Update abgeschlossen."
+log "Home Assistant OS VM und Nutzerdaten wurden nicht verändert."
+; then
+      https_port=9443
+    fi
+  fi
+  printf 'N2K_HTTPS_PORT=%s\n' "${https_port}" >> "${N2K_DIR}/server/.env"
+fi
+
+/usr/local/lib/netfreak2k/generate-tls.sh
 
 write_progress "running" 68 "services" "Host-Dienste werden aktualisiert."
 systemctl daemon-reload
