@@ -23,20 +23,10 @@ Instead, the first version runs as an isolated Docker stack.
 Access is intended to be as simple as:
 
 ```text
-http://SERVER-IP/
+https://SERVER-IP/
 ```
 
-Example:
-
-```text
-http://192.168.178.50/
-```
-
-Later, mDNS may add:
-
-```text
-http://netfreak2k.local/
-```
+A local TLS certificate is created automatically. HTTP remains available as a compatibility fallback. Administrators can optionally configure a domain with Let's Encrypt from the Security Center.
 
 ## Installation
 
@@ -113,6 +103,8 @@ The dedicated bootable OS is now a later target, not the first milestone.
 - [Architecture Decisions](docs/DECISIONS.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Update Model](docs/UPDATES.md)
+- [Release Process](docs/RELEASES.md)
+- [Changelog](CHANGELOG.md)
 - [N2K Drive / Private Cloud](docs/CLOUD_WORKSPACE.md)
 - [N2K Calendar](docs/CALENDAR.md)
 - [Design, Branding and Copyright Policy](docs/DESIGN_AND_BRANDING.md)
@@ -126,7 +118,9 @@ The project may use general modern desktop design principles, but must not copy 
 
 ## Status
 
-Early development. Current version: **0.1.0-dev**.
+Current beta line: **0.2.0-beta.1**.
+
+Netfreak2k now has Stable, Beta and Development update channels plus a one-version local rollback snapshot. See [Release Process](docs/RELEASES.md) and [Changelog](CHANGELOG.md).
 
 ## Security
 
