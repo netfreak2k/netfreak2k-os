@@ -102,6 +102,7 @@
             <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
             <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
             <button class="nav-item nav-subitem" data-target="security-panel"><span>◆</span>Benutzer & Sicherheit</button>
+            <button class="nav-item nav-subitem" data-target="scheduler-panel"><span>◷</span>Jobs & Scheduler</button>
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
@@ -835,6 +836,44 @@
             <section class="health-alerts-card">
               <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
               <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
+            </section>
+          </article>
+
+          <article id="scheduler-panel" class="panel scheduler-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K JOBS & SCHEDULER</p>
+                <h2>Automatisierung & Systemtimer</h2>
+                <p>N2K-Wartungsjobs zentral ausführen und systemd-Timer des Hosts transparent überwachen.</p>
+              </div>
+              <button id="scheduler-refresh" class="secondary compact">↻ Aktualisieren</button>
+            </div>
+
+            <div class="scheduler-kpi-grid">
+              <section><small>N2K JOBS</small><strong id="scheduler-job-count">–</strong><span>verwaltete Aufgaben</span></section>
+              <section><small>SYSTEMTIMER</small><strong id="scheduler-timer-count">–</strong><span>erkannte systemd-Timer</span></section>
+              <section><small>AKTIV</small><strong id="scheduler-active-count">–</strong><span>aktive Timer</span></section>
+              <section><small>FEHLER</small><strong id="scheduler-failed-count">–</strong><span>fehlgeschlagene N2K-Jobs</span></section>
+            </div>
+
+            <section class="scheduler-card">
+              <div class="scheduler-section-head">
+                <div><small>N2K MANAGED</small><strong>Wartungsjobs</strong></div>
+                <span>gezielt ausführbar</span>
+              </div>
+              <div id="scheduler-job-list" class="scheduler-job-list">
+                <div class="app-empty">Jobs werden geladen …</div>
+              </div>
+            </section>
+
+            <section class="scheduler-card">
+              <div class="scheduler-section-head">
+                <div><small>SYSTEMD</small><strong>Host-Timer</strong></div>
+                <span>read-only</span>
+              </div>
+              <div id="scheduler-timer-list" class="scheduler-timer-list">
+                <div class="app-empty">Systemtimer werden geladen …</div>
+              </div>
             </section>
           </article>
 
