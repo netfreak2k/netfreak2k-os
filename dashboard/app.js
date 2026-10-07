@@ -646,7 +646,7 @@ async function appAction(name, action) {
     setTimeout(loadApps, 800);
   } catch (error) {
     console.error(error);
-    alert("App-Aktion konnte nicht ausgeführt werden.");
+    showN2KToast("App-Aktion konnte nicht ausgeführt werden.");
   }
 }
 
@@ -723,9 +723,9 @@ async function installCatalogApp(appId, name, options = {}) {
   } catch (error) {
     console.error(error);
     if (error.code === "app_port_in_use") {
-      alert("Installation nicht möglich: Der benötigte Port ist bereits belegt.");
+      showN2KToast("Installation nicht möglich: Der benötigte Port ist bereits belegt.");
     } else {
-      alert("App konnte nicht installiert werden.");
+      showN2KToast("App konnte nicht installiert werden.");
     }
   }
 }
@@ -775,7 +775,7 @@ document.querySelectorAll("[data-office-kind]").forEach(button => {
         openOffice();
       } else {
         switchView("office-panel");
-        alert("Installiere zuerst die optionale Office-Engine.");
+        showN2KToast("Installiere zuerst die optionale Office-Engine.");
       }
     } catch (error) {
       console.error(error);
@@ -925,7 +925,7 @@ async function createBackup() {
     await loadBackups();
   } catch (error) {
     console.error(error);
-    alert("Backup konnte nicht erstellt werden.");
+    showN2KToast("Backup konnte nicht erstellt werden.");
   } finally {
     button.disabled = false;
     button.textContent = original;
@@ -947,11 +947,11 @@ async function restoreBackup(backupId) {
       body: JSON.stringify({backup_id: backupId}),
       headers: {"X-CSRF-Token": csrfToken}
     });
-    alert("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
+    showN2KToast("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
     setTimeout(() => window.location.reload(), 12000);
   } catch (error) {
     console.error(error);
-    alert("Wiederherstellung konnte nicht gestartet werden.");
+    showN2KToast("Wiederherstellung konnte nicht gestartet werden.");
   }
 }
 
@@ -1173,12 +1173,12 @@ async function uploadWorkspaceFiles(files) {
           await uploadWorkspaceFile(file, true);
         } catch (replaceError) {
           console.error(replaceError);
-          alert(`${file.name} konnte nicht ersetzt werden.`);
+          showN2KToast(`${file.name} konnte nicht ersetzt werden.`);
           break;
         }
       } else {
         console.error(error);
-        alert(`${file.name} konnte nicht hochgeladen werden.`);
+        showN2KToast(`${file.name} konnte nicht hochgeladen werden.`);
         break;
       }
     }
@@ -1198,7 +1198,7 @@ async function createWorkspaceFolder() {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Ordner konnte nicht erstellt werden.");
+    showN2KToast("Ordner konnte nicht erstellt werden.");
   }
 }
 
@@ -1217,7 +1217,7 @@ async function deleteWorkspaceItem(name) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Aktion konnte nicht ausgeführt werden.");
+    showN2KToast("Aktion konnte nicht ausgeführt werden.");
   }
 }
 
@@ -1238,7 +1238,7 @@ async function renameWorkspaceItem(oldName) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Umbenennen nicht möglich.");
+    showN2KToast("Umbenennen nicht möglich.");
   }
 }
 
@@ -1253,7 +1253,7 @@ async function restoreWorkspaceItem(name) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Wiederherstellung nicht möglich.");
+    showN2KToast("Wiederherstellung nicht möglich.");
   }
 }
 
@@ -1262,7 +1262,7 @@ async function shareWorkspaceItem(name) {
   if (!raw) return;
   const hours = Number.parseInt(raw, 10);
   if (!Number.isFinite(hours) || hours < 1) {
-    alert("Bitte eine gültige Stundenanzahl eingeben.");
+    showN2KToast("Bitte eine gültige Stundenanzahl eingeben.");
     return;
   }
   try {
@@ -1279,14 +1279,14 @@ async function shareWorkspaceItem(name) {
     const url = `${window.location.origin}/api/share?token=${encodeURIComponent(data.token)}`;
     try {
       await navigator.clipboard.writeText(url);
-      alert("Freigabelink wurde kopiert.");
+      showN2KToast("Freigabelink wurde kopiert.");
     } catch (_) {
       prompt("Freigabelink:", url);
     }
     await loadShares();
   } catch (error) {
     console.error(error);
-    alert("Freigabelink konnte nicht erstellt werden.");
+    showN2KToast("Freigabelink konnte nicht erstellt werden.");
   }
 }
 
@@ -1444,7 +1444,7 @@ async function toggleFavorite(area, path, name) {
     await loadFavorites();
   } catch (error) {
     console.error(error);
-    alert("Favorit konnte nicht geändert werden.");
+    showN2KToast("Favorit konnte nicht geändert werden.");
   }
 }
 
@@ -1538,7 +1538,7 @@ async function revokeShare(token) {
     await loadShares();
   } catch (error) {
     console.error(error);
-    alert("Freigabe konnte nicht widerrufen werden.");
+    showN2KToast("Freigabe konnte nicht widerrufen werden.");
   }
 }
 
@@ -1550,7 +1550,7 @@ async function transferWorkspaceItem(mode, name) {
   if (!area) return;
   const allowed = ["documents","media","audio","downloads","personal","shared"];
   if (!allowed.includes(area)) {
-    alert("Ungültiger Zielbereich.");
+    showN2KToast("Ungültiger Zielbereich.");
     return;
   }
   const path = prompt("Zielordner innerhalb des Bereichs (leer = Hauptordner):", "");
@@ -1572,7 +1572,7 @@ async function transferWorkspaceItem(mode, name) {
     await loadFavorites();
   } catch (error) {
     console.error(error);
-    alert(`${mode === "copy" ? "Kopieren" : "Verschieben"} nicht möglich.`);
+    showN2KToast(`${mode === "copy" ? "Kopieren" : "Verschieben"} nicht möglich.`);
   }
 }
 
@@ -1615,7 +1615,7 @@ async function restoreFileVersion(id, name) {
     await showFileVersions(name);
   } catch (error) {
     console.error(error);
-    alert("Version konnte nicht wiederhergestellt werden.");
+    showN2KToast("Version konnte nicht wiederhergestellt werden.");
   }
 }
 
@@ -1709,7 +1709,7 @@ async function createCalendarEvent() {
   const endValue = document.getElementById("event-end").value;
   const notes = document.getElementById("event-notes").value;
   if (!title || !startValue) {
-    alert("Titel und Beginn sind erforderlich.");
+    showN2KToast("Titel und Beginn sind erforderlich.");
     return;
   }
   try {
@@ -1728,7 +1728,7 @@ async function createCalendarEvent() {
     await loadCalendar();
   } catch (error) {
     console.error(error);
-    alert("Termin konnte nicht gespeichert werden.");
+    showN2KToast("Termin konnte nicht gespeichert werden.");
   }
 }
 
@@ -1743,7 +1743,7 @@ async function deleteCalendarEvent(id, title) {
     await loadCalendar();
   } catch (error) {
     console.error(error);
-    alert("Termin konnte nicht gelöscht werden.");
+    showN2KToast("Termin konnte nicht gelöscht werden.");
   }
 }
 
@@ -1806,7 +1806,7 @@ async function saveWallpaper(id) {
   } catch (error) {
     console.error(error);
     applyWallpaper(previous);
-    alert("Wallpaper konnte nicht gespeichert werden.");
+    showN2KToast("Wallpaper konnte nicht gespeichert werden.");
   }
 }
 
@@ -1857,7 +1857,7 @@ async function createSyncCredential() {
     await loadSyncCredentials();
   } catch (error) {
     console.error(error);
-    alert("Sync-Zugang konnte nicht erstellt werden.");
+    showN2KToast("Sync-Zugang konnte nicht erstellt werden.");
   }
 }
 
@@ -1872,7 +1872,7 @@ async function revokeSyncCredential(id, label) {
     await loadSyncCredentials();
   } catch (error) {
     console.error(error);
-    alert("Sync-Zugang konnte nicht widerrufen werden.");
+    showN2KToast("Sync-Zugang konnte nicht widerrufen werden.");
   }
 }
 
@@ -1940,7 +1940,7 @@ async function homeAssistantAction(action) {
     await loadOverview();
   } catch (error) {
     console.error(error);
-    alert(`Home Assistant konnte nicht gestartet werden:\n${homeAssistantErrorMessage(error.code)}`);
+    showN2KToast(`Home Assistant konnte nicht gestartet werden:\n${homeAssistantErrorMessage(error.code)}`);
   }
 }
 
@@ -2186,7 +2186,7 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     console.error(error);
     button.disabled = false;
     button.textContent = original;
-    alert("Update konnte nicht gestartet werden.");
+    showN2KToast("Update konnte nicht gestartet werden.");
   }
 });
 const globalSearch = document.getElementById("global-search");
@@ -2517,7 +2517,7 @@ startMatrixSimulation();
 async function openOnionInTorWorkspace(value) {
   const normalized = normalizeOnionUrl(value);
   if (!normalized) {
-    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
     return;
   }
 
@@ -2536,7 +2536,7 @@ async function openOnionInTorWorkspace(value) {
 
   const stateText = document.getElementById("tor-browser-state")?.textContent || "";
   if (!stateText.startsWith("Bereit")) {
-    alert("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
+    showN2KToast("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
     document.getElementById("tor-browser-install")?.focus();
     return;
   }
@@ -2546,7 +2546,7 @@ async function openOnionInTorWorkspace(value) {
   } catch (_) {}
 
   document.querySelector(".tor-browser-shell")?.scrollIntoView({behavior:"smooth", block:"start"});
-  alert("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
+  showN2KToast("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
 }
 
 document.getElementById("open-onion")?.addEventListener("click", () => {
@@ -2657,7 +2657,7 @@ async function torBrowserAction(action) {
     loadCatalog();
   } catch (error) {
     console.error(error);
-    alert("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
+    showN2KToast("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
     await loadTorBrowserStatus();
   }
 }
@@ -2666,7 +2666,7 @@ document.getElementById("tor-browser-install")?.addEventListener("click", async 
   const password = prompt("Lege ein Passwort für den isolierten Tor-Browser fest (mindestens 10 Zeichen):");
   if (!password) return;
   if (password.length < 10 || password.length > 64) {
-    alert("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
+    showN2KToast("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
     return;
   }
   await installCatalogApp("tor-browser", "Tor Browser", {password});
@@ -2767,7 +2767,7 @@ document.getElementById("onion-explorer-save")?.addEventListener("click", () => 
   const input = document.getElementById("onion-explorer-url");
   const value = normalizeOnionUrl(input?.value);
   if (!value) {
-    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
     return;
   }
   const items = onionLoad("favorites").filter(item => item.url !== value);
@@ -2779,7 +2779,7 @@ document.getElementById("onion-explorer-save")?.addEventListener("click", () => 
 document.getElementById("onion-copy")?.addEventListener("click", async () => {
   const value = normalizeOnionUrl(document.getElementById("onion-explorer-url")?.value);
   if (!value) {
-    alert("Bitte zuerst eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte zuerst eine gültige .onion-Adresse eingeben.");
     return;
   }
   try { await navigator.clipboard.writeText(value); } catch (_) {}
