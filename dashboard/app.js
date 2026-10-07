@@ -2024,6 +2024,143 @@ document.querySelectorAll("[data-office-kind]").forEach(button => {
   });
 });
 
+function storageSmartForDevice(data, device) {
+  const rows = Array.isArray(data?.smart?.drives) ? data.smart.drives : [];
+  return rows.find(item => item.device === device.path || item.device === `/dev/${device.name}`) || null;
+}
+
+function storageTypeLabel(device) {
+  if (device.type === "disk") return device.rotational ? "HDD" : "SSD";
+  if (device.type === "part") return "PART";
+  if (device.type === "rom") return "ROM";
+  if (device.type === "lvm") return "LVM";
+  if (device.type === "crypt") return "CRYPT";
+  return (device.type || "DEV").toUpperCase();
+}
+
+function renderStorageInventory(data) {
+  const devices = Array.isArray(data.devices) ? data.devices : [];
+  const summary = data.summary || {};
+  setHealthText("storage-device-summary", `${summary.disks || 0} Disks · ${summary.partitions || 0} Partitionen · ${summary.mounted || 0} gemountet`);
+
+  const list = document.getElementById("storage-device-list");
+  if (list) {
+    list.innerHTML = "";
+    if (!devices.length) {
+      list.innerHTML = '<div class="app-empty">Keine Blockgeräte erkannt.</div>';
+    } else {
+      devices.forEach(device => {
+        const smart = storageSmartForDevice(data, device);
+        const row = document.createElement("div");
+        row.className = `storage-device-row storage-type-${device.type || "other"}`;
+        row.innerHTML = `
+          <span class="storage-device-kind"></span>
+          <div class="storage-device-main"><strong></strong><small></small><span></span></div>
+          <div class="storage-device-fs"><strong></strong><small></small></div>
+          <div class="storage-device-state"><strong></strong><small></small></div>
+          <div class="storage-device-actions"></div>`;
+        row.querySelector(".storage-device-kind").textContent = storageTypeLabel(device);
+        row.querySelector(".storage-device-main strong").textContent =
+          [device.vendor, device.model].filter(Boolean).join(" ") || device.label || device.path || device.name;
+        row.querySelector(".storage-device-main small").textContent =
+          `${device.path || "–"} · ${formatBytes(Number(device.size_bytes))} · ${device.transport || (device.parent ? "Partition" : "intern")}`;
+        row.querySelector(".storage-device-main span").textContent =
+          device.serial ? `S/N ${device.serial}` : device.uuid ? `UUID ${device.uuid}` : "–";
+        row.querySelector(".storage-device-fs strong").textContent = device.filesystem || "Kein Dateisystem";
+        row.querySelector(".storage-device-fs small").textContent =
+          device.label ? `Label: ${device.label}` : device.fs_used_percent ? `${device.fs_used_percent} belegt` : "–";
+        const mounts = Array.isArray(device.mountpoints) ? device.mountpoints : [];
+        row.querySelector(".storage-device-state strong").textContent = mounts.length ? "GEMOUNTET" : "NICHT GEMOUNTET";
+        row.querySelector(".storage-device-state strong").className = mounts.length ? "ok" : "";
+        row.querySelector(".storage-device-state small").textContent =
+          mounts.length ? mounts.join(" · ") : smart?.health === "passed" ? "SMART OK" : smart?.health === "failed" ? "SMART FEHLER" : "Bereit";
+
+        const actions = row.querySelector(".storage-device-actions");
+        if (currentRole === "admin" && device.mountable) {
+          const button = document.createElement("button");
+          button.className = "secondary compact";
+          button.textContent = "Mounten";
+          button.addEventListener("click", () => storageMountAction(device.path, "mount", button));
+          actions.appendChild(button);
+        } else if (currentRole === "admin" && device.managed_mount) {
+          const button = document.createElement("button");
+          button.className = "secondary compact";
+          button.textContent = "Aushängen";
+          button.addEventListener("click", () => storageMountAction(device.path, "unmount", button));
+          actions.appendChild(button);
+        } else {
+          const note = document.createElement("span");
+          note.textContent = device.mounted ? "System/Fremd-Mount" : device.filesystem ? "Nur lesen" : "–";
+          actions.appendChild(note);
+        }
+        list.appendChild(row);
+      });
+    }
+  }
+
+  const raid = data.raid || {};
+  const mdraid = Array.isArray(raid.mdraid) ? raid.mdraid : [];
+  const zpools = Array.isArray(raid.zpools) ? raid.zpools : [];
+  setHealthText("storage-mdraid-count", String(mdraid.length));
+  setHealthText("storage-zfs-count", String(zpools.length));
+
+  const mdList = document.getElementById("storage-mdraid-list");
+  if (mdList) {
+    mdList.innerHTML = mdraid.length ? "" : '<div class="health-empty">Keine mdRAID-Arrays erkannt.</div>';
+    mdraid.forEach(array => {
+      const row = document.createElement("div");
+      row.className = "storage-pool-row";
+      row.innerHTML = "<div><strong></strong><small></small></div><span></span>";
+      row.querySelector("strong").textContent = array.name || "mdRAID";
+      row.querySelector("small").textContent = `${array.level || "RAID"} · ${(array.members || []).join(" · ") || "keine Memberdaten"}`;
+      row.querySelector("span").textContent = array.state || "unknown";
+      mdList.appendChild(row);
+    });
+  }
+
+  const zList = document.getElementById("storage-zfs-list");
+  if (zList) {
+    zList.innerHTML = zpools.length ? "" : '<div class="health-empty">Keine ZFS-Pools erkannt.</div>';
+    zpools.forEach(pool => {
+      const row = document.createElement("div");
+      row.className = "storage-pool-row";
+      row.innerHTML = "<div><strong></strong><small></small></div><span></span>";
+      row.querySelector("strong").textContent = pool.name || "ZFS";
+      row.querySelector("small").textContent = `${pool.allocated || "–"} belegt · ${pool.free || "–"} frei · ${pool.size || "–"} gesamt`;
+      row.querySelector("span").textContent = pool.health || "unknown";
+      row.querySelector("span").className = String(pool.health || "").toUpperCase() === "ONLINE" ? "ok" : "";
+      zList.appendChild(row);
+    });
+  }
+}
+
+async function storageMountAction(device, operation, button) {
+  if (currentRole !== "admin") return;
+  const original = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = operation === "mount" ? "Mounte …" : "Hänge aus …";
+  }
+  try {
+    await request(`/api/storage/${operation}`, {
+      method:"POST",
+      body:JSON.stringify({device}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast(operation === "mount" ? "Datenträger wurde eingebunden." : "Datenträger wurde ausgehängt.", "success");
+    await loadStorage();
+  } catch (error) {
+    console.error(error);
+    const messages = {
+      storage_device_not_mountable: "Datenträger kann nicht automatisch gemountet werden.",
+      storage_mount_not_managed: "Nur durch N2K gemountete Datenträger dürfen hier ausgehängt werden."
+    };
+    showN2KToast(messages[error.code] || "Speicheraktion fehlgeschlagen.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function loadStorage() {
   const main = document.getElementById("storage-host-main");
   const detail = document.getElementById("storage-host-detail");
@@ -2077,6 +2214,7 @@ async function loadStorage() {
         "Ausreichend freie Kapazität";
       health.dataset.level = percent >= 90 ? "critical" : percent >= 80 ? "warning" : "ok";
     }
+    renderStorageInventory(data);
   } catch (error) {
     console.error(error);
     main.textContent = "Speicherstatus nicht erreichbar";
