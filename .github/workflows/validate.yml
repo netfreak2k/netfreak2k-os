@@ -183,6 +183,18 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: Users Security sanity
+        run: |
+          grep -q 'security-panel' dashboard/index.html
+          grep -q 'login-totp' dashboard/index.html
+          grep -q 'loadSecurity' dashboard/app.js
+          grep -q 'CREATE TABLE IF NOT EXISTS audit_log' server/api/server.py
+          grep -q 'def totp_code' server/api/server.py
+          grep -q 'def require_admin' server/api/server.py
+          grep -q '/security/users/create' server/api/server.py
+          grep -q '/security/totp/confirm' server/api/server.py
+          grep -q '/security/session/revoke' server/api/server.py
+
       - name: Backup Recovery sanity
         run: |
           grep -q 'backup-recovery-panel' dashboard/index.html
