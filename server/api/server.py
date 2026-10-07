@@ -2985,6 +2985,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(notifications_payload())
             return
 
+        if path == "/monitoring/policy":
+            if not self.require_auth():
+                return
+            self.send_json(monitoring_policy_payload())
+            return
+
         if path == "/apps":
             if not self.require_auth():
                 return
@@ -3514,6 +3520,26 @@ class Handler(BaseHTTPRequestHandler):
                     conn.commit()
                 audit_event(session["username"], "session_revoke", allowed[0][1], self.client_ip())
                 self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/monitoring/policy":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                policy = monitoring_policy_update(data)
+                audit_event(session["username"], "monitoring_policy_update", json.dumps({
+                    "maintenance_mode": policy.get("maintenance_mode"),
+                    "quiet_enabled": policy.get("quiet_enabled"),
+                    "temp_warning": policy.get("temp_warning"),
+                    "storage_warning": policy.get("storage_warning"),
+                    "backup_max_age_hours": policy.get("backup_max_age_hours"),
+                }, separators=(",", ":"))[:500], self.client_ip())
+                sync_system_notifications()
+                self.send_json(policy)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
             return
