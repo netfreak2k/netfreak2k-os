@@ -2761,6 +2761,33 @@ const N2K_RADIO_STATIONS = [
   {id:"npo3fm",country:"NL",name:"NPO 3FM",genre:"Alternative · Pop",bitrate:"AAC",url:"https://icecast.omroep.nl/3fm-bb-mp3"}
 ];
 
+const N2K_GERMANY_MEDIA_SERVICES = [
+  {rank:1, category:"Video", name:"Prime Video", detail:"Filme · Serien · Channels", url:"https://www.amazon.de/gp/video/storefront"},
+  {rank:2, category:"Mediathek", name:"ARD Mediathek", detail:"Filme · Serien · Live-TV · Dokus", url:"https://www.ardmediathek.de/"},
+  {rank:3, category:"Mediathek", name:"ZDF", detail:"Mediathek · Live-TV · Serien", url:"https://www.zdf.de/"},
+  {rank:4, category:"Video", name:"Disney+", detail:"Disney · Marvel · Star Wars · Star", url:"https://www.disneyplus.com/de-de"},
+  {rank:5, category:"Video", name:"RTL+", detail:"TV · Serien · Shows · Sport", url:"https://plus.rtl.de/"},
+  {rank:6, category:"Video", name:"Joyn", detail:"Live-TV · Serien · Shows", url:"https://www.joyn.de/"},
+  {rank:7, category:"Musik", name:"YouTube Music", detail:"Musik · Videos · Podcasts", url:"https://music.youtube.com/"},
+  {rank:8, category:"Video", name:"Apple TV+", detail:"Filme · Serien", url:"https://tv.apple.com/de/"},
+  {rank:9, category:"Video", name:"WOW", detail:"Serien · Filme · Sport", url:"https://www.wowtv.de/"},
+  {rank:10, category:"Sport", name:"DAZN", detail:"Live-Sport", url:"https://www.dazn.com/de-DE/home"},
+  {rank:11, category:"Video", name:"Paramount+", detail:"Filme · Serien", url:"https://www.paramountplus.com/de/"},
+  {rank:12, category:"TV", name:"MagentaTV", detail:"Live-TV · Mediatheken · Streaming", url:"https://www.magentatv.de/"},
+  {rank:13, category:"TV", name:"waipu.tv", detail:"Live-TV · Aufnahmen · Pay-TV", url:"https://www.waipu.tv/"},
+  {rank:14, category:"Video", name:"Pluto TV", detail:"Kostenlose Channels · Filme · Serien", url:"https://pluto.tv/de/"},
+  {rank:15, category:"Audio", name:"ARD Sounds", detail:"Radio · Podcasts · Hörspiele", url:"https://www.ardaudiothek.de/"},
+  {rank:16, category:"Musik", name:"Deezer", detail:"Musik · Podcasts", url:"https://www.deezer.com/de/"},
+  {rank:17, category:"Musik", name:"SoundCloud", detail:"Musik · DJs · Independent", url:"https://soundcloud.com/"},
+  {rank:18, category:"Musik", name:"TIDAL", detail:"Musik · HiFi", url:"https://listen.tidal.com/"},
+  {rank:19, category:"Musik", name:"Qobuz", detail:"Hi-Res Musik", url:"https://www.qobuz.com/de-de/"},
+  {rank:20, category:"Live", name:"Twitch", detail:"Live-Streams · Gaming · Musik", url:"https://www.twitch.tv/"},
+  {rank:21, category:"Mediathek", name:"ARTE", detail:"Kultur · Dokus · Filme", url:"https://www.arte.tv/de/"},
+  {rank:22, category:"Mediathek", name:"3sat", detail:"Kultur · Wissen · Filme", url:"https://www.3sat.de/"},
+  {rank:23, category:"Mediathek", name:"KiKA", detail:"Kinder · Serien · Wissen", url:"https://www.kika.de/"},
+  {rank:24, category:"Video", name:"Crunchyroll", detail:"Anime · Serien · Filme", url:"https://www.crunchyroll.com/de/"}
+];
+
 const N2K_MEDIA_FAVORITES_KEY = "n2k-media-favorite-stations";
 const N2K_MEDIA_FAVORITE_IDS_KEY = "n2k-media-favorites";
 
@@ -2779,6 +2806,8 @@ let mediaRadioSearchTimer = null;
 let mediaMultiroomSelection = new Set();
 let mediaCountry = "DE";
 let mediaStationIndex = -1;
+let mediaLocalTracks = [];
+let mediaLocalIndex = -1;
 let mediaInitialized = false;
 let mediaAudioContext = null;
 let mediaEqFilters = [];
@@ -2803,6 +2832,7 @@ function ensureMediaAudio() {
 }
 
 function mediaCurrentStation() {
+  if (mediaLocalIndex >= 0) return mediaLocalTracks[mediaLocalIndex] || null;
   return mediaStationIndex >= 0 ? mediaStations[mediaStationIndex] : null;
 }
 
@@ -2818,7 +2848,7 @@ function updateMediaSessionMetadata() {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: station.name,
       artist: station.genre || "Internet Radio",
-      album: "N2K Media Center",
+      album: station.source === "local" ? "N2K Audio" : "N2K Media Center",
       artwork: station.favicon ? [
         {src: station.favicon, sizes: "96x96"},
         {src: station.favicon, sizes: "256x256"}
@@ -2887,7 +2917,9 @@ function updateMediaPlaybackUi() {
     const title = document.getElementById("media-title");
     const subtitle = document.getElementById("media-subtitle");
     if (title) title.textContent = station.name;
-    if (subtitle) subtitle.textContent = `${station.genre} · ${station.bitrate} · ${station.country}`;
+    if (subtitle) subtitle.textContent = station.source === "local"
+      ? `${station.genre} · ${station.path || "Audio"} · ${station.bitrate}`
+      : `${station.genre} · ${station.bitrate} · ${station.country}`;
   }
 }
 
@@ -3004,6 +3036,12 @@ function updateMediaFavoriteButton() {
   const button = document.getElementById("media-favorite");
   const station = mediaCurrentStation();
   if (!button) return;
+  if (station?.source === "local") {
+    button.textContent = "–";
+    button.disabled = true;
+    return;
+  }
+  button.disabled = false;
   if (!station) {
     button.textContent = "♡";
     return;
@@ -3074,6 +3112,7 @@ async function playMediaStation(index) {
   const station = mediaStations[index];
   if (!station) return;
   const audio = ensureMediaAudio();
+  mediaLocalIndex = -1;
   ensureMediaEqGraph();
   if (mediaAudioContext?.state === "suspended") {
     try { await mediaAudioContext.resume(); } catch (_) {}
@@ -3097,6 +3136,11 @@ async function playMediaStation(index) {
 }
 
 function stepMediaStation(direction) {
+  if (mediaLocalIndex >= 0 && mediaLocalTracks.length) {
+    const next = (mediaLocalIndex + direction + mediaLocalTracks.length) % mediaLocalTracks.length;
+    playLocalTrack(next);
+    return;
+  }
   const candidates = mediaStations
     .map((station,index) => ({station,index}))
     .filter(({station}) => !station.country || station.country === mediaCountry);
@@ -3132,6 +3176,111 @@ async function loadMediaRadioDirectory() {
   }
   renderMediaStations();
   renderMediaFavorites();
+}
+
+function renderMediaLibrary() {
+  const list = document.getElementById("media-library-list");
+  const count = document.getElementById("media-library-count");
+  if (!list) return;
+  const query = (document.getElementById("media-library-search")?.value || "").trim().toLowerCase();
+  const visible = mediaLocalTracks
+    .map((track,index) => ({track,index}))
+    .filter(({track}) => !query || `${track.title} ${track.name} ${track.path}`.toLowerCase().includes(query));
+  if (count) count.textContent = `${mediaLocalTracks.length} Titel`;
+  list.innerHTML = "";
+  for (const {track,index} of visible) {
+    const row = document.createElement("button");
+    row.className = "media-library-row";
+    if (index === mediaLocalIndex) row.classList.add("active");
+    row.innerHTML = '<span class="media-library-icon">♪</span><div><strong></strong><small></small></div><em></em><span class="media-library-play">▶</span>';
+    row.querySelector("strong").textContent = track.title || track.name;
+    row.querySelector("small").textContent = [track.path || "Audio", track.extension?.toUpperCase()].filter(Boolean).join(" · ");
+    row.querySelector("em").textContent = formatBytes(track.size_bytes || 0);
+    row.addEventListener("click", () => playLocalTrack(index));
+    list.appendChild(row);
+  }
+  if (!visible.length) {
+    list.innerHTML = '<div class="media-empty">Keine Audiodateien gefunden. Lege Musik unter Arbeitsplatz → Audio ab.</div>';
+  }
+}
+
+async function loadMediaLibrary() {
+  const list = document.getElementById("media-library-list");
+  if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner wird geladen …</div>';
+  try {
+    const data = await request("/api/media/library", {headers:{}});
+    mediaLocalTracks = (Array.isArray(data.tracks) ? data.tracks : []).map(track => ({
+      ...track,
+      source: "local",
+      genre: "Lokale Musik",
+      country: "N2K AUDIO",
+      bitrate: track.extension ? track.extension.toUpperCase() : "Audio"
+    }));
+    renderMediaLibrary();
+  } catch (error) {
+    console.error("Local media library unavailable", error);
+    if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner konnte nicht geladen werden.</div>';
+  }
+}
+
+async function playLocalTrack(index) {
+  const track = mediaLocalTracks[index];
+  if (!track) return;
+  const audio = ensureMediaAudio();
+  ensureMediaEqGraph();
+  if (mediaAudioContext?.state === "suspended") {
+    try { await mediaAudioContext.resume(); } catch (_) {}
+  }
+  mediaStationIndex = -1;
+  mediaLocalIndex = index;
+  if (audio.src !== new URL(track.url, window.location.href).href) {
+    audio.src = track.url;
+    audio.load();
+  }
+  const title = document.getElementById("media-title");
+  const subtitle = document.getElementById("media-subtitle");
+  if (title) title.textContent = track.title || track.name;
+  if (subtitle) subtitle.textContent = `Lokale Musik · ${track.path || "Audio"} · ${track.bitrate}`;
+  updateMediaFavoriteButton();
+  renderMediaLibrary();
+  try {
+    await audio.play();
+  } catch (error) {
+    console.error(error);
+    setMediaStatus("Lokale Audiodatei konnte nicht abgespielt werden.");
+  }
+  updateMediaPlaybackUi();
+}
+
+function renderMediaServiceDirectory() {
+  const list = document.getElementById("media-service-directory-list");
+  if (!list) return;
+  list.innerHTML = "";
+  let currentCategory = "";
+  for (const service of [...N2K_GERMANY_MEDIA_SERVICES].sort((a,b) => a.rank - b.rank)) {
+    if (service.category !== currentCategory) {
+      currentCategory = service.category;
+      const heading = document.createElement("div");
+      heading.className = "media-directory-category";
+      heading.textContent = currentCategory;
+      list.appendChild(heading);
+    }
+    const button = document.createElement("button");
+    button.className = "media-directory-service";
+    button.innerHTML = '<span class="media-directory-rank"></span><div><strong></strong><small></small></div><em>↗</em>';
+    button.querySelector(".media-directory-rank").textContent = String(service.rank).padStart(2, "0");
+    button.querySelector("strong").textContent = service.name;
+    button.querySelector("small").textContent = service.detail;
+    button.addEventListener("click", () => window.open(service.url, "n2k-media-streaming", "noopener,noreferrer"));
+    list.appendChild(button);
+  }
+}
+
+function toggleMediaServiceDirectory(show) {
+  const directory = document.getElementById("media-service-directory");
+  if (!directory) return;
+  directory.classList.toggle("hidden", !show);
+  if (show) renderMediaServiceDirectory();
 }
 
 async function setHostAudioOutput(nodeId) {
@@ -3586,6 +3735,7 @@ function stopMediaPlayback() {
   audio.removeAttribute("src");
   audio.load();
   mediaStationIndex = -1;
+  mediaLocalIndex = -1;
   const title = document.getElementById("media-title");
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Wiedergabe gestoppt";
@@ -3614,6 +3764,7 @@ function initMediaCenter() {
   renderMediaStations();
   renderMediaFavorites();
   loadMediaRadioDirectory();
+  loadMediaLibrary();
   refreshMediaDevices();
   updateMediaPlaybackUi();
 
@@ -3655,6 +3806,10 @@ function initMediaCenter() {
     updateMediaPlaybackUi();
   });
   document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
+  document.getElementById("media-library-refresh")?.addEventListener("click", loadMediaLibrary);
+  document.getElementById("media-library-search")?.addEventListener("input", renderMediaLibrary);
+  document.getElementById("media-more-services")?.addEventListener("click", () => toggleMediaServiceDirectory(true));
+  document.getElementById("media-service-directory-close")?.addEventListener("click", () => toggleMediaServiceDirectory(false));
   document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
     const url = button.dataset.mediaService;
     const name = button.querySelector("strong")?.textContent || "Streaming";
