@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "security_status", "remote_access_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -2062,6 +2062,142 @@ def remote_access_status_payload():
     }
 
 
+def remote_connectivity_status():
+    status = remote_access_status_payload()
+    domain = str(status.get("domain") or "").strip().lower()
+    local_addresses = [str(value) for value in status.get("addresses") or []]
+
+    public_ip = ""
+    public_ip_source = ""
+    if shutil.which("curl"):
+        for endpoint in ("https://api.ipify.org", "https://ifconfig.me/ip"):
+            result = run("curl", "-4", "-fsS", "--max-time", "5", endpoint, timeout=7)
+            candidate = result.stdout.strip() if result.returncode == 0 else ""
+            try:
+                parsed = ipaddress.ip_address(candidate)
+            except ValueError:
+                continue
+            if parsed.version == 4 and not parsed.is_private and not parsed.is_loopback:
+                public_ip = candidate
+                public_ip_source = endpoint
+                break
+
+    dns_addresses = []
+    if domain:
+        result = run("getent", "ahostsv4", domain, timeout=6)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                parts = line.split()
+                candidate = parts[0] if parts else ""
+                try:
+                    parsed = ipaddress.ip_address(candidate)
+                except ValueError:
+                    continue
+                if parsed.version == 4 and candidate not in dns_addresses:
+                    dns_addresses.append(candidate)
+
+    listeners = security_listening_sockets()
+    local_80 = any(str(item.get("port")) == "80" and item.get("scope") != "loopback" for item in listeners)
+    local_443 = any(str(item.get("port")) == "443" and item.get("scope") != "loopback" for item in listeners)
+
+    dns_matches_public = bool(public_ip and public_ip in dns_addresses)
+    self_probe = {
+        "attempted": False,
+        "ok": False,
+        "http_code": None,
+        "detail": "Kein Domain-Modus konfiguriert",
+    }
+    if domain and shutil.which("curl"):
+        self_probe["attempted"] = True
+        probe = run(
+            "curl", "-k", "-sS", "-o", "/dev/null", "-w", "%{http_code}",
+            "--connect-timeout", "5", "--max-time", "10", f"https://{domain}/",
+            timeout=12,
+        )
+        code = probe.stdout.strip() if probe.returncode == 0 else ""
+        self_probe["http_code"] = int(code) if code.isdigit() else None
+        self_probe["ok"] = probe.returncode == 0 and code not in {"", "000"}
+        self_probe["detail"] = (
+            f"HTTPS-Selbsttest antwortet mit HTTP {code}"
+            if self_probe["ok"] else
+            (probe.stderr.strip()[:300] or "HTTPS-Selbsttest fehlgeschlagen")
+        )
+
+    certificate = status.get("certificate") or {}
+    checks = [
+        {
+            "id": "nginx",
+            "label": "Nginx Gateway",
+            "ok": bool((status.get("nginx") or {}).get("ok")),
+            "detail": "Gateway aktiv" if (status.get("nginx") or {}).get("ok") else "Gateway nicht aktiv",
+        },
+        {
+            "id": "listener_80",
+            "label": "TCP 80 lokal",
+            "ok": local_80,
+            "detail": "HTTP lauscht auf Host-Interface" if local_80 else "Kein nicht-lokaler Listener auf TCP 80",
+        },
+        {
+            "id": "listener_443",
+            "label": "TCP 443 lokal",
+            "ok": local_443,
+            "detail": "HTTPS lauscht auf Host-Interface" if local_443 else "Kein nicht-lokaler Listener auf TCP 443",
+        },
+        {
+            "id": "certificate",
+            "label": "TLS-Zertifikat",
+            "ok": bool(certificate.get("valid")),
+            "detail": certificate.get("subject") or ("Zertifikat gültig" if certificate.get("valid") else "Kein gültiges Zertifikat erkannt"),
+        },
+    ]
+
+    if domain:
+        checks.extend([
+            {
+                "id": "dns",
+                "label": "DNS-Auflösung",
+                "ok": bool(dns_addresses),
+                "detail": ", ".join(dns_addresses[:4]) if dns_addresses else "Domain löst nicht per IPv4 auf",
+            },
+            {
+                "id": "dns_public_ip",
+                "label": "DNS → WAN-IP",
+                "ok": dns_matches_public,
+                "detail": (
+                    f"{domain} zeigt auf {public_ip}"
+                    if dns_matches_public else
+                    f"WAN {public_ip or 'unbekannt'} · DNS {', '.join(dns_addresses[:3]) or 'unbekannt'}"
+                ),
+            },
+            {
+                "id": "https_self_probe",
+                "label": "HTTPS Domain-Selbsttest",
+                "ok": bool(self_probe.get("ok")),
+                "detail": self_probe.get("detail"),
+            },
+        ])
+
+    local_ready = all(item["ok"] for item in checks if item["id"] in {"nginx", "listener_443", "certificate"})
+    domain_ready = bool(domain and local_ready and dns_addresses and dns_matches_public and self_probe.get("ok"))
+    return {
+        "checked_at": int(time.time()),
+        "mode": status.get("mode") or "local",
+        "domain": domain,
+        "local_addresses": local_addresses,
+        "public_ip": public_ip,
+        "public_ip_source": public_ip_source,
+        "dns_addresses": dns_addresses,
+        "dns_matches_public_ip": dns_matches_public,
+        "listeners": {"http": local_80, "https": local_443},
+        "self_probe": self_probe,
+        "local_ready": local_ready,
+        "domain_ready": domain_ready,
+        "outside_in_verified": False,
+        "outside_in_note": "Ein echter Test aus einem fremden Netz ist ohne externen Probe-Dienst nicht verifizierbar.",
+        "checks": checks,
+    }
+
+
 def remote_access_configure(mode, domain="", email=""):
     mode = str(mode or "").strip().lower()
     domain = str(domain or "").strip().lower()
@@ -3000,6 +3136,9 @@ def execute(action, request):
 
     if action == "remote_access_status":
         return remote_access_status_payload()
+
+    if action == "remote_connectivity_status":
+        return remote_connectivity_status()
 
     if action == "remote_access_configure":
         return remote_access_configure(request.get("mode"), request.get("domain"), request.get("email"))
