@@ -170,6 +170,10 @@ jobs:
           grep -q '/media/radio/metadata' server/api/server.py
           grep -q 'media-rds-badge' dashboard/index.html
           grep -q 'top-media-volume' dashboard/index.html
+          grep -q 'system-nav-group' dashboard/index.html
+          grep -q 'overview-cpu-cores' dashboard/index.html
+          grep -q 'cpu_topology' server/api/server.py
+          grep -q 'setSystemNavOpen' dashboard/app.js
           grep -q 'pollRadioMetadata' dashboard/app.js
           grep -q 'N2K_SEARCH_COMMANDS' dashboard/app.js
           grep -q 'renderMediaQueue' dashboard/app.js
