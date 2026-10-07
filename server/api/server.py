@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2515,6 +2515,18 @@ class Handler(BaseHTTPRequestHandler):
     def session(self):
         return get_session(self.session_token())
 
+    def client_ip(self):
+        peer = self.client_address[0] if self.client_address else ""
+        if peer in {"127.0.0.1", "::1"}:
+            forwarded = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+            if forwarded:
+                try:
+                    ipaddress.ip_address(forwarded)
+                    return forwarded
+                except ValueError:
+                    pass
+        return peer
+
     def require_auth(self):
         session = self.session()
         if not session:
@@ -2603,10 +2615,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def set_session_response(self, username):
         ensure_workspace(username)
-        token, csrf, _ = new_session(username, self.headers.get("User-Agent", ""), self.client_address[0] if self.client_address else "")
+        token, csrf, _ = new_session(username, self.headers.get("User-Agent", ""), self.client_ip())
+        secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
         cookie = (
             f"n2k_session={token}; Path=/; HttpOnly; SameSite=Strict; "
-            f"Max-Age={SESSION_TTL}"
+            f"Max-Age={SESSION_TTL}{secure}"
         )
         self.send_json(
             {"authenticated": True, "username": username, "csrf": csrf, "role": user_auth_record(username).get("role", "viewer")},
@@ -2705,6 +2718,17 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             self.send_json(security_payload(session["username"]))
+            return
+
+        if path == "/remote-access":
+            session = self.require_auth()
+            if not session:
+                return
+            result = vm_agent("remote_access_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
             return
 
         if path == "/status":
@@ -3000,7 +3024,7 @@ class Handler(BaseHTTPRequestHandler):
             password = str(data.get("password", ""))
             if not verify_login(username, password):
                 time.sleep(0.35)
-                audit_event(username or "unknown", "login_failed", "Ungültige Zugangsdaten", self.client_address[0] if self.client_address else "")
+                audit_event(username or "unknown", "login_failed", "Ungültige Zugangsdaten", self.client_ip())
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             record = user_auth_record(username)
@@ -3009,7 +3033,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not verify_totp(record.get("totp_secret") or "", code):
                     self.send_json({"error": "totp_required"}, 401)
                     return
-            audit_event(username, "login", "Anmeldung erfolgreich", self.client_address[0] if self.client_address else "")
+            audit_event(username, "login", "Anmeldung erfolgreich", self.client_ip())
             self.set_session_response(username)
             return
 
@@ -3017,6 +3041,37 @@ class Handler(BaseHTTPRequestHandler):
         viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
         if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
             self.send_json({"error": "read_only_role"}, 403)
+            return
+
+        if path == "/remote-access/configure":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                mode = str(data.get("mode", "")).strip()
+                domain = str(data.get("domain", "")).strip()
+                email = str(data.get("email", "")).strip()
+                result = vm_agent("remote_access_configure", {"mode": mode, "domain": domain, "email": email})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "remote_access_configure", f"{mode}:{domain}"[:500], self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/remote-access/renew":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            result = vm_agent("remote_access_renew")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            audit_event(session["username"], "certificate_renew", "", self.client_ip())
+            self.send_json(result)
             return
 
         if path == "/security/users/create":
@@ -3027,7 +3082,7 @@ class Handler(BaseHTTPRequestHandler):
                 data = self.read_json()
                 username = str(data.get("username", "")).strip()
                 create_user_account(username, str(data.get("password", "")), str(data.get("role", "viewer")))
-                audit_event(session["username"], "user_create", username, self.client_address[0] if self.client_address else "")
+                audit_event(session["username"], "user_create", username, self.client_ip())
                 self.send_json({"ok": True}, 201)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
@@ -3041,7 +3096,7 @@ class Handler(BaseHTTPRequestHandler):
                 data = self.read_json()
                 username = str(data.get("username", "")).strip()
                 update_user_account(username, data.get("role"), data.get("enabled") if "enabled" in data else None)
-                audit_event(session["username"], "user_update", username, self.client_address[0] if self.client_address else "")
+                audit_event(session["username"], "user_update", username, self.client_ip())
                 self.send_json({"ok": True})
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
@@ -3052,7 +3107,7 @@ class Handler(BaseHTTPRequestHandler):
             if not session or not self.require_csrf_token(session):
                 return
             result = begin_totp_setup(session["username"])
-            audit_event(session["username"], "totp_begin", "", self.client_address[0] if self.client_address else "")
+            audit_event(session["username"], "totp_begin", "", self.client_ip())
             self.send_json(result)
             return
 
@@ -3063,7 +3118,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self.read_json()
                 confirm_totp_setup(session["username"], data.get("code"))
-                audit_event(session["username"], "totp_enable", "", self.client_address[0] if self.client_address else "")
+                audit_event(session["username"], "totp_enable", "", self.client_ip())
                 self.send_json({"ok": True})
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
@@ -3074,7 +3129,7 @@ class Handler(BaseHTTPRequestHandler):
             if not session or not self.require_csrf_token(session):
                 return
             disable_totp(session["username"])
-            audit_event(session["username"], "totp_disable", "", self.client_address[0] if self.client_address else "")
+            audit_event(session["username"], "totp_disable", "", self.client_ip())
             self.send_json({"ok": True})
             return
 
@@ -3094,7 +3149,7 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError("session_not_found")
                     conn.execute("DELETE FROM sessions WHERE token_hash=?", (allowed[0][0],))
                     conn.commit()
-                audit_event(session["username"], "session_revoke", allowed[0][1], self.client_address[0] if self.client_address else "")
+                audit_event(session["username"], "session_revoke", allowed[0][1], self.client_ip())
                 self.send_json({"ok": True})
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
@@ -3734,7 +3789,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "csrf_required"}, 403)
                 return
             token = self.session_token()
-            audit_event(session["username"], "logout", "", self.client_address[0] if self.client_address else "")
+            audit_event(session["username"], "logout", "", self.client_ip())
             delete_session(token)
             self.send_json(
                 {"authenticated": False},

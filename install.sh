@@ -4,7 +4,9 @@ set -Eeuo pipefail
 N2K_REPO="netfreak2k/netfreak2k-os"
 N2K_REF="${N2K_REF:-main}"
 N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
-N2K_HTTP_PORT="${N2K_HTTP_PORT:-}"
+N2K_PUBLIC_HTTP_PORT="${N2K_PUBLIC_HTTP_PORT:-${N2K_HTTP_PORT:-}}"
+N2K_PUBLIC_HTTPS_PORT="${N2K_PUBLIC_HTTPS_PORT:-}"
+N2K_BACKEND_PORT="${N2K_BACKEND_PORT:-18080}"
 ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
 
 log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
@@ -42,7 +44,7 @@ fi
 
 log "Installiere Netfreak2k-Laufzeitabhängigkeiten."
 apt-get update
-apt-get install -y   ca-certificates curl xz-utils python3 socat   qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf   pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools
+apt-get install -y   ca-certificates curl xz-utils python3 socat nginx openssl certbot   qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf   pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools
 
 if ! command -v docker >/dev/null 2>&1; then
   apt-get install -y docker.io docker-compose-v2
@@ -59,14 +61,30 @@ systemctl enable --now avahi-daemon
 docker compose version >/dev/null || die "Docker Compose v2 ist nicht verfügbar."
 virsh --connect qemu:///system list >/dev/null || die "libvirt ist nicht funktionsfähig."
 
-if [[ -z "${N2K_HTTP_PORT}" ]]; then
-  N2K_HTTP_PORT=80
+if [[ -z "${N2K_PUBLIC_HTTP_PORT}" ]]; then
+  N2K_PUBLIC_HTTP_PORT=80
   if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)80$'; then
-    N2K_HTTP_PORT=8080
-    log "Port 80 ist bereits belegt; Netfreak2k nutzt Port 8080."
+    N2K_PUBLIC_HTTP_PORT=8080
+    log "Port 80 ist bereits belegt; Netfreak2k HTTP nutzt Port 8080."
   fi
 fi
 
+if [[ -z "${N2K_PUBLIC_HTTPS_PORT}" ]]; then
+  N2K_PUBLIC_HTTPS_PORT=443
+  if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)443$'; then
+    N2K_PUBLIC_HTTPS_PORT=8443
+    log "Port 443 ist bereits belegt; Netfreak2k HTTPS nutzt Port 8443."
+  fi
+fi
+
+if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq "(^|:)${N2K_BACKEND_PORT}$"; then
+  for candidate in 18081 18082 18083; do
+    if ! ss -H -ltn | awk '{print $4}' | grep -Eq "(^|:)${candidate}$"; then
+      N2K_BACKEND_PORT="${candidate}"
+      break
+    fi
+  done
+fi
 if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^|:)8123$'; then
   if systemctl is-active --quiet netfreak2k-ha-proxy.service 2>/dev/null; then
     log "Port 8123 wird bereits vom Netfreak2k Home-Assistant-Proxy verwendet; wird weiterverwendet."
@@ -92,7 +110,7 @@ cp -a "${tmp}/src/." "${N2K_DIR}/"
 chmod 0755 "${N2K_DIR}/scripts/"*.sh
 install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
 install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
-printf 'N2K_HTTP_PORT=%s\n' "${N2K_HTTP_PORT}" > "${N2K_DIR}/server/.env"
+printf 'N2K_BACKEND_PORT=%s\nN2K_PUBLIC_HTTP_PORT=%s\nN2K_PUBLIC_HTTPS_PORT=%s\n' "${N2K_BACKEND_PORT}" "${N2K_PUBLIC_HTTP_PORT}" "${N2K_PUBLIC_HTTPS_PORT}" > "${N2K_DIR}/server/.env"
 
 log "Installiere eingeschränkten Netfreak2k VM-Agenten."
 install -d -m 0755 /usr/local/lib/netfreak2k /run/netfreak2k /var/lib/netfreak2k
@@ -107,15 +125,19 @@ install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/syste
 install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
 install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/check-updates.sh
 install -m 0755 "${N2K_DIR}/scripts/backup-scheduler.sh" /usr/local/lib/netfreak2k/backup-scheduler.sh
+install -m 0755 "${N2K_DIR}/scripts/configure-gateway.sh" /usr/local/sbin/netfreak2k-gateway
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/system/netfreak2k-update-check.timer
 install -m 0644 "${N2K_DIR}/host/netfreak2k-backup-scheduler.service" /etc/systemd/system/netfreak2k-backup-scheduler.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-backup-scheduler.timer" /etc/systemd/system/netfreak2k-backup-scheduler.timer
+install -m 0644 "${N2K_DIR}/host/netfreak2k-cert-renew.service" /etc/systemd/system/netfreak2k-cert-renew.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-cert-renew.timer" /etc/systemd/system/netfreak2k-cert-renew.timer
 systemctl daemon-reload
 systemctl enable --now netfreak2k-vm-agent.service
 systemctl enable --now netfreak2k-ha-proxy.service
 systemctl enable --now netfreak2k-update-check.timer
 systemctl enable --now netfreak2k-backup-scheduler.timer
+systemctl enable --now netfreak2k-cert-renew.timer
 
 log "Installiere Home Assistant OS als KVM-VM."
 bash "${N2K_DIR}/scripts/provision-haos.sh"
@@ -125,12 +147,15 @@ cd "${N2K_DIR}/server"
 docker compose up -d --build
 
 for _ in $(seq 1 60); do
-  if curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${N2K_BACKEND_PORT}/api/setup" >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
-curl -fsS "http://127.0.0.1:${N2K_HTTP_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
+curl -fsS "http://127.0.0.1:${N2K_BACKEND_PORT}/api/setup" >/dev/null   || die "Netfreak2k Weboberfläche antwortet nicht."
+
+log "Aktiviere lokalen HTTP/HTTPS-Gateway."
+"${N2K_DIR}/scripts/configure-gateway.sh" local
 
 mkdir -p /var/lib/netfreak2k
 printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
@@ -142,9 +167,12 @@ host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
 printf '\n============================================================\n'
 printf ' Netfreak2k wurde erfolgreich installiert.\n'
 printf ' Linux Mint wurde nicht ersetzt oder neu partitioniert.\n'
-printf ' Netfreak2k: http://%s' "${host_ip}"
-if [[ "${N2K_HTTP_PORT}" != "80" ]]; then printf ':%s' "${N2K_HTTP_PORT}"; fi
+printf ' Netfreak2k HTTP:  http://%s' "${host_ip}"
+if [[ "${N2K_PUBLIC_HTTP_PORT}" != "80" ]]; then printf ':%s' "${N2K_PUBLIC_HTTP_PORT}"; fi
 printf '/\n'
+printf ' Netfreak2k HTTPS: https://%s' "${host_ip}"
+if [[ "${N2K_PUBLIC_HTTPS_PORT}" != "443" ]]; then printf ':%s' "${N2K_PUBLIC_HTTPS_PORT}"; fi
+printf '/  (lokales Zertifikat)\n'
 printf ' Home Assistant OS: http://%s:8123/\n' "${host_ip}"
 printf '============================================================\n'
 printf '\nBeim ersten Netfreak2k-Aufruf legst du deinen lokalen Admin an.\n'

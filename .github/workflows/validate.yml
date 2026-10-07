@@ -183,6 +183,20 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: HTTPS Remote Access sanity
+        run: |
+          grep -q 'remote-access-card' dashboard/index.html
+          grep -q 'loadRemoteAccess' dashboard/app.js
+          grep -q '/remote-access/configure' server/api/server.py
+          grep -q 'remote_access_configure' host/vm-agent.py
+          grep -q 'N2K_BACKEND_PORT' server/docker-compose.yml
+          grep -q 'configure-gateway.sh' install.sh
+          grep -q 'configure-gateway.sh' scripts/update-server.sh
+          grep -q 'nginx' scripts/configure-gateway.sh
+          grep -q 'certbot' scripts/configure-gateway.sh
+          test -f host/netfreak2k-cert-renew.service
+          test -f host/netfreak2k-cert-renew.timer
+
       - name: Users Security sanity
         run: |
           grep -q 'security-panel' dashboard/index.html

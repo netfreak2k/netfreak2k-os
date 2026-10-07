@@ -78,6 +78,27 @@ find "${N2K_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -a "${tmp}/src/." "${N2K_DIR}/"
 chmod 0755 "${N2K_DIR}/scripts/"*.sh
 cp "${backup_env}" "${N2K_DIR}/server/.env"
+python3 - "${N2K_DIR}/server/.env" <<'PY'
+import os, sys
+path = sys.argv[1]
+values = {}
+with open(path, encoding="utf-8") as handle:
+    for line in handle:
+        if "=" in line:
+            k, v = line.rstrip("\n").split("=", 1)
+            values[k] = v
+legacy = values.get("N2K_HTTP_PORT", "")
+if "N2K_BACKEND_PORT" not in values:
+    values["N2K_BACKEND_PORT"] = "18080"
+if "N2K_PUBLIC_HTTP_PORT" not in values:
+    values["N2K_PUBLIC_HTTP_PORT"] = legacy or "80"
+if "N2K_PUBLIC_HTTPS_PORT" not in values:
+    values["N2K_PUBLIC_HTTPS_PORT"] = "443"
+values.pop("N2K_HTTP_PORT", None)
+with open(path, "w", encoding="utf-8") as handle:
+    for key in sorted(values):
+        handle.write(f"{key}={values[key]}\n")
+PY
 install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
 install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
 
@@ -86,15 +107,18 @@ install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/syste
 install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/system/netfreak2k-ha-proxy.service
 install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/check-updates.sh
 install -m 0755 "${N2K_DIR}/scripts/backup-scheduler.sh" /usr/local/lib/netfreak2k/backup-scheduler.sh
+install -m 0755 "${N2K_DIR}/scripts/configure-gateway.sh" /usr/local/sbin/netfreak2k-gateway
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/system/netfreak2k-update-check.timer
 install -m 0644 "${N2K_DIR}/host/netfreak2k-backup-scheduler.service" /etc/systemd/system/netfreak2k-backup-scheduler.service
 install -m 0644 "${N2K_DIR}/host/netfreak2k-backup-scheduler.timer" /etc/systemd/system/netfreak2k-backup-scheduler.timer
+install -m 0644 "${N2K_DIR}/host/netfreak2k-cert-renew.service" /etc/systemd/system/netfreak2k-cert-renew.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-cert-renew.timer" /etc/systemd/system/netfreak2k-cert-renew.timer
 
 log "Installiere Media-Center-Audioabhängigkeiten."
 write_progress "running" 62 "audio" "PipeWire, Bluetooth und AirPlay-Basis werden geprüft."
 apt-get update
-apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools
+apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools nginx openssl certbot
 systemctl enable --now bluetooth
 systemctl enable --now avahi-daemon
 
@@ -104,6 +128,7 @@ systemctl restart netfreak2k-vm-agent.service
 systemctl restart netfreak2k-ha-proxy.service
 systemctl enable --now netfreak2k-update-check.timer
 systemctl enable --now netfreak2k-backup-scheduler.timer
+systemctl enable --now netfreak2k-cert-renew.timer
 
 install -d -m 0770 -o nobody -g nogroup /srv/netfreak2k /srv/netfreak2k/users /srv/netfreak2k/shared
 
@@ -111,7 +136,33 @@ log "Baue und starte aktualisierte Webplattform."
 write_progress "running" 78 "containers" "Webplattform und Container werden neu gebaut."
 cd "${N2K_DIR}/server"
 docker compose up -d --build
-write_progress "running" 92 "restart" "Neue Webplattform wurde gestartet. Abschlusspruefung laeuft."
+
+write_progress "running" 88 "gateway" "HTTP/HTTPS-Gateway wird aktualisiert."
+remote_mode="local"
+remote_domain=""
+remote_email=""
+if [[ -s "${STATE_DIR}/remote-access.json" ]]; then
+  readarray -t remote_fields < <(python3 - "${STATE_DIR}/remote-access.json" <<'PY'
+import json, sys
+try:
+    data=json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    data={}
+print(data.get("mode") or "local")
+print(data.get("domain") or "")
+print(data.get("email") or "")
+PY
+)
+  remote_mode="${remote_fields[0]:-local}"
+  remote_domain="${remote_fields[1]:-}"
+  remote_email="${remote_fields[2]:-}"
+fi
+if [[ "${remote_mode}" == "domain" && -n "${remote_domain}" && -n "${remote_email}" ]]; then
+  "${N2K_DIR}/scripts/configure-gateway.sh" domain "${remote_domain}" "${remote_email}" || "${N2K_DIR}/scripts/configure-gateway.sh" local
+else
+  "${N2K_DIR}/scripts/configure-gateway.sh" local
+fi
+write_progress "running" 92 "restart" "Neue Webplattform und HTTPS-Gateway wurden gestartet. Abschlusspruefung laeuft."
 
 mkdir -p "${STATE_DIR}"
 printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"

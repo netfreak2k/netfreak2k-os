@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update",
-    "health_status"
+    "health_status", "remote_access_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -40,6 +40,10 @@ BACKUP_POLICY_FILE = Path("/var/lib/netfreak2k/backup-policy.json")
 MULTIROOM_STATE = Path("/run/netfreak2k/media-multiroom.json")
 NETWORK_INVENTORY_FILE = Path("/var/lib/netfreak2k/network-inventory.json")
 NETWORK_SCAN_STATE = Path("/run/netfreak2k/network-scan.json")
+REMOTE_ACCESS_STATE = Path("/var/lib/netfreak2k/remote-access.json")
+GATEWAY_SCRIPT = Path("/opt/netfreak2k/scripts/configure-gateway.sh")
+DOMAIN_RE = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$")
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -1222,6 +1226,124 @@ def health_status_payload():
     }
 
 
+
+def remote_access_status_payload():
+    state = {
+        "mode": "local",
+        "domain": "",
+        "email": "",
+        "certificate": "local",
+        "backend_port": 18080,
+        "http_port": 80,
+        "https_port": 443,
+        "configured_at": None,
+    }
+    try:
+        saved = json.loads(REMOTE_ACCESS_STATE.read_text(encoding="utf-8"))
+        if isinstance(saved, dict):
+            state.update(saved)
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    addresses = []
+    try:
+        result = run("hostname", "-I", timeout=4)
+        for raw in result.stdout.split():
+            try:
+                ip = ipaddress.ip_address(raw)
+            except ValueError:
+                continue
+            if ip.version == 4 and not ip.is_loopback:
+                addresses.append(str(ip))
+    except Exception:
+        pass
+
+    cert_path = Path("/var/lib/netfreak2k/tls/local.crt")
+    if state.get("mode") == "domain" and state.get("domain"):
+        candidate = Path("/etc/letsencrypt/live") / str(state["domain"]) / "fullchain.pem"
+        if candidate.is_file():
+            cert_path = candidate
+
+    certificate = {
+        "type": state.get("certificate") or "local",
+        "expires_at": None,
+        "subject": "",
+        "valid": False,
+    }
+    if cert_path.is_file() and shutil.which("openssl"):
+        result = run("openssl", "x509", "-in", str(cert_path), "-noout", "-enddate", "-subject", timeout=5)
+        if result.returncode == 0:
+            certificate["valid"] = True
+            for line in result.stdout.splitlines():
+                if line.startswith("notAfter="):
+                    try:
+                        certificate["expires_at"] = int(time.mktime(time.strptime(line.split("=", 1)[1], "%b %d %H:%M:%S %Y %Z")))
+                    except ValueError:
+                        pass
+                elif line.startswith("subject="):
+                    certificate["subject"] = line.split("=", 1)[1].strip()[:200]
+
+    http_port = int(state.get("http_port") or 80)
+    https_port = int(state.get("https_port") or 443)
+    urls = []
+    for address in addresses[:4]:
+        urls.append({
+            "http": f"http://{address}{'' if http_port == 80 else ':' + str(http_port)}/",
+            "https": f"https://{address}{'' if https_port == 443 else ':' + str(https_port)}/",
+        })
+    if state.get("mode") == "domain" and state.get("domain"):
+        urls.insert(0, {"http": f"http://{state['domain']}/", "https": f"https://{state['domain']}/"})
+
+    nginx = system_service_state("nginx.service")
+    return {
+        "mode": state.get("mode") or "local",
+        "domain": state.get("domain") or "",
+        "email": state.get("email") or "",
+        "backend_port": int(state.get("backend_port") or 18080),
+        "http_port": http_port,
+        "https_port": https_port,
+        "configured_at": state.get("configured_at"),
+        "addresses": addresses,
+        "urls": urls,
+        "certificate": certificate,
+        "nginx": nginx,
+        "remote_ready": bool(state.get("mode") == "domain" and certificate.get("valid") and nginx.get("ok")),
+        "requirements": [
+            "DNS-A/AAAA zeigt auf die öffentliche Server-IP",
+            "Router leitet TCP 80 und 443 auf diesen Server weiter",
+            "2FA für Admin-Konten empfohlen",
+        ],
+    }
+
+
+def remote_access_configure(mode, domain="", email=""):
+    mode = str(mode or "").strip().lower()
+    domain = str(domain or "").strip().lower()
+    email = str(email or "").strip()
+    if mode not in {"local", "domain"}:
+        raise RuntimeError("invalid_remote_mode")
+    if not GATEWAY_SCRIPT.is_file():
+        raise RuntimeError("gateway_script_missing")
+    args = [str(GATEWAY_SCRIPT), mode]
+    if mode == "domain":
+        if not DOMAIN_RE.fullmatch(domain):
+            raise RuntimeError("invalid_domain")
+        if not EMAIL_RE.fullmatch(email):
+            raise RuntimeError("invalid_email")
+        args.extend([domain, email])
+    result = run(*args, timeout=180)
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "gateway_config_failed").strip()[:500])
+    return remote_access_status_payload()
+
+
+def remote_access_renew():
+    result = run("certbot", "renew", "--quiet", "--deploy-hook", "systemctl reload nginx", timeout=180)
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "certificate_renew_failed").strip()[:500])
+    return remote_access_status_payload()
+
+
 def storage_payload():
     usage = shutil.disk_usage("/")
     used = usage.total - usage.free
@@ -1783,6 +1905,15 @@ def execute(action, request):
 
     if action == "health_status":
         return health_status_payload()
+
+    if action == "remote_access_status":
+        return remote_access_status_payload()
+
+    if action == "remote_access_configure":
+        return remote_access_configure(request.get("mode"), request.get("domain"), request.get("email"))
+
+    if action == "remote_access_renew":
+        return remote_access_renew()
 
     if action == "network_inventory":
         return network_inventory_payload()

@@ -2266,3 +2266,25 @@ body::after{
 .security-audit-row em{font-style:normal;font-size:6px;color:#687580}
 @media(max-width:900px){.security-summary-grid{grid-template-columns:repeat(2,1fr)}.security-grid{grid-template-columns:1fr}.security-user-create{grid-template-columns:1fr 1fr}.security-user-row{grid-template-columns:30px minmax(0,1fr)}.security-role-select,.security-enable{grid-column:auto}}
 @media(max-width:600px){.security-summary-grid{grid-template-columns:1fr}.security-user-create{grid-template-columns:1fr}.security-list-row{grid-template-columns:28px minmax(0,1fr)}.security-list-row button{grid-column:1/-1;justify-self:end}.security-user-row{grid-template-columns:28px minmax(0,1fr)}}
+
+/* N2K HTTPS & Remote Access */
+.remote-access-card{margin-top:10px}
+.remote-access-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.remote-access-summary>div{min-width:0;padding:10px;border-radius:11px;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.04)}
+.remote-access-summary small,.remote-access-summary strong,.remote-access-summary span{display:block}
+.remote-access-summary small{font-size:5px;letter-spacing:.1em;color:#65727f}
+.remote-access-summary strong{font-size:8px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.remote-access-summary span{font-size:6px;color:#72808d;margin-top:3px;line-height:1.4}
+.remote-admin-config{margin-top:10px}
+.remote-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.remote-mode-switch label{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:flex-start;padding:10px;border-radius:11px;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.04);cursor:pointer}
+.remote-mode-switch strong,.remote-mode-switch small{display:block}
+.remote-mode-switch strong{font-size:7px}.remote-mode-switch small{font-size:6px;color:#6f7c88;margin-top:2px;line-height:1.45}
+.remote-domain-config{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;padding:10px;border-radius:11px;background:rgba(78,128,214,.035);border:1px solid rgba(91,148,242,.06)}
+.remote-domain-config label{display:grid;gap:5px;font-size:6px;color:#788693}
+.remote-domain-config input{height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.06);background:#111923;color:#e3e8ed;padding:0 8px;font-size:7px;outline:0}
+.remote-requirements{grid-column:1/-1;padding:9px;border-radius:9px;background:rgba(205,157,58,.045);border:1px solid rgba(226,181,87,.07)}
+.remote-requirements strong,.remote-requirements span{display:block}
+.remote-requirements strong{font-size:6px;color:#e4c576}.remote-requirements span{font-size:6px;color:#7c8995;margin-top:3px;line-height:1.45}
+.remote-security-note{margin-top:10px;padding:9px;border-radius:9px;font-size:6px;line-height:1.5;color:#74818d;background:rgba(68,164,114,.035);border:1px solid rgba(88,202,145,.06)}
+@media(max-width:800px){.remote-access-summary{grid-template-columns:1fr}.remote-mode-switch{grid-template-columns:1fr}.remote-domain-config{grid-template-columns:1fr}.remote-requirements{grid-column:auto}}
