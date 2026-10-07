@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-remote1">
+  <link rel="stylesheet" href="styles.css?v=20261007-release1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -488,12 +488,14 @@
             <div class="update-info-grid">
               <section>
                 <small>INSTALLIERTER STAND</small>
-                <strong id="update-installed-ref">–</strong>
+                <strong id="update-installed-version">–</strong>
+                <span id="update-installed-ref">–</span>
                 <span id="update-installed-fingerprint">–</span>
               </section>
               <section>
                 <small>VERFÜGBARER STAND</small>
-                <strong id="update-remote-ref">–</strong>
+                <strong id="update-remote-version">–</strong>
+                <span id="update-remote-ref">–</span>
                 <span id="update-remote-fingerprint">–</span>
               </section>
               <section>
@@ -505,6 +507,30 @@
                 <small>INSTALLIERT AM</small>
                 <strong id="update-installed-at">–</strong>
                 <span id="update-runtime-state">Kein Update aktiv</span>
+              </section>
+            </div>
+
+            <div class="update-release-controls">
+              <section>
+                <div>
+                  <small>UPDATE-KANAL</small>
+                  <strong id="update-channel-label">Development</strong>
+                  <span id="update-channel-note">Main-Branch · neuester Entwicklungsstand</span>
+                </div>
+                <select id="update-channel-select" aria-label="Update-Kanal">
+                  <option value="stable">Stable</option>
+                  <option value="beta">Beta</option>
+                  <option value="development">Development</option>
+                </select>
+                <button id="update-channel-save" class="secondary compact">Kanal übernehmen</button>
+              </section>
+              <section>
+                <div>
+                  <small>ROLLBACK</small>
+                  <strong id="update-rollback-title">Kein Rollback-Punkt</strong>
+                  <span id="update-rollback-detail">Vor einem Update wird automatisch ein Wiederherstellungspunkt erzeugt.</span>
+                </div>
+                <button id="update-rollback" class="secondary compact" disabled>Vorherigen Stand wiederherstellen</button>
               </section>
             </div>
 
@@ -1367,6 +1393,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-remote1"></script>
+  <script src="app.js?v=20261007-release1"></script>
 </body>
 </html>
