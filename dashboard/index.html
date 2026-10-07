@@ -768,6 +768,57 @@
               </div>
             </section>
 
+            <section class="monitoring-automation-card">
+              <div class="health-card-head">
+                <div><small>MONITORING & AUTOMATION</small><strong>Alarmregeln & Wartungsmodus</strong></div>
+                <span id="monitoring-policy-badge" class="health-badge">LÄDT</span>
+              </div>
+              <div class="monitoring-policy-grid">
+                <label>Temperatur Warnung
+                  <div class="monitoring-input-unit"><input id="monitor-temp-warning" type="number" min="35" max="100" step="1"><span>°C</span></div>
+                </label>
+                <label>Temperatur Kritisch
+                  <div class="monitoring-input-unit"><input id="monitor-temp-critical" type="number" min="40" max="110" step="1"><span>°C</span></div>
+                </label>
+                <label>Speicher Warnung
+                  <div class="monitoring-input-unit"><input id="monitor-storage-warning" type="number" min="40" max="98" step="1"><span>%</span></div>
+                </label>
+                <label>Speicher Kritisch
+                  <div class="monitoring-input-unit"><input id="monitor-storage-critical" type="number" min="50" max="99" step="1"><span>%</span></div>
+                </label>
+                <label>Backup maximal alt
+                  <select id="monitor-backup-age">
+                    <option value="12">12 Stunden</option>
+                    <option value="24">24 Stunden</option>
+                    <option value="48">48 Stunden</option>
+                    <option value="72">3 Tage</option>
+                    <option value="120">5 Tage</option>
+                    <option value="168">7 Tage</option>
+                    <option value="336">14 Tage</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="monitoring-toggle-grid">
+                <label><input id="monitor-service-alerts" type="checkbox"><span><strong>Dienste & Workloads</strong><small>Docker, Services und Home Assistant melden</small></span></label>
+                <label><input id="monitor-network-alerts" type="checkbox"><span><strong>Neue Netzwerkgeräte</strong><small>Unbekannte Geräte als Hinweis melden</small></span></label>
+                <label><input id="monitor-update-alerts" type="checkbox"><span><strong>Update-Hinweise</strong><small>Neue Netfreak2k-Stände melden</small></span></label>
+                <label class="maintenance-toggle"><input id="monitor-maintenance-mode" type="checkbox"><span><strong>Wartungsmodus</strong><small>Service-, Netzwerk- und Update-Alarme temporär unterdrücken</small></span></label>
+              </div>
+
+              <div class="monitoring-quiet-row">
+                <label class="monitoring-quiet-switch"><input id="monitor-quiet-enabled" type="checkbox"><span><strong>Ruhezeit</strong><small>Nur kritische Meldungen werden während dieser Zeit zugestellt.</small></span></label>
+                <label>Von<input id="monitor-quiet-start" type="time" value="22:00"></label>
+                <label>Bis<input id="monitor-quiet-end" type="time" value="07:00"></label>
+                <span id="monitor-quiet-state" class="status-chip">AUS</span>
+              </div>
+
+              <div class="monitoring-actions">
+                <span id="monitoring-policy-meta">Regeln werden geladen …</span>
+                <button id="monitoring-policy-save" class="primary compact">Regeln speichern</button>
+              </div>
+            </section>
+
             <section class="health-alerts-card">
               <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
               <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
