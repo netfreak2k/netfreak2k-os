@@ -623,6 +623,7 @@ def catalog_payload():
             "name": spec["name"],
             "description": spec["description"],
             "image": spec["image"],
+            "container": spec["container"],
             "host_port": spec["host_port"],
             "installed": state is not None,
             "state": state or "not_installed",
