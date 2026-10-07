@@ -3425,6 +3425,28 @@ function applyMediaEq() {
   if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv" : "EQ Oberfläche · System-DSP folgt";
 }
 
+async function toggleMediaPlayback() {
+  const audio = ensureMediaAudio();
+  if (!audio.src) {
+    const first = filteredMediaStations()[0];
+    if (first) {
+      await playMediaStation(first.index);
+      return;
+    }
+    const favorite = getMediaFavoriteStations()[0];
+    if (favorite) {
+      playFavoriteStation(favorite);
+      return;
+    }
+  }
+  if (audio.paused) {
+    try { await audio.play(); } catch (error) { console.error(error); }
+  } else {
+    audio.pause();
+  }
+  updateMediaPlaybackUi();
+}
+
 function initMediaCenter() {
   if (mediaInitialized) return;
   mediaInitialized = true;
@@ -3445,20 +3467,10 @@ function initMediaCenter() {
     clearTimeout(mediaRadioSearchTimer);
     mediaRadioSearchTimer = setTimeout(loadMediaRadioDirectory, 260);
   });
-  document.getElementById("media-play")?.addEventListener("click", async () => {
-    const audio = ensureMediaAudio();
-    if (!audio.src) {
-      const first = filteredMediaStations()[0];
-      if (first) await playMediaStation(first.index);
-      return;
-    }
-    if (audio.paused) {
-      try { await audio.play(); } catch (error) { console.error(error); }
-    } else {
-      audio.pause();
-    }
-    updateMediaPlaybackUi();
-  });
+  document.getElementById("media-play")?.addEventListener("click", toggleMediaPlayback);
+  document.getElementById("overview-media-play")?.addEventListener("click", toggleMediaPlayback);
+  document.getElementById("overview-media-prev")?.addEventListener("click", () => stepMediaStation(-1));
+  document.getElementById("overview-media-next")?.addEventListener("click", () => stepMediaStation(1));
   document.getElementById("media-prev")?.addEventListener("click", () => stepMediaStation(-1));
   document.getElementById("media-next")?.addEventListener("click", () => stepMediaStation(1));
   document.getElementById("media-favorite")?.addEventListener("click", () => {
