@@ -3757,7 +3757,7 @@ async function setHostAudioOutput(nodeId) {
     await refreshMediaDevices();
   } catch (error) {
     console.error(error);
-    alert("Audio-Ausgang konnte nicht umgeschaltet werden.");
+    showN2KToast("Audio-Ausgang konnte nicht umgeschaltet werden.", "error");
   }
 }
 
@@ -3771,7 +3771,7 @@ async function setBluetoothConnection(mac, connect) {
     await refreshMediaDevices();
   } catch (error) {
     console.error(error);
-    alert(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.");
+    showN2KToast(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.", "error");
   }
 }
 
@@ -3787,7 +3787,7 @@ async function setAirPlayDiscovery(enabled) {
     await refreshMediaDevices();
   } catch (error) {
     console.error(error);
-    alert(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.");
+    showN2KToast(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.", "error");
   } finally {
     if (button) button.disabled = false;
   }
@@ -3799,7 +3799,7 @@ async function applyMediaMultiroom(clear = false) {
       ? {action: "clear"}
       : {action: "set", sinks: Array.from(mediaMultiroomSelection)};
     if (!clear && body.sinks.length < 2) {
-      alert("Bitte mindestens zwei Ausgänge für Multiroom auswählen.");
+      showN2KToast("Bitte mindestens zwei Ausgänge für Multiroom auswählen.", "info");
       return;
     }
     await request("/api/media/multiroom", {
@@ -3811,7 +3811,7 @@ async function applyMediaMultiroom(clear = false) {
     await refreshMediaDevices();
   } catch (error) {
     console.error(error);
-    alert(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.");
+    showN2KToast(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.", "error");
   }
 }
 
@@ -3867,24 +3867,42 @@ function renderMediaRooms(routing = {}) {
   if (clear) clear.disabled = !state.active;
 }
 
+async function friendlyAudioKind(kind) {
+  return ({
+    hdmi:"HDMI",
+    usb:"USB DAC",
+    bluetooth:"Bluetooth",
+    airplay:"AirPlay",
+    dlna:"DLNA / UPnP",
+    local:"Interne Audioausgabe",
+    audio:"Audioausgang"
+  })[kind] || "Audioausgang";
+}
+
 async function refreshMediaDevices() {
   const list = document.getElementById("media-device-list");
   if (!list) return;
-  list.innerHTML = "";
+  list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   const audio = ensureMediaAudio();
-  const addRow = (icon,name,detail,status,action,extraClass = "") => {
+  const rows = [];
+  const addRow = (icon,name,detail,status,action,extraClass = "",technical = "") => {
     const row = document.createElement("div");
     row.className = `media-device-row ${extraClass}`.trim();
     row.innerHTML = '<span></span><div><strong></strong><small></small></div><em></em>';
     row.querySelector("span").textContent = icon;
     row.querySelector("strong").textContent = name;
-    row.querySelector("small").textContent = detail;
+    const detailNode = row.querySelector("small");
+    detailNode.textContent = detail;
+    if (technical) {
+      detailNode.title = technical;
+      row.title = technical;
+    }
     row.querySelector("em").textContent = status;
     if (action) {
       row.classList.add("clickable");
       row.addEventListener("click", action);
     }
-    list.appendChild(row);
+    rows.push(row);
   };
   const setProtocol = (name, state, title = "") => {
     const badge = document.querySelector(`[data-media-protocol="${name}"]`);
@@ -3894,7 +3912,7 @@ async function refreshMediaDevices() {
     if (title) badge.title = title;
   };
 
-  addRow("◉","System Audio","Browser-Standardausgang","Browser");
+  addRow("◉","Browser-Audio","Standardausgang dieses Browsers","bereit");
 
   try {
     const host = await request("/api/media/devices", {headers:{}});
@@ -3908,21 +3926,29 @@ async function refreshMediaDevices() {
       const icons = {hdmi:"▣",usb:"USB",bluetooth:"BT",local:"◉",audio:"♪"};
       addRow(
         icons[device.kind] || "♪",
-        device.name || "Audio-Gerät",
-        `${device.backend || "Host"} · ${device.detail || "bereit"}`,
-        device.available === false ? "offline" : "erkannt"
+        device.name || friendlyAudioKind(device.kind),
+        friendlyAudioKind(device.kind),
+        device.available === false ? "offline" : "erkannt",
+        null,
+        "",
+        `${device.backend || "Host"} · ${device.detail || ""}`
       );
     });
 
     const sinks = Array.isArray(pipewire.sinks) ? pipewire.sinks : [];
     sinks.forEach(sink => {
+      const kind = sink.kind || "audio";
       addRow(
         sink.default ? "●" : "○",
-        sink.name || `PipeWire ${sink.id}`,
-        `PipeWire · Node ${sink.id}`,
-        sink.default ? "Standard" : "wählen",
-        sink.default ? null : () => setHostAudioOutput(sink.id),
-        sink.default ? "active-route" : ""
+        sink.name || friendlyAudioKind(kind),
+        `${friendlyAudioKind(kind)} · Systemausgang`,
+        sink.default ? "aktiv" : "wählen",
+        sink.default ? null : async () => {
+          await setHostAudioOutput(sink.id);
+          showN2KToast("Audioausgang wurde gewechselt.", "success");
+        },
+        sink.default ? "active-route" : "",
+        `PipeWire Node ${sink.id}`
       );
     });
 
@@ -3930,20 +3956,23 @@ async function refreshMediaDevices() {
     btDevices.forEach(device => {
       addRow(
         "BT",
-        device.name || device.mac,
-        `${device.paired ? "gekoppelt" : "bekannt"} · ${device.mac}`,
+        device.name || "Bluetooth-Gerät",
+        device.connected ? "Bluetooth · verbunden" : (device.paired ? "Bluetooth · gekoppelt" : "Bluetooth · bekannt"),
         device.connected ? "trennen" : "verbinden",
         () => setBluetoothConnection(device.mac, !device.connected),
-        device.connected ? "active-route" : ""
+        device.connected ? "active-route" : "",
+        device.mac
       );
     });
 
     const hasHdmi = hostDevices.some(device => device.kind === "hdmi") || sinks.some(sink => /hdmi/i.test(sink.name || ""));
     const hasUsb = hostDevices.some(device => device.kind === "usb") || sinks.some(sink => /(usb|dac|fiio|scarlett|focusrite)/i.test(sink.name || ""));
-    setProtocol("hdmi", hasHdmi, hasHdmi ? "HDMI-Audio am Host erkannt" : "Kein HDMI-Audio erkannt");
-    setProtocol("usb", hasUsb, hasUsb ? "USB-Audio am Host erkannt" : "Kein USB-DAC erkannt");
-    setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth-Steuerung aktiv" : (host.bluetooth?.note || "Bluetooth"));
-    setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || host.airplay?.note || "AirPlay vorbereitet");
+    setProtocol("hdmi", hasHdmi, hasHdmi ? "HDMI-Audio erkannt" : "Kein HDMI-Audio erkannt");
+    setProtocol("usb", hasUsb, hasUsb ? "USB-Audio erkannt" : "Kein USB-DAC erkannt");
+    setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth verfügbar" : "Bluetooth nicht verfügbar");
+    setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || "AirPlay vorbereitet");
+    setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || "DLNA vorbereitet");
+
     const airplayToggle = document.getElementById("media-airplay-toggle");
     const airplayStatus = document.getElementById("media-airplay-status");
     const airplayDiscovery = Boolean(routing.airplay?.discovery_active);
@@ -3954,55 +3983,50 @@ async function refreshMediaDevices() {
     if (airplayStatus) {
       const count = Array.isArray(routing.airplay?.sinks) ? routing.airplay.sinks.length : 0;
       airplayStatus.textContent = airplayDiscovery
-        ? `RAOP-Suche aktiv · ${count} AirPlay-Ausgang${count === 1 ? "" : "e"}`
-        : "RAOP-Suche ist aus";
+        ? `AirPlay-Suche aktiv · ${count} Gerät${count === 1 ? "" : "e"}`
+        : "AirPlay-Suche ist aus";
     }
-    setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || host.dlna?.note || "DLNA vorbereitet");
 
     if (!routing.available) {
-      addRow("•","PipeWire Routing","Host-Agent noch nicht aktualisiert oder keine Desktop-Audiositzung aktiv","wartet");
+      addRow("•","System-Audio","Audio-Routing ist momentan nicht verfügbar","prüfen",null,"",routing.error || "Host-Agent");
     } else if (pipewire.error) {
-      addRow("•","PipeWire Routing",pipewire.error,"prüfen");
-    } else if (!sinks.length) {
-      addRow("•","PipeWire Routing","Keine aktiven Audio-Sinks gefunden","leer");
+      addRow("•","System-Audio","PipeWire-Audiositzung benötigt Aufmerksamkeit","prüfen",null,"",pipewire.error);
     }
   } catch (error) {
     console.warn("Host audio inventory unavailable", error);
-    addRow("•","Host-Audiogeräte","Inventar momentan nicht erreichbar","–");
-    setProtocol("airplay", null, "AirPlay-Systemdienst folgt");
-    setProtocol("dlna", null, "DLNA-Systemdienst folgt");
+    addRow("•","Server-Audio","Geräte konnten momentan nicht gelesen werden","offline");
+    setProtocol("airplay", null, "AirPlay vorbereitet");
+    setProtocol("dlna", null, "DLNA vorbereitet");
   }
 
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    addRow("•","Browser-Ausgänge","Geräteauswahl wird von diesem Browser nicht unterstützt","–");
-    return;
+  if (navigator.mediaDevices?.enumerateDevices) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter(device => device.kind === "audiooutput");
+      outputs.forEach((device,index) => {
+        const label = device.label || `Browser-Ausgang ${index + 1}`;
+        const canRoute = typeof audio.setSinkId === "function";
+        addRow("◌",label,"Direkter Browser-Ausgang",canRoute ? "wählen" : "System",
+          canRoute ? async () => {
+            try {
+              await audio.setSinkId(device.deviceId);
+              showN2KToast(`${label} ist jetzt Browser-Ausgang.`, "success");
+              await refreshMediaDevices();
+            } catch (error) {
+              console.error(error);
+              showN2KToast("Browser-Ausgang konnte nicht gewechselt werden.", "error");
+            }
+          } : null
+        );
+      });
+    } catch (error) {
+      console.error(error);
+    }
   }
 
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const outputs = devices.filter(device => device.kind === "audiooutput");
-    outputs.forEach((device,index) => {
-      const label = device.label || `Browser-Ausgang ${index + 1}`;
-      const canRoute = typeof audio.setSinkId === "function";
-      addRow("◌",label,canRoute ? "Direkt aus N2K auswählbar" : "Vom System verwaltet",canRoute ? "wählen" : "bereit",
-        canRoute ? async event => {
-          try {
-            await audio.setSinkId(device.deviceId);
-            Array.from(list.querySelectorAll("em")).forEach(node => {
-              if (node.textContent === "Browser aktiv") node.textContent = "bereit";
-            });
-            const badge = event.currentTarget.querySelector("em");
-            if (badge) badge.textContent = "Browser aktiv";
-          } catch (error) {
-            console.error(error);
-          }
-        } : null);
-    });
-    if (!outputs.length) addRow("•","Keine zusätzlichen Browser-Ausgänge","Host-Audio bleibt verfügbar","–");
-  } catch (error) {
-    console.error(error);
-    addRow("•","Browser-Geräte konnten nicht gelesen werden","Berechtigungen prüfen","–");
-  }
+  list.innerHTML = "";
+  rows.forEach(row => list.appendChild(row));
+  if (!rows.length) list.innerHTML = '<div class="media-empty">Keine Audioausgänge erkannt.</div>';
 }
 
 function applyEqPreset(name) {
