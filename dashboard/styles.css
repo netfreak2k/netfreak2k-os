@@ -1718,3 +1718,24 @@ body::after{
   .global-search-results{left:0!important;right:0!important;width:100%!important}
   .file-actions{gap:4px}
 }
+
+/* Sidebar grouping */
+.nav-item[data-target="apps-panel"],
+.nav-item[data-target="terminal-panel"]{
+  margin-top:7px;
+  position:relative;
+}
+.nav-item[data-target="apps-panel"]::before,
+.nav-item[data-target="terminal-panel"]::before{
+  content:"";
+  position:absolute;
+  left:12px;right:12px;top:-6px;
+  height:1px;background:rgba(255,255,255,.055);
+}
+.nav-item[data-target="media-center-panel"]{
+  background:linear-gradient(90deg,rgba(111,87,42,.10),rgba(255,255,255,.015));
+}
+.nav-item[data-target="media-center-panel"].active{
+  background:linear-gradient(90deg,#7b6229,#b68a2f);
+  box-shadow:0 9px 24px rgba(159,119,39,.18);
+}
