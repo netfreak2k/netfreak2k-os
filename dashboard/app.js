@@ -2987,7 +2987,7 @@ let mediaLocalIndex = -1;
 let mediaQueue = [];
 let mediaShuffle = false;
 let mediaRepeat = "off";
-let mediaActiveSection = "all";
+let mediaActiveSection = "home";
 let mediaSessionRestored = false;
 let mediaSessionRestoring = false;
 let mediaInitialized = false;
@@ -3068,15 +3068,23 @@ function loadMediaSession() {
   }
 }
 
-function applyMediaSection(section = "all") {
-  mediaActiveSection = section || "all";
+function applyMediaSection(section = "home") {
+  mediaActiveSection = section || "home";
+  const grid = document.querySelector(".media-center-grid");
   document.querySelectorAll(".media-section-tabs button").forEach(button => {
     button.classList.toggle("active", button.dataset.mediaSection === mediaActiveSection);
   });
   document.querySelectorAll("[data-media-group]").forEach(card => {
-    card.classList.toggle("media-section-hidden", mediaActiveSection !== "all" && card.dataset.mediaGroup !== mediaActiveSection);
+    const group = card.dataset.mediaGroup;
+    const visible = mediaActiveSection === "home"
+      ? ["radio","library","streaming"].includes(group)
+      : group === mediaActiveSection;
+    card.classList.toggle("media-section-hidden", !visible);
   });
-  document.querySelector(".media-center-grid")?.classList.toggle("media-filtered", mediaActiveSection !== "all");
+  if (grid) {
+    grid.classList.toggle("media-filtered", mediaActiveSection !== "home");
+    grid.dataset.section = mediaActiveSection;
+  }
   saveMediaSession();
 }
 
@@ -3088,7 +3096,7 @@ function restoreMediaPreferences() {
   if (Number.isFinite(volume)) audio.volume = Math.max(0, Math.min(1, volume / 100));
   audio.muted = Boolean(state.muted);
   if (typeof state.country === "string" && /^[A-Z]{2}$/.test(state.country)) mediaCountry = state.country;
-  if (typeof state.section === "string") mediaActiveSection = state.section;
+  if (typeof state.section === "string") mediaActiveSection = state.section === "all" ? "home" : state.section;
   mediaShuffle = Boolean(state.shuffle);
   if (["off","all","one"].includes(state.repeat)) mediaRepeat = state.repeat;
   if (Array.isArray(state.queue)) mediaQueue = state.queue.map(String).slice(0, 200);
@@ -3225,6 +3233,9 @@ function updateMediaPlaybackUi() {
   const station = mediaCurrentStation();
   const play = document.getElementById("media-play");
   const topTitle = document.getElementById("top-media-title");
+  const topSubtitle = document.getElementById("top-media-subtitle");
+  const topStatus = document.getElementById("top-media-status");
+  const sourceLabel = document.getElementById("media-source-label");
   const topPlay = document.getElementById("top-media-play");
   const topPause = document.getElementById("top-media-pause");
   const topMute = document.getElementById("top-media-mute");
@@ -3232,7 +3243,17 @@ function updateMediaPlaybackUi() {
   const visualizer = document.querySelector(".media-visualizer");
 
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
-  if (topTitle) topTitle.textContent = station ? (station.title || station.name) : "Bereit";
+  const displayTitle = station ? (station.title || station.name) : "Noch kein Titel";
+  const displayMeta = station
+    ? (station.source === "local"
+      ? [station.artist || "Unbekannter Interpret", station.album || station.name].filter(Boolean).join(" · ")
+      : [station.genre || "Radio", station.country || "Internet"].filter(Boolean).join(" · "))
+    : "Radio · Eigene Musik · Streaming";
+  const sourceText = station?.source === "local" ? "EIGENE MUSIK" : station ? "RADIO" : "MEDIA";
+  if (topTitle) topTitle.textContent = displayTitle;
+  if (topSubtitle) topSubtitle.textContent = displayMeta;
+  if (topStatus) topStatus.textContent = `${sourceText} · ${playing ? "LÄUFT" : audio.src ? "PAUSE" : "BEREIT"}`;
+  if (sourceLabel) sourceLabel.textContent = sourceText;
   if (topPlay) topPlay.classList.toggle("active", playing);
   if (topPause) topPause.classList.toggle("active", Boolean(mediaAudio?.paused && mediaAudio?.src));
   if (topMute) {
@@ -3258,8 +3279,8 @@ function updateMediaPlaybackUi() {
     const subtitle = document.getElementById("media-subtitle");
     if (title) title.textContent = station.title || station.name;
     if (subtitle) subtitle.textContent = station.source === "local"
-      ? [station.artist || "Eigene Musik", station.album, station.genre, station.bitrate].filter(Boolean).join(" · ")
-      : `${station.genre} · ${station.bitrate} · ${station.country}`;
+      ? [station.artist || "Unbekannter Interpret", station.album, station.name !== station.title ? station.name : "", station.genre, station.bitrate].filter(Boolean).join(" · ")
+      : [station.genre, station.bitrate, station.country].filter(Boolean).join(" · ");
     updateMediaArtwork(station);
   }
 }
@@ -4305,7 +4326,7 @@ function stopMediaPlayback() {
   mediaLocalIndex = -1;
   const title = document.getElementById("media-title");
   const subtitle = document.getElementById("media-subtitle");
-  if (title) title.textContent = "Wiedergabe gestoppt";
+  if (title) title.textContent = "Noch nichts ausgewählt";
   if (subtitle) subtitle.textContent = "Wähle Radio, eigene Musik oder einen Streaming-Dienst.";
   updateMediaArtwork(null);
   clearSpectrumUi();
