@@ -1177,8 +1177,19 @@ def health_status_payload():
         age = int(time.time()) - int(latest_backup["created_at"])
         if age > 3 * 86400:
             warnings.append({"kind": "backup", "level": "warning", "title": "Backup ist veraltet", "detail": f"Letztes Backup vor {age // 86400} Tagen."})
+        if latest_backup.get("verified") is False:
+            warnings.append({"kind": "backup", "level": "critical", "title": "Backup-Integrität fehlgeschlagen", "detail": f"{latest_backup.get('id', 'Backup')} konnte nicht verifiziert werden."})
     elif not latest_backup:
         warnings.append({"kind": "backup", "level": "warning", "title": "Kein Backup vorhanden", "detail": "Es wurde noch kein N2K-Backup gefunden."})
+    backup_policy = backup_policy_payload()
+    last_backup_result = backup_policy.get("last_result")
+    if backup_policy.get("enabled") and isinstance(last_backup_result, dict) and last_backup_result.get("ok") is False:
+        warnings.append({
+            "kind": "backup",
+            "level": "critical",
+            "title": "Automatisches Backup fehlgeschlagen",
+            "detail": str(last_backup_result.get("error") or "Der geplante Backup-Lauf ist fehlgeschlagen.")[:300],
+        })
 
     score = 100
     for item in warnings:
