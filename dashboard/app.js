@@ -2175,9 +2175,40 @@ document.addEventListener("click", event => {
   if (!event.target.closest(".command-search-wrap")) box.classList.add("hidden");
 });
 document.addEventListener("keydown", event => {
+  const target = event.target;
+  const editable = target instanceof HTMLElement &&
+    (target.matches("input,textarea,select") || target.isContentEditable);
+
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     globalSearch?.focus();
+    globalSearch?.select();
+    return;
+  }
+  if (!editable && event.key === "/") {
+    event.preventDefault();
+    globalSearch?.focus();
+    return;
+  }
+  if (event.key === "Escape") {
+    document.getElementById("global-search-results")?.classList.add("hidden");
+    toggleMediaServiceDirectory(false);
+    return;
+  }
+  if (editable || event.ctrlKey || event.metaKey || event.altKey) return;
+  const hasMedia = Boolean(mediaAudio?.src);
+  if (event.code === "Space" && (hasMedia || activeView === "media-center-panel")) {
+    event.preventDefault();
+    toggleMediaPlayback();
+  } else if (event.key.toLowerCase() === "m" && hasMedia) {
+    event.preventDefault();
+    toggleMediaMute();
+  } else if (event.key === "ArrowRight" && hasMedia) {
+    event.preventDefault();
+    stepMediaStation(1);
+  } else if (event.key === "ArrowLeft" && hasMedia) {
+    event.preventDefault();
+    stepMediaStation(-1);
   }
 });
 
@@ -2920,6 +2951,7 @@ let mediaShuffle = false;
 let mediaRepeat = "off";
 let mediaActiveSection = "all";
 let mediaSessionRestored = false;
+let mediaSessionRestoring = false;
 let mediaInitialized = false;
 let mediaAudioContext = null;
 let mediaEqFilters = [];
@@ -2983,6 +3015,7 @@ function mediaSessionSnapshot() {
 }
 
 function saveMediaSession() {
+  if (mediaSessionRestoring) return;
   try {
     localStorage.setItem("n2k-media-session", JSON.stringify(mediaSessionSnapshot()));
   } catch (_) {}
@@ -3009,6 +3042,7 @@ function applyMediaSection(section = "all") {
 }
 
 function restoreMediaPreferences() {
+  mediaSessionRestoring = true;
   const state = loadMediaSession();
   const audio = ensureMediaAudio();
   const volume = Number(state.volume);
@@ -3034,6 +3068,7 @@ function restoreMediaPreferences() {
   applyMediaSection(mediaActiveSection);
   updateMediaPlayModes();
   applyMediaEq();
+  mediaSessionRestoring = false;
 }
 
 function restoreMediaCurrentItem() {
@@ -3769,6 +3804,7 @@ async function setBluetoothConnection(mac, connect) {
       headers: {"X-CSRF-Token": csrfToken}
     });
     await refreshMediaDevices();
+    showN2KToast(connect ? "Bluetooth-Gerät verbunden." : "Bluetooth-Gerät getrennt.", "success");
   } catch (error) {
     console.error(error);
     showN2KToast(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.", "error");
@@ -3785,6 +3821,7 @@ async function setAirPlayDiscovery(enabled) {
       headers: {"X-CSRF-Token": csrfToken}
     });
     await refreshMediaDevices();
+    showN2KToast(enabled ? "AirPlay-Suche aktiviert." : "AirPlay-Suche deaktiviert.", "success");
   } catch (error) {
     console.error(error);
     showN2KToast(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.", "error");
@@ -3809,6 +3846,7 @@ async function applyMediaMultiroom(clear = false) {
     });
     if (clear) mediaMultiroomSelection.clear();
     await refreshMediaDevices();
+    showN2KToast(clear ? "Multiroom-Gruppe gelöst." : "Multiroom-Gruppe aktiviert.", "success");
   } catch (error) {
     console.error(error);
     showN2KToast(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.", "error");
@@ -4003,6 +4041,7 @@ async function refreshMediaDevices() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const outputs = devices.filter(device => device.kind === "audiooutput");
+      const savedSink = localStorage.getItem("n2k-media-browser-sink") || "";
       outputs.forEach((device,index) => {
         const label = device.label || `Browser-Ausgang ${index + 1}`;
         const canRoute = typeof audio.setSinkId === "function";
@@ -4010,6 +4049,7 @@ async function refreshMediaDevices() {
           canRoute ? async () => {
             try {
               await audio.setSinkId(device.deviceId);
+              localStorage.setItem("n2k-media-browser-sink", device.deviceId);
               showN2KToast(`${label} ist jetzt Browser-Ausgang.`, "success");
               await refreshMediaDevices();
             } catch (error) {
@@ -4018,6 +4058,9 @@ async function refreshMediaDevices() {
             }
           } : null
         );
+        if (savedSink && canRoute && device.deviceId === savedSink && audio.sinkId !== savedSink) {
+          audio.setSinkId(savedSink).catch(() => localStorage.removeItem("n2k-media-browser-sink"));
+        }
       });
     } catch (error) {
       console.error(error);
@@ -4163,7 +4206,8 @@ function drawMediaSpectrum() {
   if (stateNode) {
     if (!ensureMediaAudio().src) stateNode.textContent = "Kein Stream";
     else if (ensureMediaAudio().paused) stateNode.textContent = "Pausiert";
-    else if (maxValue <= 1) stateNode.textContent = "Kein messbares Signal";
+    else if (maxValue <= 1) stateNode.textContent =
+      mediaCurrentStation()?.source === "local" ? "Kein messbares Signal" : "Stream blockiert Analyse / CORS";
     else stateNode.textContent = "Live Audiodaten";
   }
   updateEqBandMeters();
