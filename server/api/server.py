@@ -3290,6 +3290,57 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 201)
             return
 
+        if path == "/backups/verify":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                backup_id = str(data.get("backup_id", ""))
+                result = vm_agent("backup_verify", {"backup_id": backup_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/backups/policy":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                fields = data.get("fields")
+                if not isinstance(fields, dict):
+                    raise ValueError("invalid_backup_policy")
+                result = vm_agent("backup_policy_set", {"fields": fields})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/backups/prune":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            result = vm_agent("backup_prune")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/backups/restore":
             session = self.require_auth()
             if not session:
