@@ -1,4 +1,5 @@
 let csrfToken = "";
+let currentRole = "viewer";
 let workspaceArea = "documents";
 let workspacePath = "";
 let calendarCursor = new Date();
@@ -67,7 +68,7 @@ async function bootstrapAuth() {
   const session = await request("/api/session");
   if (session.authenticated) {
     csrfToken = session.csrf || "";
-    enterApp(session.username);
+    enterApp(session.username, session.role || "viewer");
     return;
   }
 
@@ -276,7 +277,8 @@ async function configureDesktopNotifications(enabled) {
   showN2KToast(allowed ? "Desktop-Hinweise aktiviert." : "Desktop-Hinweise wurden nicht freigegeben.", allowed ? "success" : "info");
 }
 
-function enterApp(username) {
+function enterApp(username, role = "viewer") {
+  currentRole = role || "viewer";
   show(document.getElementById("auth-shell"), false);
   show(document.getElementById("app-shell"), true);
   document.getElementById("session-user").textContent = username ? `@ ${username}` : "";
@@ -293,6 +295,7 @@ function enterApp(username) {
   loadVms();
   loadBackups();
   loadSystemHealth();
+  loadSecurity();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -324,7 +327,7 @@ document.getElementById("setup-form").addEventListener("submit", async event => 
       body: JSON.stringify({username, password})
     });
     csrfToken = data.csrf || "";
-    enterApp(data.username);
+    enterApp(data.username, data.role || "admin");
   } catch (error) {
     authError(apiErrorMessage(error.code));
   }
@@ -335,15 +338,21 @@ document.getElementById("login-form").addEventListener("submit", async event => 
   authError();
   const username = document.getElementById("login-username").value.trim();
   const password = document.getElementById("login-password").value;
+  const totp = document.getElementById("login-totp")?.value.trim() || "";
   try {
     const data = await request("/api/login", {
       method: "POST",
-      body: JSON.stringify({username, password})
+      body: JSON.stringify({username, password, totp})
     });
     csrfToken = data.csrf || "";
-    enterApp(data.username);
+    enterApp(data.username, data.role || "viewer");
   } catch (error) {
-    authError(apiErrorMessage(error.code));
+    if (error.code === "totp_required") {
+      authError("Bitte den 6-stelligen Code aus deiner Authenticator-App eingeben.");
+      document.getElementById("login-totp")?.focus();
+    } else {
+      authError(apiErrorMessage(error.code));
+    }
   }
 });
 
@@ -3410,6 +3419,7 @@ const viewGroups = {
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
   "health-panel": ["health-panel"],
+  "security-panel": ["security-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -3422,7 +3432,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
