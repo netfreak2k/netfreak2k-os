@@ -23,7 +23,8 @@ ALLOWED = {
     "app_catalog", "app_install", "storage_status",
     "backup_list", "backup_create", "backup_restore", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
-    "audio_multiroom_set", "audio_multiroom_clear"
+    "audio_multiroom_set", "audio_multiroom_clear",
+    "audio_airplay_enable", "audio_airplay_disable"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -232,6 +233,43 @@ def pulse_sinks():
     return sinks
 
 
+def pulse_modules():
+    result = run_audio_user("pactl", "list", "short", "modules", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "pactl_modules_failed")
+    modules = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2 or not parts[0].strip().isdigit():
+            continue
+        modules.append({"id": parts[0].strip(), "name": parts[1].strip(), "args": parts[2].strip() if len(parts) > 2 else ""})
+    return modules
+
+
+def airplay_discovery_module_ids():
+    try:
+        return [module["id"] for module in pulse_modules() if module["name"] == "module-raop-discover"]
+    except RuntimeError:
+        return []
+
+
+def airplay_discovery_set(enabled):
+    existing = airplay_discovery_module_ids()
+    if enabled:
+        if existing:
+            return audio_status_payload()
+        result = run_audio_user("pactl", "load-module", "module-raop-discover", timeout=10)
+        if result.returncode != 0 or not result.stdout.strip().isdigit():
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "airplay_discovery_unavailable")
+        time.sleep(1.0)
+        return audio_status_payload()
+
+    for module_id in existing:
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+    time.sleep(0.2)
+    return audio_status_payload()
+
+
 def read_multiroom_state():
     try:
         data = json.loads(MULTIROOM_STATE.read_text(encoding="utf-8"))
@@ -362,6 +400,7 @@ def audio_status_payload():
         "airplay": {
             "available": bool(airplay_sinks),
             "sinks": airplay_sinks,
+            "discovery_active": bool(airplay_discovery_module_ids()),
             "discovery_helper": shutil.which("avahi-browse") is not None,
             "note": "AirPlay/RAOP-Ausgang in PipeWire verfügbar" if airplay_sinks else "Kein AirPlay/RAOP-Ausgang in PipeWire gefunden",
         },
@@ -814,6 +853,12 @@ def execute(action, request):
 
     if action == "audio_multiroom_clear":
         return multiroom_clear()
+
+    if action == "audio_airplay_enable":
+        return airplay_discovery_set(True)
+
+    if action == "audio_airplay_disable":
+        return airplay_discovery_set(False)
 
     if action == "backup_restore":
         return backup_restore(str(request.get("backup_id", "")))
