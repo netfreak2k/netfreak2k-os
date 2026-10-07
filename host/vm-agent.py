@@ -28,7 +28,7 @@ ALLOWED = {
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
-    "network_inventory", "network_scan", "network_device_analyze", "network_device_update",
+    "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
     "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "remote_access_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -901,11 +901,14 @@ def network_scan_payload():
                 latency = None
         name = old.get("custom_name") or hostname or discovered.get("vendor") or ip
         dtype = old.get("device_type") or classify_network_device(name, discovered.get("vendor"), services, ip, topology.get("gateway"))
-        history = list(old.get("history") or [])[-39:]
+        history = list(old.get("history") or [])[-59:]
         if not old:
             history.append({"at": now, "state": "discovered"})
         elif not old.get("online"):
             history.append({"at": now, "state": "online"})
+        if old and old.get("ip") and old.get("ip") != ip:
+            history.append({"at": now, "state": "ip_change", "from": old.get("ip"), "to": ip})
+        online_since = old.get("online_since") if old.get("online") else now
         devices.append({
             "id": hashlib.sha256(key.encode("utf-8")).hexdigest()[:20],
             "ip": ip,
@@ -919,6 +922,10 @@ def network_scan_payload():
             "new": not bool(old),
             "first_seen": old.get("first_seen") or now,
             "last_seen": now,
+            "online_since": online_since or now,
+            "offline_since": None,
+            "last_online_duration": old.get("last_online_duration"),
+            "seen_count": int(old.get("seen_count") or 0) + 1,
             "latency_ms": latency,
             "services": services,
             "notes": old.get("notes") or "",
@@ -934,9 +941,12 @@ def network_scan_payload():
             continue
         stale = dict(old)
         if old.get("online"):
-            history = list(stale.get("history") or [])[-39:]
+            history = list(stale.get("history") or [])[-59:]
             history.append({"at": now, "state": "offline"})
             stale["history"] = history
+            stale["offline_since"] = now
+            if old.get("online_since"):
+                stale["last_online_duration"] = max(0, now - int(old.get("online_since")))
         stale["online"] = False
         stale["new"] = False
         devices.append(stale)
@@ -1006,6 +1016,42 @@ def network_device_update(device_id, fields):
         item["device_type"] = value
     write_network_inventory(data)
     return item
+
+
+def network_device_wake(device_id):
+    data, item = find_inventory_device(device_id)
+    mac = str(item.get("mac") or "").strip().upper()
+    if not re.fullmatch(r"(?:[0-9A-F]{2}:){5}[0-9A-F]{2}", mac):
+        raise RuntimeError("wake_mac_unavailable")
+    if mac == "00:00:00:00:00:00" or mac.startswith("FF:FF:FF"):
+        raise RuntimeError("wake_mac_invalid")
+
+    topology = local_ipv4_network()
+    network = ipaddress.ip_network(topology["subnet"], strict=False)
+    mac_bytes = bytes.fromhex(mac.replace(":", ""))
+    packet = b"\xff" * 6 + mac_bytes * 16
+    targets = [(str(network.broadcast_address), 9), ("255.255.255.255", 9)]
+    sent = 0
+    for host, port in targets:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.settimeout(2)
+            sock.sendto(packet, (host, port))
+            sent += 1
+        except OSError:
+            pass
+        finally:
+            sock.close()
+    if not sent:
+        raise RuntimeError("wake_send_failed")
+
+    history = list(item.get("history") or [])[-59:]
+    history.append({"at": int(time.time()), "state": "wake_sent"})
+    item["history"] = history
+    item["last_wake_at"] = int(time.time())
+    write_network_inventory(data)
+    return {"sent": True, "device_id": device_id, "mac": mac, "broadcast": str(network.broadcast_address), "attempts": sent}
 
 
 def network_device_analyze(device_id):
@@ -2444,6 +2490,9 @@ def execute(action, request):
 
     if action == "network_device_update":
         return network_device_update(str(request.get("device_id", "")), request.get("fields") or {})
+
+    if action == "network_device_wake":
+        return network_device_wake(str(request.get("device_id", "")))
 
     if action == "vm_list":
         return vm_list_payload()
