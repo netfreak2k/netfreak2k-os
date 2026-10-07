@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261006-1140">
+  <link rel="stylesheet" href="styles.css?v=20261007-media1">
+  <link rel="stylesheet" href="media-center.css?v=20261007-media1">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -59,6 +60,7 @@
         <button class="nav-item" data-target="storage-panel"><span>◉</span>Speicher</button>
         <button class="nav-item" data-target="backups-panel"><span>↺</span>Backups</button>
         <button class="nav-item" data-target="network-panel"><span>⌁</span>Netzwerk</button>
+        <button class="nav-item" data-target="media-center-panel"><span>♪</span>Media Center</button>
         <button class="nav-item" data-target="office-panel"><span>▤</span>Office</button>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
         <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
@@ -97,6 +99,11 @@
         </div>
 
         <div class="topbar-right">
+          <button id="top-media-player" class="top-media-player" data-target-view="media-center-panel" title="N2K Media Center öffnen">
+            <span class="top-media-art">♪</span>
+            <span class="top-media-copy"><small>MEDIA</small><strong id="top-media-title">Bereit</strong></span>
+            <span id="top-media-state" class="top-media-state">▶</span>
+          </button>
           <div class="top-actions">
             <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
             <div class="online-pill"><span class="dot ok"></span>System läuft</div>
@@ -571,7 +578,121 @@
             </div>
           </article>
 
-          <article id="office-panel" class="panel office-panel section-anchor">
+          
+          <article id="media-center-panel" class="panel media-center-panel section-anchor">
+            <div class="media-center-hero">
+              <div>
+                <p class="eyebrow">N2K MEDIA CENTER</p>
+                <h2>Audio. Radio. Streaming. Multiroom.</h2>
+                <p>Ein zentraler Player für Internetradio, Streaming-Dienste und Audio-Ausgänge. Die Wiedergabe läuft beim Wechsel zwischen den N2K-Seiten weiter.</p>
+              </div>
+              <div class="media-hero-badge"><span>●</span><strong>GLOBAL PLAYER</strong><small>bleibt aktiv</small></div>
+            </div>
+
+            <div class="media-now-playing">
+              <div class="media-cover" id="media-cover"><span>N2K</span><strong>MEDIA</strong></div>
+              <div class="media-now-copy">
+                <small>NOW PLAYING</small>
+                <h3 id="media-title">Noch nichts ausgewählt</h3>
+                <p id="media-subtitle">Wähle einen Radiosender oder Streaming-Dienst.</p>
+                <div class="media-progress"><span id="media-live-dot"></span><div><i id="media-progress-fill"></i></div><strong id="media-time">LIVE</strong></div>
+                <div class="media-transport">
+                  <button id="media-prev" class="media-round" title="Vorheriger Sender">‹</button>
+                  <button id="media-play" class="media-play" title="Play / Pause">▶</button>
+                  <button id="media-next" class="media-round" title="Nächster Sender">›</button>
+                  <button id="media-favorite" class="media-round" title="Favorit">♡</button>
+                  <label class="media-volume">🔊<input id="media-volume" type="range" min="0" max="100" value="72"><span id="media-volume-value">72%</span></label>
+                </div>
+              </div>
+              <div class="media-visualizer" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+
+            <div class="media-center-grid">
+              <section class="media-card media-radio-card">
+                <div class="media-card-head"><div><small>INTERNET RADIO</small><h3>Sender nach Ländern</h3></div><span>◉</span></div>
+                <div class="media-radio-tools">
+                  <input id="media-radio-search" type="search" placeholder="Sender suchen …">
+                  <div id="media-country-tabs" class="media-country-tabs">
+                    <button class="active" data-country="DE">🇩🇪 DE</button>
+                    <button data-country="GB">🇬🇧 UK</button>
+                    <button data-country="US">🇺🇸 USA</button>
+                    <button data-country="FR">🇫🇷 FR</button>
+                    <button data-country="NL">🇳🇱 NL</button>
+                    <button data-country="AT">🇦🇹 AT</button>
+                    <button data-country="CH">🇨🇭 CH</button>
+                    <button data-country="IT">🇮🇹 IT</button>
+                    <button data-country="ES">🇪🇸 ES</button>
+                    <button data-country="PL">🇵🇱 PL</button>
+                    <button data-country="SE">🇸🇪 SE</button>
+                  </div>
+                </div>
+                <div id="media-radio-status" class="media-radio-status">Senderverzeichnis wird geladen …</div>
+                <div id="media-station-list" class="media-station-list"></div>
+              </section>
+
+              <section class="media-card media-streaming-card">
+                <div class="media-card-head"><div><small>STREAMING</small><h3>Deine Dienste</h3></div><span>↗</span></div>
+                <div class="media-service-grid">
+                  <button class="media-service apple" data-media-service="https://music.apple.com/"><span>♪</span><strong>Apple Music</strong><small>Web-App öffnen</small></button>
+                  <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Web-App öffnen</small></button>
+                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Web-App öffnen</small></button>
+                  <button class="media-service tidal" data-media-service="https://listen.tidal.com/"><span>◆</span><strong>TIDAL</strong><small>Web-App öffnen</small></button>
+                </div>
+                <div class="media-service-note">Anmeldung erfolgt direkt beim jeweiligen Anbieter. Netfreak2k speichert keine Streaming-Passwörter.</div>
+              </section>
+
+              <section class="media-card media-devices-card">
+                <div class="media-card-head"><div><small>DEVICES & OUTPUT</small><h3>Lautsprecher & Routing</h3></div><button id="media-refresh-devices" class="secondary compact">Aktualisieren</button></div>
+                <div id="media-device-list" class="media-device-list">
+                  <div class="media-device-row"><span>◉</span><div><strong>System Audio</strong><small>Browser-Standardausgang</small></div><em>aktiv</em></div>
+                </div>
+                <div class="media-protocols">
+                  <span data-media-protocol="bluetooth">Bluetooth</span><span data-media-protocol="airplay">AirPlay</span><span data-media-protocol="dlna">DLNA</span><span data-media-protocol="hdmi">HDMI</span><span data-media-protocol="usb">USB DAC</span>
+                </div>
+                <div class="media-network-controls">
+                  <button id="media-airplay-toggle" class="secondary compact">AirPlay-Suche aktivieren</button>
+                  <span id="media-airplay-status">RAOP-Erkennung bereit</span>
+                </div>
+                <small class="media-hint">Browser-Ausgänge werden direkt erkannt. AirPlay/DLNA-Multiroom wird als Systemdienst ergänzt.</small>
+              </section>
+
+              <section class="media-card media-eq-card">
+                <div class="media-card-head"><div><small>10-BAND DSP</small><h3>Equalizer</h3></div><button id="media-eq-reset" class="secondary compact">Flat</button></div>
+                <div class="media-eq-presets">
+                  <button data-eq-preset="flat" class="active">Flat</button>
+                  <button data-eq-preset="bass">Bass</button>
+                  <button data-eq-preset="rock">Rock</button>
+                  <button data-eq-preset="electronic">Electronic</button>
+                  <button data-eq-preset="vocal">Vocal</button>
+                </div>
+                <div id="media-equalizer" class="media-equalizer">
+                  <label><span>+12</span><input data-eq="0" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>32</b></label><label><span>+12</span><input data-eq="1" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>64</b></label><label><span>+12</span><input data-eq="2" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>125</b></label><label><span>+12</span><input data-eq="3" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>250</b></label><label><span>+12</span><input data-eq="4" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>500</b></label><label><span>+12</span><input data-eq="5" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>1K</b></label><label><span>+12</span><input data-eq="6" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>2K</b></label><label><span>+12</span><input data-eq="7" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>4K</b></label><label><span>+12</span><input data-eq="8" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>8K</b></label><label><span>+12</span><input data-eq="9" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>16K</b></label>
+                </div>
+                <div class="media-eq-footer"><span>-12 dB</span><strong id="media-eq-mode">DSP bereit</strong><span>+12 dB</span></div>
+              </section>
+
+              <section class="media-card media-multiroom-card">
+                <div class="media-card-head"><div><small>MULTIROOM</small><h3>Räume & Gruppen</h3></div><span>⌂</span></div>
+                <div class="media-multiroom-toolbar">
+                  <div><strong>Multiroom-Gruppe</strong><small>Wähle mindestens zwei Ausgänge.</small></div>
+                  <div>
+                    <button id="media-multiroom-clear" class="secondary compact">Gruppe lösen</button>
+                    <button id="media-multiroom-apply" class="primary compact">Gruppe starten</button>
+                  </div>
+                </div>
+                <div id="media-room-grid" class="media-room-grid">
+                  <button><span>⌂</span><strong>Wohnzimmer</strong><small>noch nicht verbunden</small></button>
+                  <button><span>⌂</span><strong>Büro</strong><small>noch nicht verbunden</small></button>
+                  <button><span>⌂</span><strong>Schlafzimmer</strong><small>noch nicht verbunden</small></button>
+                  <button><span>＋</span><strong>Raum hinzufügen</strong><small>AirPlay / DLNA</small></button>
+                </div>
+              </section>
+            </div>
+          </article>
+
+<article id="office-panel" class="panel office-panel section-anchor">
             <div class="panel-head">
               <div>
                 <p class="eyebrow">N2K OFFICE</p>
@@ -755,6 +876,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261006-1140"></script>
+  <script src="app.js?v=20261007-media1"></script>
 </body>
 </html>

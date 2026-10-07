@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
+HOST_SYS = Path(os.environ.get("N2K_SYS_ROOT", "/host/sys"))
 DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
 APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
@@ -54,6 +55,8 @@ _cpu_sample = None
 _net_sample = None
 _network_enrichment = {"at": 0.0, "data": {}}
 _ping_cache = {"at": 0.0, "value": None}
+_radio_cache = {}
+_radio_cache_lock = threading.Lock()
 
 
 def db_connect():
@@ -406,6 +409,68 @@ def public_network_identity():
     except Exception:
         data = {}
     _network_enrichment = {"at": now, "data": data}
+    return data
+
+
+def radio_browser_stations(country="DE", search="", limit=60):
+    country = re.sub(r"[^A-Za-z]", "", str(country or "DE")).upper()[:2] or "DE"
+    search = str(search or "").strip()[:80]
+    try:
+        limit = max(1, min(int(limit), 120))
+    except (TypeError, ValueError):
+        limit = 60
+
+    cache_key = (country, search.lower(), limit)
+    now = time.monotonic()
+    with _radio_cache_lock:
+        cached = _radio_cache.get(cache_key)
+        if cached and now - cached["at"] < 300:
+            return cached["data"]
+
+    params = [
+        f"countrycode={quote(country)}",
+        "hidebroken=true",
+        "order=clickcount",
+        "reverse=true",
+        f"limit={limit}",
+    ]
+    if search:
+        params.append(f"name={quote(search)}")
+    url = "https://de1.api.radio-browser.info/json/stations/search?" + "&".join(params)
+    request = Request(url, headers={"User-Agent": "Netfreak2k-Server-OS/0.1"})
+    stations = []
+    try:
+        with urlopen(request, timeout=4.0) as response:
+            payload = json.loads(response.read(1024 * 1024).decode("utf-8"))
+        for item in payload if isinstance(payload, list) else []:
+            stream_url = item.get("url_resolved") or item.get("url")
+            name = str(item.get("name") or "").strip()
+            if not name or not stream_url or not str(stream_url).startswith(("http://", "https://")):
+                continue
+            favicon = str(item.get("favicon") or "").strip()
+            stations.append({
+                "id": item.get("stationuuid") or hashlib.sha256(f"{name}|{stream_url}".encode("utf-8")).hexdigest()[:24],
+                "country": country,
+                "name": name[:120],
+                "genre": (str(item.get("tags") or "").replace(",", " · ")[:120] or "Radio"),
+                "bitrate": f'{int(item.get("bitrate") or 0)} kbps' if item.get("bitrate") else (str(item.get("codec") or "Stream")),
+                "codec": str(item.get("codec") or ""),
+                "url": stream_url,
+                "homepage": str(item.get("homepage") or ""),
+                "favicon": favicon if favicon.startswith(("http://", "https://")) else "",
+                "votes": int(item.get("votes") or 0),
+                "clickcount": int(item.get("clickcount") or 0),
+            })
+    except Exception:
+        stations = []
+
+    data = {"country": country, "search": search, "stations": stations, "source": "radio-browser.info"}
+    with _radio_cache_lock:
+        _radio_cache[cache_key] = {"at": now, "data": data}
+        if len(_radio_cache) > 80:
+            oldest = sorted(_radio_cache.items(), key=lambda pair: pair[1]["at"])[:20]
+            for key, _ in oldest:
+                _radio_cache.pop(key, None)
     return data
 
 
@@ -1425,6 +1490,80 @@ def overview_payload(username):
     }
 
 
+def audio_devices_payload():
+    cards = []
+    raw_cards = read_text(HOST_PROC / "asound/cards")
+    current = None
+    for line in raw_cards.splitlines():
+        match = re.match(r"\s*(\d+)\s+\[(.+?)\s*\]:\s*(.+)$", line)
+        if match:
+            current = {
+                "index": int(match.group(1)),
+                "id": match.group(2).strip(),
+                "name": match.group(3).strip(),
+                "detail": "",
+            }
+            cards.append(current)
+            continue
+        if current and line.strip():
+            current["detail"] = line.strip()
+
+    devices = []
+    for card in cards:
+        text = f'{card["id"]} {card["name"]} {card["detail"]}'.lower()
+        kind = "audio"
+        if "hdmi" in text:
+            kind = "hdmi"
+        elif any(token in text for token in ("usb", "dac", "focusrite", "fiio", "scarlett")):
+            kind = "usb"
+        elif any(token in text for token in ("bluetooth", "bluez")):
+            kind = "bluetooth"
+        elif any(token in text for token in ("analog", "pch", "ac97", "built-in", "builtin")):
+            kind = "local"
+        devices.append({
+            "id": f'alsa-{card["index"]}',
+            "kind": kind,
+            "name": card["name"] or card["id"],
+            "detail": card["detail"] or card["id"],
+            "backend": "ALSA",
+            "available": True,
+        })
+
+    bluetooth_adapters = []
+    bluetooth_root = HOST_SYS / "class" / "bluetooth"
+    try:
+        if bluetooth_root.exists():
+            for item in sorted(bluetooth_root.iterdir()):
+                if item.name.startswith("hci"):
+                    bluetooth_adapters.append(item.name)
+    except OSError:
+        pass
+
+    return {
+        "devices": devices,
+        "bluetooth": {
+            "available": bool(bluetooth_adapters),
+            "adapters": bluetooth_adapters,
+            "note": "Bluetooth routing is handled by the host audio stack.",
+        },
+        "airplay": {
+            "available": False,
+            "planned": True,
+            "note": "AirPlay receiver/output service not enabled yet.",
+        },
+        "dlna": {
+            "available": False,
+            "planned": True,
+            "note": "DLNA/UPnP discovery service not enabled yet.",
+        },
+        "multiroom": {
+            "available": False,
+            "planned": True,
+            "note": "Multiroom grouping will use discovered network outputs.",
+        },
+    }
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -1750,6 +1889,28 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/media/devices":
+            if not self.require_auth():
+                return
+            payload = audio_devices_payload()
+            live = vm_agent("audio_status")
+            payload["routing"] = live if live.get("available") else {
+                "available": False,
+                "error": live.get("error", "audio_agent_unavailable"),
+            }
+            self.send_json(payload)
+            return
+
+        if path == "/media/radio":
+            if not self.require_auth():
+                return
+            country = (query.get("country") or ["DE"])[0]
+            search = (query.get("search") or [""])[0]
+            limit = (query.get("limit") or ["60"])[0]
+            payload = radio_browser_stations(country, search, limit)
+            self.send_json(payload, 200 if payload.get("stations") else 503)
+            return
+
         if path == "/workspace":
             session = self.require_auth()
             if not session:
@@ -1881,6 +2042,106 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             self.set_session_response(username)
+            return
+
+        if path == "/media/output":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                node_id = str(data.get("node_id", "")).strip()
+                if not re.fullmatch(r"[0-9]{1,6}", node_id):
+                    raise ValueError("invalid_audio_node")
+                result = vm_agent("audio_set_default", {"node_id": node_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/media/bluetooth":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                mac = str(data.get("mac", "")).strip().upper()
+                if action not in {"connect", "disconnect"}:
+                    raise ValueError("invalid_bluetooth_action")
+                if not re.fullmatch(r"(?:[0-9A-F]{2}:){5}[0-9A-F]{2}", mac):
+                    raise ValueError("invalid_bluetooth_mac")
+                mapped = "bluetooth_connect" if action == "connect" else "bluetooth_disconnect"
+                result = vm_agent(mapped, {"mac": mac})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/media/airplay":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                mapping = {"enable": "audio_airplay_enable", "disable": "audio_airplay_disable"}
+                if action not in mapping:
+                    raise ValueError("invalid_airplay_action")
+                result = vm_agent(mapping[action])
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/media/multiroom":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                if action == "set":
+                    sinks = data.get("sinks")
+                    if not isinstance(sinks, list) or not (2 <= len(sinks) <= 8):
+                        raise ValueError("invalid_multiroom_sinks")
+                    clean = []
+                    for item in sinks:
+                        value = str(item or "").strip()
+                        if not value or len(value) > 180:
+                            raise ValueError("invalid_multiroom_sink")
+                        if value not in clean:
+                            clean.append(value)
+                    if len(clean) < 2:
+                        raise ValueError("invalid_multiroom_sinks")
+                    result = vm_agent("audio_multiroom_set", {"sinks": clean})
+                elif action == "clear":
+                    result = vm_agent("audio_multiroom_clear")
+                else:
+                    raise ValueError("invalid_multiroom_action")
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/workspace/upload":

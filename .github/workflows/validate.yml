@@ -86,7 +86,11 @@ jobs:
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/overview | grep -q '"network":'
+          curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/media/devices | grep -q '"devices":'
           curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K DESKTOP'
+          curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K MEDIA CENTER'
+          curl -fsS -o /tmp/n2k-media-center.css http://127.0.0.1:18080/media-center.css
+          test -s /tmp/n2k-media-center.css
           curl -fsS -o /tmp/n2k-wallpaper.webp http://127.0.0.1:18080/assets/wallpapers/01-night-bay.webp
           test -s /tmp/n2k-wallpaper.webp
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/preferences | grep -q '"wallpaper":"01-night-bay"'
@@ -143,6 +147,16 @@ jobs:
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/calendar | grep -q '"events":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/homeassistant | grep -q '"available":false'
+
+      - name: Media Center sanity
+        run: |
+          grep -q 'N2K MEDIA CENTER' dashboard/index.html
+          grep -q 'initMediaCenter' dashboard/app.js
+          grep -q 'audio_multiroom_set' host/vm-agent.py
+          grep -q 'module-combine-sink' host/vm-agent.py
+          grep -q 'pipewire-pulse' install.sh
+          grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
+          grep -q '/media/multiroom' server/api/server.py
 
       - name: HAOS provisioning sanity
         run: |

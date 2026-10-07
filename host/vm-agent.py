@@ -2,6 +2,7 @@
 import hmac
 import json
 import os
+import pwd
 import re
 import secrets
 import socket
@@ -20,11 +21,17 @@ ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
-    "backup_list", "backup_create", "backup_restore", "vm_list"
+    "backup_list", "backup_create", "backup_restore", "vm_list",
+    "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
+    "audio_multiroom_set", "audio_multiroom_clear",
+    "audio_airplay_enable", "audio_airplay_disable"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
+BLUETOOTH_MAC_RE = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
+AUDIO_NODE_RE = re.compile(r"^[0-9]{1,6}$")
 BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
+MULTIROOM_STATE = Path("/run/netfreak2k/media-multiroom.json")
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -98,6 +105,346 @@ def run(*args, check=False, timeout=20):
     if check and result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "command_failed")
     return result
+
+
+def audio_session_user():
+    forced = os.environ.get("N2K_AUDIO_USER", "").strip()
+    if forced:
+        try:
+            entry = pwd.getpwnam(forced)
+            runtime = Path(f"/run/user/{entry.pw_uid}")
+            if (runtime / "pipewire-0").exists():
+                return entry.pw_name, entry.pw_uid, runtime
+        except KeyError:
+            pass
+
+    run_user = Path("/run/user")
+    try:
+        candidates = sorted(
+            [item for item in run_user.iterdir() if item.name.isdigit() and int(item.name) >= 1000],
+            key=lambda item: int(item.name),
+        )
+    except OSError:
+        candidates = []
+
+    for runtime in candidates:
+        if not (runtime / "pipewire-0").exists():
+            continue
+        uid = int(runtime.name)
+        try:
+            entry = pwd.getpwuid(uid)
+        except KeyError:
+            continue
+        return entry.pw_name, uid, runtime
+    return None, None, None
+
+
+def run_audio_user(*args, timeout=12):
+    username, uid, runtime = audio_session_user()
+    if not username or uid is None or runtime is None:
+        raise RuntimeError("pipewire_session_unavailable")
+    env = os.environ.copy()
+    env["XDG_RUNTIME_DIR"] = str(runtime)
+    env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime}/bus"
+    command = ["runuser", "-u", username, "--", "env",
+               f"XDG_RUNTIME_DIR={runtime}",
+               f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus",
+               *args]
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout,
+        check=False,
+        env=env,
+    )
+    return result
+
+
+def classify_audio_sink(name):
+    text = str(name or "").lower()
+    if any(token in text for token in ("raop", "airplay", "airport", "homepod")):
+        return "airplay"
+    if any(token in text for token in ("dlna", "upnp", "chromecast", "cast")):
+        return "dlna"
+    if any(token in text for token in ("bluez", "bluetooth")):
+        return "bluetooth"
+    if "hdmi" in text:
+        return "hdmi"
+    if any(token in text for token in ("usb", "dac", "fiio", "scarlett", "focusrite")):
+        return "usb"
+    return "local"
+
+
+def pipewire_sinks():
+    result = run_audio_user("wpctl", "status", "--name", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "wpctl_status_failed")
+
+    sinks = []
+    in_sinks = False
+    for raw in result.stdout.splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        if stripped.startswith("Sinks:"):
+            in_sinks = True
+            continue
+        if in_sinks and stripped and not line.startswith(" ") and not line.startswith("│") and not line.startswith("├") and not line.startswith("└"):
+            break
+        if not in_sinks:
+            continue
+        match = re.search(r"([*]?)\s*(\d+)\.\s+(.+?)(?:\s+\[vol:.*)?$", stripped)
+        if not match:
+            continue
+        sink_name = match.group(3).strip()
+        sinks.append({
+            "id": match.group(2),
+            "name": sink_name,
+            "kind": classify_audio_sink(sink_name),
+            "default": match.group(1) == "*",
+            "backend": "PipeWire",
+        })
+    return sinks
+
+
+def pulse_sinks():
+    result = run_audio_user("pactl", "list", "short", "sinks", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "pactl_sinks_failed")
+    default_result = run_audio_user("pactl", "get-default-sink", timeout=5)
+    default_name = default_result.stdout.strip() if default_result.returncode == 0 else ""
+    sinks = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        index, name = parts[0].strip(), parts[1].strip()
+        if not index.isdigit() or not name:
+            continue
+        sinks.append({
+            "id": index,
+            "pulse_name": name,
+            "name": name,
+            "kind": classify_audio_sink(name),
+            "default": name == default_name,
+            "backend": "PipeWire/Pulse",
+        })
+    return sinks
+
+
+def pulse_modules():
+    result = run_audio_user("pactl", "list", "short", "modules", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "pactl_modules_failed")
+    modules = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2 or not parts[0].strip().isdigit():
+            continue
+        modules.append({"id": parts[0].strip(), "name": parts[1].strip(), "args": parts[2].strip() if len(parts) > 2 else ""})
+    return modules
+
+
+def airplay_discovery_module_ids():
+    try:
+        return [module["id"] for module in pulse_modules() if module["name"] == "module-raop-discover"]
+    except RuntimeError:
+        return []
+
+
+def airplay_discovery_set(enabled):
+    existing = airplay_discovery_module_ids()
+    if enabled:
+        if existing:
+            return audio_status_payload()
+        result = run_audio_user("pactl", "load-module", "module-raop-discover", timeout=10)
+        if result.returncode != 0 or not result.stdout.strip().isdigit():
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "airplay_discovery_unavailable")
+        time.sleep(1.0)
+        return audio_status_payload()
+
+    for module_id in existing:
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+    time.sleep(0.2)
+    return audio_status_payload()
+
+
+def read_multiroom_state():
+    try:
+        data = json.loads(MULTIROOM_STATE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_multiroom_state(data):
+    MULTIROOM_STATE.parent.mkdir(parents=True, exist_ok=True)
+    MULTIROOM_STATE.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+
+
+def multiroom_clear():
+    state = read_multiroom_state()
+    module_id = str(state.get("module_id") or "").strip()
+    if module_id.isdigit():
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+    previous = str(state.get("previous_default") or "").strip()
+    available = {sink["pulse_name"] for sink in pulse_sinks()}
+    if previous and previous in available:
+        run_audio_user("pactl", "set-default-sink", previous, timeout=8)
+    try:
+        MULTIROOM_STATE.unlink()
+    except OSError:
+        pass
+    return audio_status_payload()
+
+
+def multiroom_set(sink_names):
+    if not isinstance(sink_names, list):
+        raise RuntimeError("invalid_multiroom_sinks")
+    requested = []
+    for value in sink_names:
+        name = str(value or "").strip()
+        if name and name not in requested:
+            requested.append(name)
+    if len(requested) < 2 or len(requested) > 8:
+        raise RuntimeError("multiroom_requires_2_to_8_sinks")
+
+    available_sinks = pulse_sinks()
+    available_names = {sink["pulse_name"] for sink in available_sinks}
+    if any(name not in available_names for name in requested):
+        raise RuntimeError("multiroom_sink_not_found")
+
+    previous_default = next((sink["pulse_name"] for sink in available_sinks if sink.get("default")), "")
+    old = read_multiroom_state()
+    old_module = str(old.get("module_id") or "").strip()
+    if old_module.isdigit():
+        run_audio_user("pactl", "unload-module", old_module, timeout=8)
+
+    result = run_audio_user(
+        "pactl", "load-module", "module-combine-sink",
+        "sink_name=n2k_multiroom",
+        "slaves=" + ",".join(requested),
+        "sink_properties=device.description=N2K_Multiroom",
+        timeout=10,
+    )
+    if result.returncode != 0 or not result.stdout.strip().isdigit():
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "multiroom_create_failed")
+    module_id = result.stdout.strip()
+    set_default = run_audio_user("pactl", "set-default-sink", "n2k_multiroom", timeout=8)
+    if set_default.returncode != 0:
+        run_audio_user("pactl", "unload-module", module_id, timeout=8)
+        raise RuntimeError(set_default.stderr.strip() or "multiroom_default_failed")
+
+    state = {
+        "active": True,
+        "module_id": module_id,
+        "sink_name": "n2k_multiroom",
+        "members": requested,
+        "previous_default": previous_default,
+        "updated_at": int(time.time()),
+    }
+    write_multiroom_state(state)
+    time.sleep(0.2)
+    return audio_status_payload()
+
+
+def bluetooth_devices():
+    devices = []
+    result = run("bluetoothctl", "devices")
+    if result.returncode != 0:
+        return devices
+    for line in result.stdout.splitlines():
+        match = re.match(r"Device\s+((?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})\s+(.+)", line.strip())
+        if not match:
+            continue
+        mac = match.group(1).upper()
+        name = match.group(2).strip()
+        info = run("bluetoothctl", "info", mac, timeout=5)
+        text = info.stdout if info.returncode == 0 else ""
+        devices.append({
+            "mac": mac,
+            "name": name,
+            "connected": "Connected: yes" in text,
+            "paired": "Paired: yes" in text,
+            "trusted": "Trusted: yes" in text,
+            "audio": any(token in text for token in ("Audio Sink", "0000110b-", "0000110e-", "0000111e-")),
+        })
+    return devices
+
+
+def audio_status_payload():
+    username, uid, _ = audio_session_user()
+    pipewire_available = bool(username)
+    sinks = []
+    pipewire_error = None
+    if pipewire_available:
+        try:
+            sinks = pipewire_sinks()
+        except Exception as exc:
+            pipewire_error = str(exc)
+    airplay_sinks = [sink for sink in sinks if sink.get("kind") == "airplay"]
+    dlna_sinks = [sink for sink in sinks if sink.get("kind") == "dlna"]
+    return {
+        "pipewire": {
+            "available": pipewire_available and pipewire_error is None,
+            "user": username,
+            "uid": uid,
+            "error": pipewire_error,
+            "sinks": sinks,
+        },
+        "bluetooth": {
+            "available": shutil.which("bluetoothctl") is not None,
+            "devices": bluetooth_devices() if shutil.which("bluetoothctl") else [],
+        },
+        "airplay": {
+            "available": bool(airplay_sinks),
+            "sinks": airplay_sinks,
+            "discovery_active": bool(airplay_discovery_module_ids()),
+            "discovery_helper": shutil.which("avahi-browse") is not None,
+            "note": "AirPlay/RAOP-Ausgang in PipeWire verfügbar" if airplay_sinks else "Kein AirPlay/RAOP-Ausgang in PipeWire gefunden",
+        },
+        "dlna": {
+            "available": bool(dlna_sinks),
+            "sinks": dlna_sinks,
+            "helper": shutil.which("gmediarender") or shutil.which("upmpdcli"),
+            "note": "DLNA/UPnP-Ausgang verfügbar" if dlna_sinks else "Kein DLNA/UPnP-Ausgang in PipeWire gefunden",
+        },
+        "multiroom": {
+            "available": shutil.which("pactl") is not None,
+            "network_sinks": [sink for sink in sinks if sink.get("kind") in {"airplay", "dlna"}],
+            "state": read_multiroom_state(),
+            "pulse_sinks": pulse_sinks() if shutil.which("pactl") else [],
+        },
+    }
+
+
+def audio_set_default(node_id):
+    node_id = str(node_id or "").strip()
+    if not AUDIO_NODE_RE.fullmatch(node_id):
+        raise RuntimeError("invalid_audio_node")
+    sinks = pipewire_sinks()
+    if node_id not in {sink["id"] for sink in sinks}:
+        raise RuntimeError("audio_node_not_found")
+    result = run_audio_user("wpctl", "set-default", node_id, timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "audio_route_failed")
+    time.sleep(0.15)
+    return audio_status_payload()
+
+
+def bluetooth_action(action, mac):
+    mac = str(mac or "").strip().upper()
+    if not BLUETOOTH_MAC_RE.fullmatch(mac):
+        raise RuntimeError("invalid_bluetooth_mac")
+    if shutil.which("bluetoothctl") is None:
+        raise RuntimeError("bluetooth_unavailable")
+    verb = "connect" if action == "bluetooth_connect" else "disconnect"
+    result = run("bluetoothctl", verb, mac, timeout=20)
+    if result.returncode != 0 or "Failed" in result.stdout or "Failed" in result.stderr:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or f"bluetooth_{verb}_failed")
+    time.sleep(0.6)
+    return audio_status_payload()
 
 
 def vm_exists():
@@ -491,6 +838,27 @@ def execute(action, request):
 
     if action == "backup_create":
         return backup_create()
+
+    if action == "audio_status":
+        return audio_status_payload()
+
+    if action == "audio_set_default":
+        return audio_set_default(request.get("node_id"))
+
+    if action in {"bluetooth_connect", "bluetooth_disconnect"}:
+        return bluetooth_action(action, request.get("mac"))
+
+    if action == "audio_multiroom_set":
+        return multiroom_set(request.get("sinks"))
+
+    if action == "audio_multiroom_clear":
+        return multiroom_clear()
+
+    if action == "audio_airplay_enable":
+        return airplay_discovery_set(True)
+
+    if action == "audio_airplay_disable":
+        return airplay_discovery_set(False)
 
     if action == "backup_restore":
         return backup_restore(str(request.get("backup_id", "")))
