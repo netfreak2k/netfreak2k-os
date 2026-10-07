@@ -92,6 +92,190 @@ async function bootstrapAuth() {
   }
 }
 
+
+let notificationItems = [];
+let notificationLoadedOnce = false;
+const N2K_NOTIFICATION_DESKTOP_KEY = "n2k-desktop-notifications";
+const N2K_NOTIFICATION_SEEN_KEY = "n2k-notification-seen";
+
+function desktopNotificationsEnabled() {
+  return localStorage.getItem(N2K_NOTIFICATION_DESKTOP_KEY) === "1";
+}
+
+function notificationSeenIds() {
+  try {
+    const value = JSON.parse(localStorage.getItem(N2K_NOTIFICATION_SEEN_KEY) || "[]");
+    return new Set(Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function persistNotificationSeen(ids) {
+  localStorage.setItem(N2K_NOTIFICATION_SEEN_KEY, JSON.stringify(Array.from(ids).slice(-200)));
+}
+
+function renderNotifications(payload = {}) {
+  notificationItems = Array.isArray(payload.notifications) ? payload.notifications : [];
+  const unread = Number(payload.unread) || 0;
+  const critical = Number(payload.critical) || 0;
+  const badge = document.getElementById("notification-badge");
+  const button = document.getElementById("notification-toggle");
+  const list = document.getElementById("notification-list");
+  const summary = document.getElementById("notification-summary");
+
+  if (badge) {
+    badge.textContent = unread > 99 ? "99+" : String(unread);
+    badge.classList.toggle("hidden", unread <= 0);
+    badge.classList.toggle("critical", critical > 0);
+  }
+  if (button) {
+    button.classList.toggle("has-alerts", unread > 0);
+    button.classList.toggle("critical", critical > 0);
+    button.title = unread ? String(unread) + " ungelesene Benachrichtigungen" : "Benachrichtigungen";
+  }
+  if (summary) {
+    summary.textContent = critical
+      ? String(critical) + " kritisch · " + String(unread) + " ungelesen"
+      : unread ? String(unread) + " ungelesene Hinweise" : "Alles gelesen";
+  }
+
+  if (list) {
+    list.innerHTML = "";
+    if (!notificationItems.length) {
+      list.innerHTML = '<div class="notification-empty">Keine Systemmeldungen vorhanden.</div>';
+    } else {
+      notificationItems.forEach(item => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "notification-row " + (item.level || "info") + (item.read ? " read" : "") + (item.active ? "" : " resolved");
+        row.innerHTML = '<span class="notification-row-icon"></span><div><strong></strong><small></small><em></em></div><i></i>';
+        row.querySelector(".notification-row-icon").textContent =
+          item.level === "critical" ? "!" : item.level === "warning" ? "•" : "i";
+        row.querySelector("strong").textContent = item.title || "Systemhinweis";
+        row.querySelector("small").textContent = item.detail || "";
+        const meta = [];
+        if (!item.active) meta.push("Erledigt");
+        meta.push(item.source === "network" ? "Netzwerk" : item.source === "update" ? "Update" : "System");
+        if (item.last_seen) meta.push(formatDateTime(item.last_seen));
+        row.querySelector("em").textContent = meta.join(" · ");
+        row.querySelector("i").textContent = item.read ? "✓" : "●";
+        row.addEventListener("click", async () => {
+          if (!item.read) await markNotificationRead(item.id);
+          if (item.target) {
+            closeNotificationPanel();
+            switchView(item.target);
+          }
+        });
+        list.appendChild(row);
+      });
+    }
+  }
+}
+
+function maybeShowDesktopNotifications(payload) {
+  if (!desktopNotificationsEnabled() || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  const seen = notificationSeenIds();
+  let changed = false;
+  const activeUnread = (payload.notifications || []).filter(item => item.active && !item.read);
+  for (const item of activeUnread) {
+    const id = Number(item.id);
+    if (!Number.isFinite(id) || seen.has(id)) continue;
+    const notice = new Notification(item.title || "Netfreak2k", {
+      body: item.detail || "Neuer Systemhinweis",
+      tag: "n2k-" + (item.event_key || id),
+      renotify: item.level === "critical"
+    });
+    notice.onclick = () => {
+      window.focus();
+      if (item.target) switchView(item.target);
+      markNotificationRead(id);
+    };
+    seen.add(id);
+    changed = true;
+  }
+  if (changed) persistNotificationSeen(seen);
+}
+
+async function loadNotifications() {
+  if (document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const payload = await request("/api/notifications", {headers:{}});
+    renderNotifications(payload);
+    if (notificationLoadedOnce) maybeShowDesktopNotifications(payload);
+    notificationLoadedOnce = true;
+  } catch (error) {
+    console.error(error);
+    const summary = document.getElementById("notification-summary");
+    if (summary) summary.textContent = "Hinweise nicht erreichbar";
+  }
+}
+
+async function markNotificationRead(id) {
+  try {
+    await request("/api/notifications/read", {
+      method:"POST",
+      body:JSON.stringify({id:id}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    await loadNotifications();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function markAllNotificationsRead() {
+  try {
+    await request("/api/notifications/read", {
+      method:"POST",
+      body:JSON.stringify({all:true}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    await loadNotifications();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Benachrichtigungen konnten nicht aktualisiert werden.", "error");
+  }
+}
+
+function closeNotificationPanel() {
+  const panel = document.getElementById("notification-panel");
+  const toggle = document.getElementById("notification-toggle");
+  panel?.classList.add("hidden");
+  toggle?.setAttribute("aria-expanded", "false");
+}
+
+function toggleNotificationPanel() {
+  const panel = document.getElementById("notification-panel");
+  const toggle = document.getElementById("notification-toggle");
+  if (!panel || !toggle) return;
+  const willOpen = panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", !willOpen);
+  toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  if (willOpen) loadNotifications();
+}
+
+async function configureDesktopNotifications(enabled) {
+  const control = document.getElementById("notification-desktop-toggle");
+  if (!enabled) {
+    localStorage.setItem(N2K_NOTIFICATION_DESKTOP_KEY, "0");
+    if (control) control.checked = false;
+    return;
+  }
+  if (typeof Notification === "undefined") {
+    localStorage.setItem(N2K_NOTIFICATION_DESKTOP_KEY, "0");
+    if (control) control.checked = false;
+    showN2KToast("Dieser Browser unterstützt keine Desktop-Hinweise.", "error");
+    return;
+  }
+  let permission = Notification.permission;
+  if (permission === "default") permission = await Notification.requestPermission();
+  const allowed = permission === "granted";
+  localStorage.setItem(N2K_NOTIFICATION_DESKTOP_KEY, allowed ? "1" : "0");
+  if (control) control.checked = allowed;
+  showN2KToast(allowed ? "Desktop-Hinweise aktiviert." : "Desktop-Hinweise wurden nicht freigegeben.", allowed ? "success" : "info");
+}
+
 function enterApp(username) {
   show(document.getElementById("auth-shell"), false);
   show(document.getElementById("app-shell"), true);
@@ -109,6 +293,7 @@ function enterApp(username) {
   loadVms();
   loadBackups();
   loadSystemHealth();
+  loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
   loadFavorites();
@@ -2722,6 +2907,22 @@ window.addEventListener("resize", () => {
   if (activeView === "health-panel") renderHealthHistoryChart();
 });
 
+document.getElementById("notification-toggle")?.addEventListener("click", event => {
+  event.stopPropagation();
+  toggleNotificationPanel();
+});
+document.getElementById("notification-panel")?.addEventListener("click", event => event.stopPropagation());
+document.getElementById("notification-read-all")?.addEventListener("click", markAllNotificationsRead);
+document.getElementById("notification-desktop-toggle")?.addEventListener("change", event => {
+  configureDesktopNotifications(Boolean(event.target.checked));
+});
+document.addEventListener("click", closeNotificationPanel);
+const notificationDesktopToggle = document.getElementById("notification-desktop-toggle");
+if (notificationDesktopToggle) {
+  notificationDesktopToggle.checked = desktopNotificationsEnabled() &&
+    typeof Notification !== "undefined" && Notification.permission === "granted";
+}
+
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
   loadOverview();
@@ -3657,6 +3858,7 @@ setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
+setInterval(loadNotifications, 60000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
