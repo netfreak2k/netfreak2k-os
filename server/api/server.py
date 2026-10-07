@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action == "service_action" else 12 if action == "service_logs" else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action"} else 12 if action in {"service_logs","hardware_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2768,6 +2768,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/hardware":
+            if not self.require_auth():
+                return
+            result = vm_agent("hardware_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/notifications":
             if not self.require_auth():
                 return
@@ -3056,6 +3066,25 @@ class Handler(BaseHTTPRequestHandler):
         viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
         if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
             self.send_json({"error": "read_only_role"}, 403)
+            return
+
+        if path == "/power/action":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                operation = str(data.get("operation", "")).strip().lower()
+                if operation not in {"reboot", "poweroff"}:
+                    raise ValueError("invalid_power_action")
+                result = vm_agent("host_power_action", {"operation": operation})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "host_power_action", operation, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/service/action":
