@@ -657,6 +657,29 @@
               </div>
             </section>
 
+            <section id="security-host-hardening" class="security-card security-hardening-card">
+              <div class="security-card-head">
+                <div><small>HOST HARDENING</small><strong>Firewall & Angriffsfläche</strong></div>
+                <span id="security-hardening-score" class="security-badge">LÄDT</span>
+              </div>
+              <div class="security-hardening-summary">
+                <div><small>FIREWALL</small><strong id="security-firewall-state">–</strong><span id="security-firewall-detail">–</span></div>
+                <div><small>SSH</small><strong id="security-ssh-state">–</strong><span id="security-ssh-unit">–</span></div>
+                <div><small>FEHLLOGINS 24H</small><strong id="security-failed-logins">–</strong><span id="security-failed-login-meta">–</span></div>
+                <div><small>HOST-PORTS</small><strong id="security-listener-count">–</strong><span id="security-exposed-count">–</span></div>
+              </div>
+              <div class="security-hardening-grid">
+                <section>
+                  <div class="security-hardening-head"><div><small>LISTENING PORTS</small><strong>Gebundene Host-Dienste</strong></div><span>read-only</span></div>
+                  <div id="security-listener-list" class="security-listener-list"><div class="app-empty">Ports werden geprüft …</div></div>
+                </section>
+                <section>
+                  <div class="security-hardening-head"><div><small>FINDINGS</small><strong>Härtungs-Hinweise</strong></div></div>
+                  <div id="security-finding-list" class="security-finding-list"><div class="app-empty">Sicherheitslage wird geprüft …</div></div>
+                </section>
+              </div>
+            </section>
+
             <section id="security-audit-card" class="security-card security-audit-card">
               <div class="security-card-head"><div><small>AUDIT LOG</small><strong>Sicherheitsprotokoll</strong></div><span>letzte 100 Ereignisse</span></div>
               <div id="security-audit-list" class="security-audit-list"><div class="app-empty">Audit-Protokoll wird geladen …</div></div>
