@@ -2516,7 +2516,7 @@ class Handler(BaseHTTPRequestHandler):
         return get_session(self.session_token())
 
     def client_ip(self):
-        peer = self.client_ip()
+        peer = self.client_address[0] if self.client_address else ""
         if peer in {"127.0.0.1", "::1"}:
             forwarded = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
             if forwarded:
