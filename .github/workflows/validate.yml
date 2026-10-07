@@ -416,6 +416,9 @@ jobs:
           grep -q '1.0.0-rc1' README.md
           grep -q 'RELEASE_CHECKLIST.md' README.md
           test -f docs/RELEASE_CHECKLIST.md
+          test -f scripts/release-gate.sh
+          bash -n scripts/release-gate.sh
+          grep -q 'RESULT: PASS' scripts/release-gate.sh
           grep -q '"version"' install.sh
           grep -q '"version"' scripts/update-server.sh
 
