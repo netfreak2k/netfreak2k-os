@@ -103,6 +103,7 @@
             <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
             <button class="nav-item nav-subitem" data-target="security-panel"><span>◆</span>Benutzer & Sicherheit</button>
             <button class="nav-item nav-subitem" data-target="scheduler-panel"><span>◷</span>Jobs & Scheduler</button>
+            <button class="nav-item nav-subitem" data-target="events-panel"><span>≡</span>Logs & Ereignisse</button>
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
@@ -836,6 +837,51 @@
             <section class="health-alerts-card">
               <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
               <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
+            </section>
+          </article>
+
+          <article id="events-panel" class="panel events-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K EVENT CENTER</p>
+                <h2>Logs & Ereignisse</h2>
+                <p>System-Journal, Docker, Virtualisierung, Security und N2K-Audit in einer gemeinsamen Timeline.</p>
+              </div>
+              <button id="events-refresh" class="secondary compact">↻ Aktualisieren</button>
+            </div>
+
+            <div class="events-kpi-grid">
+              <section><small>EREIGNISSE</small><strong id="events-count-total">–</strong><span>letzte 24 Stunden</span></section>
+              <section><small>KRITISCH</small><strong id="events-count-critical">–</strong><span>höchste Priorität</span></section>
+              <section><small>FEHLER</small><strong id="events-count-error">–</strong><span>Fehlerereignisse</span></section>
+              <section><small>WARNUNGEN</small><strong id="events-count-warning">–</strong><span>Aufmerksamkeit</span></section>
+            </div>
+
+            <div class="events-toolbar">
+              <input id="events-search" type="search" placeholder="Logs durchsuchen …" aria-label="Logs durchsuchen">
+              <select id="events-source">
+                <option value="all">Alle Quellen</option>
+                <option value="n2k">N2K</option>
+                <option value="system">System</option>
+                <option value="docker">Docker</option>
+                <option value="vm">VM / libvirt</option>
+                <option value="security">Security</option>
+                <option value="audit">Audit</option>
+              </select>
+              <select id="events-level">
+                <option value="all">Alle Prioritäten</option>
+                <option value="critical">Kritisch</option>
+                <option value="error">Fehler</option>
+                <option value="warning">Warnung</option>
+                <option value="info">Info</option>
+              </select>
+              <span id="events-filter-summary">–</span>
+            </div>
+
+            <section class="events-stream-card">
+              <div id="events-list" class="events-list">
+                <div class="app-empty">Ereignisse werden geladen …</div>
+              </div>
             </section>
           </article>
 
