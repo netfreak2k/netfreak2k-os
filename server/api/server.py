@@ -227,6 +227,33 @@ def db_connect():
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notifications_active ON notifications(active, last_seen DESC)")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS monitoring_policy (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            temp_warning REAL NOT NULL DEFAULT 75,
+            temp_critical REAL NOT NULL DEFAULT 85,
+            storage_warning REAL NOT NULL DEFAULT 80,
+            storage_critical REAL NOT NULL DEFAULT 90,
+            backup_max_age_hours INTEGER NOT NULL DEFAULT 72,
+            service_alerts INTEGER NOT NULL DEFAULT 1,
+            network_alerts INTEGER NOT NULL DEFAULT 1,
+            update_alerts INTEGER NOT NULL DEFAULT 1,
+            maintenance_mode INTEGER NOT NULL DEFAULT 0,
+            quiet_enabled INTEGER NOT NULL DEFAULT 0,
+            quiet_start TEXT NOT NULL DEFAULT '22:00',
+            quiet_end TEXT NOT NULL DEFAULT '07:00',
+            updated_at INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    conn.execute(
+        """INSERT OR IGNORE INTO monitoring_policy
+           (id,temp_warning,temp_critical,storage_warning,storage_critical,backup_max_age_hours,
+            service_alerts,network_alerts,update_alerts,maintenance_mode,quiet_enabled,quiet_start,quiet_end,updated_at)
+           VALUES (1,75,85,80,90,72,1,1,1,0,0,'22:00','07:00',0)"""
+    )
+
     user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
     if "role" not in user_columns:
         conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'viewer'")
@@ -2045,12 +2072,181 @@ def notification_target_for_kind(kind):
     }.get(str(kind or ""), "health-panel")
 
 
+def monitoring_policy_payload():
+    with db_connect() as conn:
+        row = conn.execute(
+            """SELECT temp_warning,temp_critical,storage_warning,storage_critical,backup_max_age_hours,
+                      service_alerts,network_alerts,update_alerts,maintenance_mode,quiet_enabled,
+                      quiet_start,quiet_end,updated_at
+               FROM monitoring_policy WHERE id=1"""
+        ).fetchone()
+    if not row:
+        return {}
+    policy = {
+        "temp_warning": float(row[0]),
+        "temp_critical": float(row[1]),
+        "storage_warning": float(row[2]),
+        "storage_critical": float(row[3]),
+        "backup_max_age_hours": int(row[4]),
+        "service_alerts": bool(row[5]),
+        "network_alerts": bool(row[6]),
+        "update_alerts": bool(row[7]),
+        "maintenance_mode": bool(row[8]),
+        "quiet_enabled": bool(row[9]),
+        "quiet_start": row[10],
+        "quiet_end": row[11],
+        "updated_at": row[12],
+    }
+    policy["quiet_active"] = monitoring_quiet_active(policy)
+    return policy
+
+
+def monitoring_quiet_active(policy=None, now=None):
+    policy = policy or monitoring_policy_payload()
+    if not policy.get("quiet_enabled"):
+        return False
+    def minute_of_day(value):
+        match = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", str(value or ""))
+        if not match:
+            return None
+        return int(match.group(1)) * 60 + int(match.group(2))
+    start = minute_of_day(policy.get("quiet_start"))
+    end = minute_of_day(policy.get("quiet_end"))
+    if start is None or end is None:
+        return False
+    local = time.localtime(int(now or time.time()))
+    current = local.tm_hour * 60 + local.tm_min
+    if start == end:
+        return True
+    return start <= current < end if start < end else current >= start or current < end
+
+
+def monitoring_policy_update(fields):
+    if not isinstance(fields, dict):
+        raise ValueError("invalid_monitoring_policy")
+    current = monitoring_policy_payload()
+    numeric_rules = {
+        "temp_warning": (35.0, 100.0),
+        "temp_critical": (40.0, 110.0),
+        "storage_warning": (40.0, 98.0),
+        "storage_critical": (50.0, 99.5),
+    }
+    for key, limits in numeric_rules.items():
+        if key in fields:
+            try:
+                value = float(fields.get(key))
+            except (TypeError, ValueError):
+                raise ValueError("invalid_monitoring_threshold")
+            if not limits[0] <= value <= limits[1]:
+                raise ValueError("invalid_monitoring_threshold")
+            current[key] = value
+    if current["temp_warning"] >= current["temp_critical"] or current["storage_warning"] >= current["storage_critical"]:
+        raise ValueError("invalid_monitoring_threshold_order")
+
+    if "backup_max_age_hours" in fields:
+        try:
+            age = int(fields.get("backup_max_age_hours"))
+        except (TypeError, ValueError):
+            raise ValueError("invalid_backup_alert_age")
+        if age not in {12,24,48,72,120,168,336}:
+            raise ValueError("invalid_backup_alert_age")
+        current["backup_max_age_hours"] = age
+
+    for key in ("service_alerts","network_alerts","update_alerts","maintenance_mode","quiet_enabled"):
+        if key in fields:
+            current[key] = bool(fields.get(key))
+
+    for key in ("quiet_start","quiet_end"):
+        if key in fields:
+            value = str(fields.get(key) or "")
+            if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+                raise ValueError("invalid_quiet_time")
+            current[key] = value
+
+    now = int(time.time())
+    with db_connect() as conn:
+        conn.execute(
+            """UPDATE monitoring_policy SET
+               temp_warning=?,temp_critical=?,storage_warning=?,storage_critical=?,backup_max_age_hours=?,
+               service_alerts=?,network_alerts=?,update_alerts=?,maintenance_mode=?,quiet_enabled=?,
+               quiet_start=?,quiet_end=?,updated_at=? WHERE id=1""",
+            (
+                current["temp_warning"], current["temp_critical"], current["storage_warning"], current["storage_critical"],
+                current["backup_max_age_hours"], int(current["service_alerts"]), int(current["network_alerts"]),
+                int(current["update_alerts"]), int(current["maintenance_mode"]), int(current["quiet_enabled"]),
+                current["quiet_start"], current["quiet_end"], now,
+            ),
+        )
+        conn.commit()
+    return monitoring_policy_payload()
+
+
 def collect_notification_candidates():
+    policy = monitoring_policy_payload()
     candidates = []
     host = vm_agent("health_status")
     if host.get("available"):
+        temp = (host.get("cpu_temperature") or {}).get("max_c")
+        if isinstance(temp, (int, float)):
+            if temp >= policy.get("temp_critical", 85):
+                candidates.append({
+                    "event_key": "monitor:temperature:critical", "source": "system", "level": "critical",
+                    "title": "CPU-Temperatur kritisch", "detail": f"{temp:.1f} °C · Grenzwert {policy.get('temp_critical',85):.0f} °C",
+                    "target": "health-panel",
+                })
+            elif temp >= policy.get("temp_warning", 75):
+                candidates.append({
+                    "event_key": "monitor:temperature:warning", "source": "system", "level": "warning",
+                    "title": "CPU-Temperatur erhöht", "detail": f"{temp:.1f} °C · Grenzwert {policy.get('temp_warning',75):.0f} °C",
+                    "target": "health-panel",
+                })
+
+        storage = (host.get("storage") or {}).get("used_percent")
+        if isinstance(storage, (int, float)):
+            if storage >= policy.get("storage_critical", 90):
+                candidates.append({
+                    "event_key": "monitor:storage:critical", "source": "storage", "level": "critical",
+                    "title": "Speicher fast voll", "detail": f"{storage:.1f}% belegt · Grenzwert {policy.get('storage_critical',90):.0f}%",
+                    "target": "storage-panel",
+                })
+            elif storage >= policy.get("storage_warning", 80):
+                candidates.append({
+                    "event_key": "monitor:storage:warning", "source": "storage", "level": "warning",
+                    "title": "Speicher wird knapp", "detail": f"{storage:.1f}% belegt · Grenzwert {policy.get('storage_warning',80):.0f}%",
+                    "target": "storage-panel",
+                })
+
+        latest_backup = host.get("backup")
+        max_age = int(policy.get("backup_max_age_hours") or 72) * 3600
+        if latest_backup and isinstance(latest_backup.get("created_at"), (int, float)):
+            age = int(time.time()) - int(latest_backup["created_at"])
+            if age > max_age:
+                candidates.append({
+                    "event_key": "monitor:backup:stale", "source": "backup", "level": "warning",
+                    "title": "Backup ist veraltet",
+                    "detail": f"Letztes Backup vor {max(1, age // 3600)} Stunden · Limit {max_age // 3600} Stunden",
+                    "target": "backups-panel",
+                })
+            if latest_backup.get("verified") is False:
+                candidates.append({
+                    "event_key": "monitor:backup:integrity", "source": "backup", "level": "critical",
+                    "title": "Backup-Integrität fehlgeschlagen",
+                    "detail": f"{latest_backup.get('id','Backup')} konnte nicht verifiziert werden.",
+                    "target": "backups-panel",
+                })
+        elif not latest_backup:
+            candidates.append({
+                "event_key": "monitor:backup:missing", "source": "backup", "level": "warning",
+                "title": "Kein Backup vorhanden", "detail": "Es wurde noch kein N2K-Backup gefunden.",
+                "target": "backups-panel",
+            })
+
         for warning in host.get("warnings") or []:
             kind = str(warning.get("kind") or "health")[:40]
+            if kind in {"temperature", "storage", "backup"}:
+                continue
+            if kind in {"service", "docker", "haos"} and (not policy.get("service_alerts", True) or policy.get("maintenance_mode")):
+                continue
             title = str(warning.get("title") or "Systemhinweis")[:180]
             detail = str(warning.get("detail") or "")[:500]
             level = str(warning.get("level") or "warning")
@@ -2058,45 +2254,40 @@ def collect_notification_candidates():
                 level = "warning"
             stable = hashlib.sha256(f"{kind}|{title}".encode("utf-8")).hexdigest()[:24]
             candidates.append({
-                "event_key": f"health:{stable}",
-                "source": "system",
-                "level": level,
-                "title": title,
-                "detail": detail,
-                "target": notification_target_for_kind(kind),
+                "event_key": f"health:{stable}", "source": "system", "level": level,
+                "title": title, "detail": detail, "target": notification_target_for_kind(kind),
             })
 
-    inventory = vm_agent("network_inventory")
-    if inventory.get("available"):
-        for device in inventory.get("devices") or []:
-            if not device.get("online") or not device.get("new"):
-                continue
-            device_id = str(device.get("id") or "")
-            if not re.fullmatch(r"[0-9a-f]{20}", device_id):
-                continue
-            name = str(device.get("name") or device.get("hostname") or device.get("ip") or "Unbekanntes Gerät")[:120]
-            facts = [str(device.get("ip") or "").strip(), str(device.get("vendor") or "").strip()]
-            detail = " · ".join(item for item in facts if item)[:500]
+    if policy.get("network_alerts", True) and not policy.get("maintenance_mode"):
+        inventory = vm_agent("network_inventory")
+        if inventory.get("available"):
+            for device in inventory.get("devices") or []:
+                if not device.get("online") or not device.get("new"):
+                    continue
+                device_id = str(device.get("id") or "")
+                if not re.fullmatch(r"[0-9a-f]{20}", device_id):
+                    continue
+                name = str(device.get("name") or device.get("hostname") or device.get("ip") or "Unbekanntes Gerät")[:120]
+                facts = [str(device.get("ip") or "").strip(), str(device.get("vendor") or "").strip()]
+                candidates.append({
+                    "event_key": f"network:new:{device_id}", "source": "network", "level": "info",
+                    "title": f"Neues Gerät im Heimnetz: {name}"[:180],
+                    "detail": " · ".join(item for item in facts if item)[:500], "target": "network-panel",
+                })
+
+    if policy.get("update_alerts", True) and not policy.get("maintenance_mode"):
+        updates = update_payload()
+        if updates.get("available") and updates.get("update_available"):
+            remote = str(updates.get("remote_fingerprint") or "")[:32]
             candidates.append({
-                "event_key": f"network:new:{device_id}",
-                "source": "network",
-                "level": "info",
-                "title": f"Neues Gerät im Heimnetz: {name}"[:180],
-                "detail": detail,
-                "target": "network-panel",
+                "event_key": "update:available", "source": "update", "level": "info",
+                "title": "Netfreak2k-Update verfügbar",
+                "detail": f"Neuer Stand erkannt{f' · {remote}' if remote else ''}.", "target": "updates-panel",
             })
 
-    updates = update_payload()
-    if updates.get("available") and updates.get("update_available"):
-        remote = str(updates.get("remote_fingerprint") or "")[:32]
-        candidates.append({
-            "event_key": "update:available",
-            "source": "update",
-            "level": "info",
-            "title": "Netfreak2k-Update verfügbar",
-            "detail": f"Neuer Stand erkannt{f' · {remote}' if remote else ''}.",
-            "target": "updates-panel",
-        })
+    if policy.get("quiet_active"):
+        candidates = [item for item in candidates if item.get("level") == "critical"]
+
     return candidates
 
 
