@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hmac
+import ipaddress
 import json
 import os
 import pwd
@@ -24,7 +25,8 @@ ALLOWED = {
     "backup_list", "backup_create", "backup_restore", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
-    "audio_airplay_enable", "audio_airplay_disable"
+    "audio_airplay_enable", "audio_airplay_disable",
+    "network_inventory", "network_scan", "network_device_analyze", "network_device_update"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -32,6 +34,8 @@ BLUETOOTH_MAC_RE = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
 AUDIO_NODE_RE = re.compile(r"^[0-9]{1,6}$")
 BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
 MULTIROOM_STATE = Path("/run/netfreak2k/media-multiroom.json")
+NETWORK_INVENTORY_FILE = Path("/var/lib/netfreak2k/network-inventory.json")
+NETWORK_SCAN_STATE = Path("/run/netfreak2k/network-scan.json")
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -667,6 +671,359 @@ def install_catalog_app(app_id, options=None):
     }
 
 
+
+def read_network_inventory():
+    try:
+        data = json.loads(NETWORK_INVENTORY_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data.setdefault("devices", [])
+            return data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {"devices": [], "last_scan": None, "subnet": None, "interface": None}
+
+
+def write_network_inventory(data):
+    NETWORK_INVENTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = NETWORK_INVENTORY_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, NETWORK_INVENTORY_FILE)
+
+
+def local_ipv4_network():
+    result = run("ip", "-j", "-4", "route", "show", "default", timeout=5)
+    if result.returncode != 0:
+        raise RuntimeError("network_route_unavailable")
+    try:
+        routes = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        routes = []
+    if not routes:
+        raise RuntimeError("default_route_unavailable")
+    interface = str(routes[0].get("dev") or "").strip()
+    gateway = str(routes[0].get("gateway") or "").strip()
+    if not interface:
+        raise RuntimeError("default_interface_unavailable")
+
+    addr_result = run("ip", "-j", "-4", "addr", "show", "dev", interface, timeout=5)
+    try:
+        addr_data = json.loads(addr_result.stdout or "[]")
+    except json.JSONDecodeError:
+        addr_data = []
+    address = None
+    prefix = None
+    for item in addr_data:
+        for info in item.get("addr_info") or []:
+            if info.get("family") == "inet" and info.get("scope") == "global":
+                address = info.get("local")
+                prefix = info.get("prefixlen")
+                break
+        if address:
+            break
+    if not address or prefix is None:
+        raise RuntimeError("interface_address_unavailable")
+    network = ipaddress.ip_network(f"{address}/{prefix}", strict=False)
+    if not network.is_private:
+        raise RuntimeError("refusing_non_private_network")
+    if network.num_addresses > 4096:
+        network = ipaddress.ip_network(f"{address}/24", strict=False)
+    return {
+        "interface": interface,
+        "gateway": gateway or None,
+        "host_ip": address,
+        "subnet": str(network),
+    }
+
+
+def reverse_hostname(ip):
+    try:
+        name, _, _ = socket.gethostbyaddr(ip)
+        return name.rstrip(".")[:160]
+    except OSError:
+        return ""
+
+
+def classify_network_device(name, vendor, services, ip, gateway=None):
+    text = " ".join([str(name or ""), str(vendor or ""), " ".join(services or [])]).lower()
+    if gateway and ip == gateway:
+        return "router"
+    if any(token in text for token in ("fritz", "ubiquiti", "unifi", "mikrotik", "router", "gateway")):
+        return "network"
+    if any(token in text for token in ("synology", "qnap", "nas")):
+        return "nas"
+    if any(token in text for token in ("printer", "epson", "brother", "canon", "hp laser", "airprint")):
+        return "printer"
+    if any(token in text for token in ("iphone", "ipad", "android", "samsung", "pixel", "oneplus", "xiaomi")):
+        return "mobile"
+    if any(token in text for token in ("tv", "chromecast", "roku", "firetv", "appletv", "television")):
+        return "tv"
+    if any(token in text for token in ("homeassistant", "home assistant", "hue", "shelly", "tasmota", "esp", "iot")):
+        return "iot"
+    if any(token in text for token in ("server", "linux", "proxmox", "docker", "ssh")):
+        return "server"
+    if any(token in text for token in ("windows", "macbook", "imac", "desktop", "laptop")):
+        return "computer"
+    return "unknown"
+
+
+def mdns_services():
+    result = run("avahi-browse", "-artpk", timeout=8)
+    if result.returncode != 0:
+        return {}
+    mapping = {}
+    for line in result.stdout.splitlines():
+        if not line.startswith("="):
+            continue
+        parts = line.split(";")
+        if len(parts) < 9:
+            continue
+        interface, name, service, host, address = parts[1], parts[3], parts[4], parts[6], parts[7]
+        try:
+            ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        entry = mapping.setdefault(address, {"services": set(), "mdns_name": "", "interface": interface})
+        entry["services"].add(service)
+        if host and not entry["mdns_name"]:
+            entry["mdns_name"] = host.rstrip(".")
+        if name:
+            entry["services"].add(name)
+    return {ip: {"services": sorted(v["services"])[:20], "mdns_name": v["mdns_name"], "interface": v["interface"]} for ip, v in mapping.items()}
+
+
+def arp_scan_devices(interface, subnet):
+    devices = {}
+    if shutil.which("arp-scan"):
+        result = run("arp-scan", "--interface", interface, "--localnet", "--plain", "--ignoredups", timeout=45)
+        if result.returncode in (0, 1):
+            for line in result.stdout.splitlines():
+                match = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s+((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})\s*(.*)$", line.strip())
+                if not match:
+                    continue
+                ip, mac, vendor = match.groups()
+                try:
+                    if ipaddress.ip_address(ip) not in ipaddress.ip_network(subnet):
+                        continue
+                except ValueError:
+                    continue
+                devices[ip] = {"ip": ip, "mac": mac.upper(), "vendor": vendor.strip()[:160]}
+    return devices
+
+
+def ping_sweep_devices(subnet):
+    devices = {}
+    if not shutil.which("nmap"):
+        return devices
+    result = run("nmap", "-sn", "-n", "--min-rate", "20", "--max-retries", "1", subnet, timeout=60)
+    current_ip = None
+    for line in result.stdout.splitlines():
+        host_match = re.match(r"Nmap scan report for (\d+\.\d+\.\d+\.\d+)", line.strip())
+        if host_match:
+            current_ip = host_match.group(1)
+            devices.setdefault(current_ip, {"ip": current_ip, "mac": "", "vendor": ""})
+            continue
+        mac_match = re.match(r"MAC Address:\s+((?:[0-9A-F]{2}:){5}[0-9A-F]{2})(?:\s+\((.*)\))?", line.strip())
+        if mac_match and current_ip:
+            devices[current_ip]["mac"] = mac_match.group(1)
+            devices[current_ip]["vendor"] = (mac_match.group(2) or "").strip()[:160]
+    return devices
+
+
+def network_scan_payload():
+    topology = local_ipv4_network()
+    now = int(time.time())
+    current = arp_scan_devices(topology["interface"], topology["subnet"])
+    for ip, item in ping_sweep_devices(topology["subnet"]).items():
+        base = current.setdefault(ip, item)
+        if not base.get("mac") and item.get("mac"):
+            base["mac"] = item["mac"]
+        if not base.get("vendor") and item.get("vendor"):
+            base["vendor"] = item["vendor"]
+
+    neigh = run("ip", "-j", "neigh", "show", "dev", topology["interface"], timeout=5)
+    try:
+        neigh_rows = json.loads(neigh.stdout or "[]")
+    except json.JSONDecodeError:
+        neigh_rows = []
+    for row in neigh_rows:
+        ip = str(row.get("dst") or "")
+        try:
+            addr = ipaddress.ip_address(ip)
+            if addr.version != 4 or addr not in ipaddress.ip_network(topology["subnet"]):
+                continue
+        except ValueError:
+            continue
+        lladdr = str(row.get("lladdr") or "").upper()
+        item = current.setdefault(ip, {"ip": ip, "mac": lladdr, "vendor": ""})
+        if lladdr and not item.get("mac"):
+            item["mac"] = lladdr
+
+    current.setdefault(topology["host_ip"], {"ip": topology["host_ip"], "mac": "", "vendor": "Netfreak2k Host"})
+    mdns = mdns_services()
+    previous = read_network_inventory()
+    old_by_key = {}
+    for item in previous.get("devices", []):
+        key = item.get("mac") or item.get("ip")
+        if key:
+            old_by_key[key] = item
+
+    devices = []
+    for ip, discovered in current.items():
+        md = mdns.get(ip, {})
+        hostname = md.get("mdns_name") or reverse_hostname(ip)
+        key = discovered.get("mac") or ip
+        old = old_by_key.get(key, {})
+        services = md.get("services") or []
+        latency = None
+        ping = run("ping", "-c", "1", "-W", "1", ip, timeout=2)
+        match = re.search(r"time[=<]([\d.]+)\s*ms", ping.stdout)
+        if match:
+            try:
+                latency = round(float(match.group(1)), 2)
+            except ValueError:
+                latency = None
+        name = old.get("custom_name") or hostname or discovered.get("vendor") or ip
+        dtype = old.get("device_type") or classify_network_device(name, discovered.get("vendor"), services, ip, topology.get("gateway"))
+        devices.append({
+            "id": hashlib.sha256(key.encode("utf-8")).hexdigest()[:20],
+            "ip": ip,
+            "mac": discovered.get("mac") or old.get("mac") or "",
+            "vendor": discovered.get("vendor") or old.get("vendor") or "",
+            "hostname": hostname or old.get("hostname") or "",
+            "custom_name": old.get("custom_name") or "",
+            "name": name,
+            "device_type": dtype,
+            "online": True,
+            "new": not bool(old),
+            "first_seen": old.get("first_seen") or now,
+            "last_seen": now,
+            "latency_ms": latency,
+            "services": services,
+            "notes": old.get("notes") or "",
+            "trusted": bool(old.get("trusted")),
+            "deep_scan": old.get("deep_scan") or {},
+        })
+
+    found_keys = {item.get("mac") or item.get("ip") for item in devices}
+    for old in previous.get("devices", []):
+        key = old.get("mac") or old.get("ip")
+        if not key or key in found_keys:
+            continue
+        stale = dict(old)
+        stale["online"] = False
+        stale["new"] = False
+        devices.append(stale)
+
+    def sort_key(item):
+        try:
+            ip_key = int(ipaddress.ip_address(item.get("ip") or "0.0.0.0"))
+        except ValueError:
+            ip_key = 0
+        return (not item.get("online"), ip_key)
+
+    devices.sort(key=sort_key)
+    payload = {
+        "available": True,
+        "interface": topology["interface"],
+        "gateway": topology.get("gateway"),
+        "host_ip": topology["host_ip"],
+        "subnet": topology["subnet"],
+        "last_scan": now,
+        "devices": devices,
+        "summary": {
+            "online": sum(1 for d in devices if d.get("online")),
+            "known": len(devices),
+            "new": sum(1 for d in devices if d.get("new") and d.get("online")),
+            "offline": sum(1 for d in devices if not d.get("online")),
+        },
+    }
+    write_network_inventory(payload)
+    return payload
+
+
+def network_inventory_payload():
+    data = read_network_inventory()
+    data["available"] = True
+    devices = data.get("devices", [])
+    data["summary"] = {
+        "online": sum(1 for d in devices if d.get("online")),
+        "known": len(devices),
+        "new": sum(1 for d in devices if d.get("new") and d.get("online")),
+        "offline": sum(1 for d in devices if not d.get("online")),
+    }
+    return data
+
+
+def find_inventory_device(device_id):
+    data = read_network_inventory()
+    for item in data.get("devices", []):
+        if item.get("id") == device_id:
+            return data, item
+    raise RuntimeError("network_device_not_found")
+
+
+def network_device_update(device_id, fields):
+    data, item = find_inventory_device(device_id)
+    if "custom_name" in fields:
+        item["custom_name"] = str(fields.get("custom_name") or "").strip()[:80]
+        item["name"] = item["custom_name"] or item.get("hostname") or item.get("vendor") or item.get("ip")
+    if "notes" in fields:
+        item["notes"] = str(fields.get("notes") or "").strip()[:500]
+    if "trusted" in fields:
+        item["trusted"] = bool(fields.get("trusted"))
+    if "device_type" in fields:
+        allowed = {"router","network","server","nas","computer","mobile","tv","printer","iot","unknown"}
+        value = str(fields.get("device_type") or "unknown")
+        if value not in allowed:
+            raise RuntimeError("invalid_device_type")
+        item["device_type"] = value
+    write_network_inventory(data)
+    return item
+
+
+def network_device_analyze(device_id):
+    data, item = find_inventory_device(device_id)
+    topology = local_ipv4_network()
+    ip = str(item.get("ip") or "")
+    try:
+        address = ipaddress.ip_address(ip)
+        if address.version != 4 or address not in ipaddress.ip_network(topology["subnet"]):
+            raise RuntimeError("device_outside_local_network")
+    except ValueError:
+        raise RuntimeError("invalid_device_ip")
+    if not shutil.which("nmap"):
+        raise RuntimeError("nmap_unavailable")
+
+    result = run(
+        "nmap", "-sT", "-sV", "-Pn", "--version-light",
+        "--top-ports", "25", "--host-timeout", "35s", ip,
+        timeout=45,
+    )
+    ports = []
+    os_hint = ""
+    for line in result.stdout.splitlines():
+        match = re.match(r"^(\d+)/(tcp|udp)\s+(open|closed|filtered)\s+(\S+)(?:\s+(.*))?$", line.strip())
+        if match and match.group(3) == "open":
+            ports.append({
+                "port": int(match.group(1)),
+                "protocol": match.group(2),
+                "service": match.group(4),
+                "product": (match.group(5) or "").strip()[:160],
+            })
+        if "Service Info:" in line:
+            os_hint = line.split("Service Info:", 1)[1].strip()[:200]
+    item["deep_scan"] = {
+        "scanned_at": int(time.time()),
+        "ports": ports[:40],
+        "os_hint": os_hint,
+        "status": "ok" if result.returncode == 0 else "partial",
+    }
+    service_names = [p["service"] for p in ports]
+    if item.get("device_type") == "unknown":
+        item["device_type"] = classify_network_device(item.get("name"), item.get("vendor"), service_names, ip, topology.get("gateway"))
+    write_network_inventory(data)
+    return item
+
 def storage_payload():
     usage = shutil.disk_usage("/")
     used = usage.total - usage.free
@@ -829,6 +1186,18 @@ def execute(action, request):
 
     if action == "storage_status":
         return storage_payload()
+
+    if action == "network_inventory":
+        return network_inventory_payload()
+
+    if action == "network_scan":
+        return network_scan_payload()
+
+    if action == "network_device_analyze":
+        return network_device_analyze(str(request.get("device_id", "")))
+
+    if action == "network_device_update":
+        return network_device_update(str(request.get("device_id", "")), request.get("fields") or {})
 
     if action == "vm_list":
         return vm_list_payload()
