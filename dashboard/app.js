@@ -2761,6 +2761,9 @@ const N2K_RADIO_STATIONS = [
   {id:"npo3fm",country:"NL",name:"NPO 3FM",genre:"Alternative · Pop",bitrate:"AAC",url:"https://icecast.omroep.nl/3fm-bb-mp3"}
 ];
 
+const N2K_MEDIA_FAVORITES_KEY = "n2k-media-favorite-stations";
+const N2K_MEDIA_FAVORITE_IDS_KEY = "n2k-media-favorites";
+
 const N2K_EQ_PRESETS = {
   flat:[0,0,0,0,0,0,0,0,0,0],
   bass:[8,7,5,3,1,0,0,1,1,1],
@@ -2857,6 +2860,14 @@ function updateMediaPlaybackUi() {
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
   if (topState) topState.textContent = playing ? "Ⅱ" : "▶";
   if (topTitle) topTitle.textContent = station ? station.name : "Bereit";
+  const overviewTitle = document.getElementById("overview-media-title");
+  const overviewSubtitle = document.getElementById("overview-media-subtitle");
+  const overviewPlay = document.getElementById("overview-media-play");
+  if (overviewTitle) overviewTitle.textContent = station ? station.name : "Bereit";
+  if (overviewSubtitle) overviewSubtitle.textContent = station
+    ? `${station.genre || "Radio"} · ${station.country || "Internet"}`
+    : "Radio & Streaming";
+  if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
   if (liveDot) liveDot.classList.toggle("active", playing);
   if (visualizer) visualizer.classList.toggle("is-playing", playing);
 
@@ -2881,7 +2892,7 @@ function renderMediaStations() {
   const list = document.getElementById("media-station-list");
   if (!list) return;
   list.innerHTML = "";
-  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
+  const favorites = new Set(getMediaFavoriteStations().map(item => item.id));
   for (const {station,index} of filteredMediaStations()) {
     const row = document.createElement("div");
     row.className = "media-station-row";
@@ -2904,7 +2915,7 @@ function renderMediaStations() {
     fav.textContent = favorites.has(station.id) ? "♥" : "♡";
     fav.addEventListener("click", event => {
       event.stopPropagation();
-      toggleMediaFavorite(station.id);
+      toggleMediaFavorite(station);
       renderMediaStations();
     });
     row.querySelector(".media-station-play").addEventListener("click", () => playMediaStation(index));
@@ -2914,19 +2925,138 @@ function renderMediaStations() {
   if (!list.children.length) list.innerHTML = '<div class="media-empty">Keine Sender gefunden.</div>';
 }
 
-function toggleMediaFavorite(id) {
-  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
-  if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
-  localStorage.setItem("n2k-media-favorites", JSON.stringify([...favorites]));
+function normalizeFavoriteStation(station) {
+  if (!station || !station.id || !station.url) return null;
+  return {
+    id: String(station.id),
+    country: String(station.country || ""),
+    name: String(station.name || "Radiosender"),
+    genre: String(station.genre || "Radio"),
+    bitrate: String(station.bitrate || ""),
+    url: String(station.url),
+    favicon: String(station.favicon || "")
+  };
+}
+
+function getMediaFavoriteStations() {
+  let saved = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(N2K_MEDIA_FAVORITES_KEY) || "[]");
+    if (Array.isArray(raw)) saved = raw.map(normalizeFavoriteStation).filter(Boolean);
+  } catch (_) {}
+
+  let legacyIds = [];
+  try {
+    const legacy = JSON.parse(localStorage.getItem(N2K_MEDIA_FAVORITE_IDS_KEY) || "[]");
+    if (Array.isArray(legacy)) legacyIds = legacy.map(String);
+  } catch (_) {}
+
+  if (legacyIds.length) {
+    const known = [...mediaStations, ...N2K_RADIO_STATIONS];
+    for (const id of legacyIds) {
+      if (saved.some(item => item.id === id)) continue;
+      const station = known.find(item => String(item.id) === id);
+      const normalized = normalizeFavoriteStation(station);
+      if (normalized) saved.push(normalized);
+    }
+    localStorage.removeItem(N2K_MEDIA_FAVORITE_IDS_KEY);
+    localStorage.setItem(N2K_MEDIA_FAVORITES_KEY, JSON.stringify(saved));
+  }
+  return saved;
+}
+
+function saveMediaFavoriteStations(stations) {
+  const unique = [];
+  for (const station of stations) {
+    const normalized = normalizeFavoriteStation(station);
+    if (normalized && !unique.some(item => item.id === normalized.id)) unique.push(normalized);
+  }
+  localStorage.setItem(N2K_MEDIA_FAVORITES_KEY, JSON.stringify(unique));
+}
+
+function toggleMediaFavorite(stationOrId) {
+  const station = typeof stationOrId === "object"
+    ? stationOrId
+    : mediaStations.find(item => String(item.id) === String(stationOrId)) ||
+      N2K_RADIO_STATIONS.find(item => String(item.id) === String(stationOrId));
+  if (!station) return;
+  const favorites = getMediaFavoriteStations();
+  const existing = favorites.findIndex(item => item.id === String(station.id));
+  if (existing >= 0) favorites.splice(existing, 1);
+  else favorites.push(station);
+  saveMediaFavoriteStations(favorites);
   updateMediaFavoriteButton();
+  renderMediaFavorites();
 }
 
 function updateMediaFavoriteButton() {
   const button = document.getElementById("media-favorite");
   const station = mediaCurrentStation();
-  if (!button || !station) return;
-  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
-  button.textContent = favorites.has(station.id) ? "♥" : "♡";
+  if (!button) return;
+  if (!station) {
+    button.textContent = "♡";
+    return;
+  }
+  const favorites = new Set(getMediaFavoriteStations().map(item => item.id));
+  button.textContent = favorites.has(String(station.id)) ? "♥" : "♡";
+}
+
+function playFavoriteStation(station) {
+  let index = mediaStations.findIndex(item => String(item.id) === String(station.id));
+  if (index < 0) {
+    mediaStations = [...mediaStations, station];
+    index = mediaStations.length - 1;
+  }
+  playMediaStation(index);
+}
+
+function renderMediaFavorites() {
+  const favorites = getMediaFavoriteStations();
+  const list = document.getElementById("media-favorites-list");
+  const count = document.getElementById("media-favorites-count");
+  const overview = document.getElementById("overview-media-favorites");
+  if (count) count.textContent = String(favorites.length);
+
+  if (list) {
+    list.innerHTML = "";
+    for (const station of favorites) {
+      const row = document.createElement("div");
+      row.className = "media-favorite-row";
+      row.innerHTML = '<span class="media-station-logo">♪</span><div><strong></strong><small></small></div><button class="media-favorite-remove" title="Favorit entfernen">♥</button><button class="media-station-play" title="Abspielen">▶</button>';
+      row.querySelector("strong").textContent = station.name;
+      row.querySelector("small").textContent = [station.country, station.genre].filter(Boolean).join(" · ");
+      const logo = row.querySelector(".media-station-logo");
+      if (station.favicon) {
+        logo.textContent = "";
+        const image = document.createElement("img");
+        image.src = station.favicon;
+        image.alt = "";
+        image.loading = "lazy";
+        image.referrerPolicy = "no-referrer";
+        image.addEventListener("error", () => { logo.textContent = "♪"; image.remove(); });
+        logo.appendChild(image);
+      }
+      row.querySelector(".media-favorite-remove").addEventListener("click", () => toggleMediaFavorite(station));
+      row.querySelector(".media-station-play").addEventListener("click", () => playFavoriteStation(station));
+      row.addEventListener("dblclick", () => playFavoriteStation(station));
+      list.appendChild(row);
+    }
+    if (!favorites.length) list.innerHTML = '<div class="media-empty">Noch keine Favoriten gespeichert.</div>';
+  }
+
+  if (overview) {
+    overview.innerHTML = "";
+    for (const station of favorites.slice(0, 4)) {
+      const button = document.createElement("button");
+      button.className = "overview-media-favorite";
+      button.innerHTML = "<span>♪</span><strong></strong>";
+      button.querySelector("strong").textContent = station.name;
+      button.title = `${station.name} abspielen`;
+      button.addEventListener("click", () => playFavoriteStation(station));
+      overview.appendChild(button);
+    }
+    if (!favorites.length) overview.innerHTML = '<span class="widget-empty">Noch keine Radio-Favoriten.</span>';
+  }
 }
 
 async function playMediaStation(index) {
@@ -2986,6 +3116,7 @@ async function loadMediaRadioDirectory() {
     if (status) status.textContent = "Senderverzeichnis offline · lokale Startsender";
   }
   renderMediaStations();
+  renderMediaFavorites();
 }
 
 async function setHostAudioOutput(nodeId) {
@@ -3300,6 +3431,7 @@ function initMediaCenter() {
   ensureMediaAudio();
   setupMediaSessionControls();
   renderMediaStations();
+  renderMediaFavorites();
   loadMediaRadioDirectory();
   refreshMediaDevices();
   updateMediaPlaybackUi();
@@ -3332,7 +3464,7 @@ function initMediaCenter() {
   document.getElementById("media-favorite")?.addEventListener("click", () => {
     const station = mediaCurrentStation();
     if (station) {
-      toggleMediaFavorite(station.id);
+      toggleMediaFavorite(station);
       renderMediaStations();
     }
   });
