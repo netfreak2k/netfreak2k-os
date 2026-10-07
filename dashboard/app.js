@@ -3019,7 +3019,7 @@ const N2K_GERMANY_MEDIA_SERVICES = [
   {rank:5, category:"Video", name:"RTL+", detail:"TV · Serien · Shows · Sport", url:"https://plus.rtl.de/"},
   {rank:6, category:"Video", name:"Joyn", detail:"Live-TV · Serien · Shows", url:"https://www.joyn.de/"},
   {rank:7, category:"Musik", name:"YouTube Music", detail:"Musik · Videos · Podcasts", url:"https://music.youtube.com/"},
-  {rank:8, category:"Video", name:"Apple TV+", detail:"Filme · Serien", url:"https://tv.apple.com/de/"},
+  {rank:8, category:"Musik", name:"Amazon Music", detail:"Musik · Podcasts", url:"https://music.amazon.de/"},
   {rank:9, category:"Video", name:"WOW", detail:"Serien · Filme · Sport", url:"https://www.wowtv.de/"},
   {rank:10, category:"Sport", name:"DAZN", detail:"Live-Sport", url:"https://www.dazn.com/de-DE/home"},
   {rank:11, category:"Video", name:"Paramount+", detail:"Filme · Serien", url:"https://www.paramountplus.com/de/"},
@@ -3058,7 +3058,7 @@ const N2K_SEARCH_COMMANDS = [
 const N2K_PRIMARY_MEDIA_SERVICES = [
   {kind:"service", name:"Apple Music", detail:"Streaming · Musik", url:"https://music.apple.com/de/"},
   {kind:"service", name:"Spotify", detail:"Streaming · Musik & Podcasts", url:"https://open.spotify.com/"},
-  {kind:"service", name:"Amazon Music", detail:"Streaming · Musik", url:"https://music.amazon.de/"},
+  {kind:"service", name:"Apple TV", detail:"Streaming · Filme & Serien", url:"https://tv.apple.com/de/"},
   {kind:"service", name:"Netflix", detail:"Streaming · Filme & Serien", url:"https://www.netflix.com/de/"},
   {kind:"service", name:"YouTube", detail:"Streaming · Video & Live", url:"https://www.youtube.com/"}
 ];
@@ -3078,6 +3078,8 @@ let mediaAudio = null;
 let mediaStations = [...N2K_RADIO_STATIONS];
 let mediaRadioRequest = 0;
 let mediaRadioSearchTimer = null;
+let mediaRadioMetadataTimer = null;
+let mediaRadioMetadataRequest = 0;
 let mediaMultiroomSelection = new Set();
 let mediaCountry = "DE";
 let mediaStationIndex = -1;
@@ -3210,8 +3212,10 @@ function restoreMediaPreferences() {
     if (Number.isFinite(Number(eqValues[index]))) input.value = String(eqValues[index]);
   });
   const volumeInput = document.getElementById("media-volume");
+  const topVolumeInput = document.getElementById("top-media-volume");
   const volumeCopy = document.getElementById("media-volume-value");
   if (volumeInput) volumeInput.value = String(Math.round(audio.volume * 100));
+  if (topVolumeInput) topVolumeInput.value = String(Math.round(audio.volume * 100));
   if (volumeCopy) volumeCopy.textContent = `${Math.round(audio.volume * 100)}%`;
   document.querySelectorAll("#media-country-tabs button").forEach(button => {
     button.classList.toggle("active", button.dataset.country === mediaCountry);
@@ -3250,6 +3254,7 @@ function restoreMediaCurrentItem() {
   }
   mediaSessionRestored = true;
   updateMediaPlaybackUi();
+  if (mediaLocalIndex < 0 && mediaStationIndex >= 0) startRadioMetadataPolling(mediaStations[mediaStationIndex]);
   updateMediaFavoriteButton();
   renderMediaLibrary();
   renderMediaStations();
@@ -3300,14 +3305,86 @@ function setMediaStatus(text) {
   if (subtitle && text) subtitle.textContent = text;
 }
 
+function mediaDisplayTitle(item) {
+  if (!item) return "Noch kein Titel";
+  if (item.source === "local") return item.title || item.name;
+  return item.now_playing?.title || item.now_playing?.raw || item.name || item.title || "Radiosender";
+}
+
+function mediaDisplayMeta(item) {
+  if (!item) return "Radio · Eigene Musik · Streaming";
+  if (item.source === "local") {
+    return [item.artist || "Unbekannter Interpret", item.album || item.name].filter(Boolean).join(" · ");
+  }
+  if (item.now_playing?.artist) return [item.now_playing.artist, item.name].filter(Boolean).join(" · ");
+  if (item.now_playing?.raw && item.now_playing.raw !== mediaDisplayTitle(item)) return [item.now_playing.raw, item.name].filter(Boolean).join(" · ");
+  return [item.name, item.genre || "Radio", item.country || "Internet"].filter(Boolean).join(" · ");
+}
+
+function stopRadioMetadataPolling(clear = false) {
+  clearTimeout(mediaRadioMetadataTimer);
+  mediaRadioMetadataTimer = null;
+  mediaRadioMetadataRequest += 1;
+  if (clear) {
+    const badge = document.getElementById("media-rds-badge");
+    if (badge) badge.classList.add("hidden");
+  }
+}
+
+function scheduleRadioMetadata(station, delay = 9000) {
+  clearTimeout(mediaRadioMetadataTimer);
+  mediaRadioMetadataTimer = setTimeout(() => pollRadioMetadata(station), delay);
+}
+
+async function pollRadioMetadata(station) {
+  if (!station || station.source === "local" || !station.url) return;
+  const current = mediaCurrentStation();
+  if (!current || String(current.id) !== String(station.id) || mediaLocalIndex >= 0) return;
+  const requestId = ++mediaRadioMetadataRequest;
+  try {
+    const data = await request(`/api/media/radio/metadata?url=${encodeURIComponent(station.url)}`, {headers:{}});
+    if (requestId !== mediaRadioMetadataRequest) return;
+    const active = mediaCurrentStation();
+    if (!active || String(active.id) !== String(station.id)) return;
+    if (data.available && (data.title || data.stream_title)) {
+      station.now_playing = {
+        title: String(data.title || data.stream_title || "").trim(),
+        artist: String(data.artist || "").trim(),
+        raw: String(data.stream_title || "").trim()
+      };
+      const badge = document.getElementById("media-rds-badge");
+      if (badge) badge.classList.remove("hidden");
+      updateMediaPlaybackUi();
+    } else {
+      station.now_playing = null;
+      const badge = document.getElementById("media-rds-badge");
+      if (badge) badge.classList.add("hidden");
+      updateMediaPlaybackUi();
+    }
+  } catch (error) {
+    console.debug("Radio metadata unavailable", error);
+  } finally {
+    const active = mediaCurrentStation();
+    if (active && String(active.id) === String(station.id) && mediaLocalIndex < 0) scheduleRadioMetadata(station, 9000);
+  }
+}
+
+function startRadioMetadataPolling(station) {
+  stopRadioMetadataPolling(true);
+  if (!station || station.source === "local") return;
+  pollRadioMetadata(station);
+}
+
 function updateMediaSessionMetadata() {
   const station = mediaCurrentStation();
   if (!("mediaSession" in navigator) || !station) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: station.title || station.name,
-      artist: station.source === "local" ? (station.artist || "Eigene Musik") : (station.genre || "Internet Radio"),
-      album: station.source === "local" ? (station.album || "N2K Audio") : "N2K Media Center",
+      title: mediaDisplayTitle(station),
+      artist: station.source === "local"
+        ? (station.artist || "Eigene Musik")
+        : (station.now_playing?.artist || station.name || station.genre || "Internet Radio"),
+      album: station.source === "local" ? (station.album || "N2K Audio") : (station.name || "N2K Media Center"),
       artwork: (station.artwork_url || station.favicon) ? [
         {src: station.artwork_url || station.favicon, sizes: "256x256"}
       ] : []
@@ -3343,17 +3420,16 @@ function updateMediaPlaybackUi() {
   const topPlay = document.getElementById("top-media-play");
   const topPause = document.getElementById("top-media-pause");
   const topMute = document.getElementById("top-media-mute");
+  const topVolume = document.getElementById("top-media-volume");
+  const mainVolume = document.getElementById("media-volume");
   const liveDot = document.getElementById("media-live-dot");
   const visualizer = document.querySelector(".media-visualizer");
 
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
-  const displayTitle = station ? (station.title || station.name) : "Noch kein Titel";
-  const displayMeta = station
-    ? (station.source === "local"
-      ? [station.artist || "Unbekannter Interpret", station.album || station.name].filter(Boolean).join(" · ")
-      : [station.genre || "Radio", station.country || "Internet"].filter(Boolean).join(" · "))
-    : "Radio · Eigene Musik · Streaming";
-  const sourceText = station?.source === "local" ? "EIGENE MUSIK" : station ? "RADIO" : "MEDIA";
+  const displayTitle = mediaDisplayTitle(station);
+  const displayMeta = mediaDisplayMeta(station);
+  const rdsLive = Boolean(station?.source !== "local" && station?.now_playing?.title);
+  const sourceText = station?.source === "local" ? "EIGENE MUSIK" : station ? (rdsLive ? "RADIO · RDS" : "RADIO") : "MEDIA";
   if (topTitle) topTitle.textContent = displayTitle;
   if (topSubtitle) topSubtitle.textContent = displayMeta;
   if (topStatus) topStatus.textContent = `${sourceText} · ${playing ? "LÄUFT" : audio.src ? "PAUSE" : "BEREIT"}`;
@@ -3364,14 +3440,17 @@ function updateMediaPlaybackUi() {
     topMute.textContent = mediaAudio?.muted ? "🔇" : "🔊";
     topMute.classList.toggle("active", Boolean(mediaAudio?.muted));
   }
+  const volumeValue = Math.round(audio.volume * 100);
+  if (topVolume && document.activeElement !== topVolume) topVolume.value = String(volumeValue);
+  if (mainVolume && document.activeElement !== mainVolume) mainVolume.value = String(volumeValue);
   const overviewTitle = document.getElementById("overview-media-title");
   const overviewSubtitle = document.getElementById("overview-media-subtitle");
   const overviewPlay = document.getElementById("overview-media-play");
-  if (overviewTitle) overviewTitle.textContent = station ? (station.title || station.name) : "Bereit";
+  if (overviewTitle) overviewTitle.textContent = station ? mediaDisplayTitle(station) : "Bereit";
   if (overviewSubtitle) overviewSubtitle.textContent = station
     ? (station.source === "local"
       ? [station.artist || "Eigene Musik", station.album].filter(Boolean).join(" · ")
-      : `${station.genre || "Radio"} · ${station.country || "Internet"}`)
+      : (station.now_playing?.artist ? `${station.now_playing.artist} · ${station.name}` : `${station.genre || "Radio"} · ${station.country || "Internet"}`))
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
   if (liveDot) liveDot.classList.toggle("active", playing);
@@ -3381,10 +3460,10 @@ function updateMediaPlaybackUi() {
     updateMediaSessionMetadata();
     const title = document.getElementById("media-title");
     const subtitle = document.getElementById("media-subtitle");
-    if (title) title.textContent = station.title || station.name;
+    if (title) title.textContent = mediaDisplayTitle(station);
     if (subtitle) subtitle.textContent = station.source === "local"
       ? [station.artist || "Unbekannter Interpret", station.album, station.name !== station.title ? station.name : "", station.genre, station.bitrate].filter(Boolean).join(" · ")
-      : [station.genre, station.bitrate, station.country].filter(Boolean).join(" · ");
+      : [station.now_playing?.artist, station.name, station.genre, station.bitrate, station.country].filter(Boolean).join(" · ");
     updateMediaArtwork(station);
   }
 }
@@ -3649,6 +3728,7 @@ async function playMediaStation(index) {
     setMediaStatus("Wiedergabe wurde vom Browser blockiert oder der Stream ist nicht erreichbar.");
   }
   updateMediaPlaybackUi();
+  startRadioMetadataPolling(station);
   saveMediaSession();
 }
 
@@ -3888,6 +3968,7 @@ async function loadMediaLibrary() {
 async function playLocalTrack(index) {
   const track = mediaLocalTracks[index];
   if (!track) return;
+  stopRadioMetadataPolling(true);
   const audio = ensureMediaAudio();
   ensureMediaEqGraph();
   if (mediaAudioContext?.state === "suspended") {
@@ -4422,6 +4503,7 @@ function pauseMediaPlayback() {
 }
 
 function stopMediaPlayback() {
+  stopRadioMetadataPolling(true);
   const audio = ensureMediaAudio();
   audio.pause();
   audio.removeAttribute("src");
@@ -4495,6 +4577,18 @@ function initMediaCenter() {
       toggleMediaFavorite(station);
       renderMediaStations();
     }
+  });
+  document.getElementById("top-media-volume")?.addEventListener("input", event => {
+    const value = Number(event.target.value) || 0;
+    const audio = ensureMediaAudio();
+    audio.volume = value / 100;
+    if (value > 0 && audio.muted) audio.muted = false;
+    const main = document.getElementById("media-volume");
+    const copy = document.getElementById("media-volume-value");
+    if (main) main.value = String(value);
+    if (copy) copy.textContent = `${value}%`;
+    updateMediaPlaybackUi();
+    saveMediaSession();
   });
   document.getElementById("media-volume")?.addEventListener("input", event => {
     const value = Number(event.target.value) || 0;
