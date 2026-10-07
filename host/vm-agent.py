@@ -972,6 +972,12 @@ def network_scan_payload():
             "known": len(devices),
             "new": sum(1 for d in devices if d.get("new") and d.get("online")),
             "offline": sum(1 for d in devices if not d.get("online")),
+            "trusted": sum(1 for d in devices if d.get("trusted")),
+        },
+        "traffic": {
+            "per_device_available": False,
+            "mode": "host_only",
+            "reason": "client_traffic_requires_gateway_or_bridge_visibility",
         },
     }
     write_network_inventory(payload)
@@ -987,7 +993,13 @@ def network_inventory_payload():
         "known": len(devices),
         "new": sum(1 for d in devices if d.get("new") and d.get("online")),
         "offline": sum(1 for d in devices if not d.get("online")),
+        "trusted": sum(1 for d in devices if d.get("trusted")),
     }
+    data.setdefault("traffic", {
+        "per_device_available": False,
+        "mode": "host_only",
+        "reason": "client_traffic_requires_gateway_or_bridge_visibility",
+    })
     return data
 
 
