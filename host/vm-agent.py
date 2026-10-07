@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update",
-    "health_status", "remote_access_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "service_logs", "service_action", "remote_access_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -44,6 +44,13 @@ REMOTE_ACCESS_STATE = Path("/var/lib/netfreak2k/remote-access.json")
 GATEWAY_SCRIPT = Path("/opt/netfreak2k/scripts/configure-gateway.sh")
 DOMAIN_RE = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+MANAGED_SERVICES = {
+    "docker.service": {"label": "Docker Engine", "restartable": True},
+    "libvirtd.service": {"label": "KVM / libvirt", "restartable": True},
+    "netfreak2k-vm-agent.service": {"label": "N2K Host Agent", "restartable": False},
+    "netfreak2k-ha-proxy.service": {"label": "Home Assistant Proxy", "restartable": True},
+    "nginx.service": {"label": "HTTPS Gateway", "restartable": True},
+}
 
 APP_CATALOG = {
     "uptime-kuma": {
@@ -1118,7 +1125,54 @@ def smart_health_payload():
 def system_service_state(unit):
     result = run("systemctl", "is-active", unit, timeout=5)
     state = result.stdout.strip() or "unknown"
-    return {"unit": unit, "state": state, "ok": state == "active"}
+    spec = MANAGED_SERVICES.get(unit) or {}
+    return {
+        "unit": unit,
+        "label": spec.get("label") or unit.replace(".service", ""),
+        "state": state,
+        "ok": state == "active",
+        "restartable": bool(spec.get("restartable")),
+    }
+
+
+def managed_service_logs(unit, lines=100):
+    unit = str(unit or "").strip()
+    if unit not in MANAGED_SERVICES:
+        raise RuntimeError("service_not_allowed")
+    try:
+        lines = max(20, min(200, int(lines)))
+    except (TypeError, ValueError):
+        lines = 100
+    result = run(
+        "journalctl", "--no-pager", "--output=short-iso",
+        "-n", str(lines), "-u", unit,
+        timeout=12,
+    )
+    log_lines = [line[:1200] for line in result.stdout.splitlines()[-lines:]]
+    return {
+        "unit": unit,
+        "label": MANAGED_SERVICES[unit]["label"],
+        "state": system_service_state(unit),
+        "lines": log_lines,
+        "line_count": len(log_lines),
+    }
+
+
+def managed_service_action(unit, operation):
+    unit = str(unit or "").strip()
+    operation = str(operation or "").strip().lower()
+    spec = MANAGED_SERVICES.get(unit)
+    if not spec:
+        raise RuntimeError("service_not_allowed")
+    if not spec.get("restartable"):
+        raise RuntimeError("service_action_blocked")
+    if operation not in {"start", "restart"}:
+        raise RuntimeError("invalid_service_action")
+    result = run("systemctl", operation, unit, timeout=35)
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "service_action_failed").strip()[:500])
+    time.sleep(0.35)
+    return {"action": operation, "service": system_service_state(unit)}
 
 
 def docker_health_payload():
@@ -1154,6 +1208,7 @@ def health_status_payload():
         system_service_state("libvirtd.service"),
         system_service_state("netfreak2k-vm-agent.service"),
         system_service_state("netfreak2k-ha-proxy.service"),
+        system_service_state("nginx.service"),
     ]
     vm = payload()
     backups = backup_list_payload()
@@ -1905,6 +1960,12 @@ def execute(action, request):
 
     if action == "health_status":
         return health_status_payload()
+
+    if action == "service_logs":
+        return managed_service_logs(request.get("unit"), request.get("lines", 100))
+
+    if action == "service_action":
+        return managed_service_action(request.get("unit"), request.get("operation"))
 
     if action == "remote_access_status":
         return remote_access_status_payload()
