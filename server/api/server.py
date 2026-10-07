@@ -3600,7 +3600,9 @@ class Handler(BaseHTTPRequestHandler):
             session = self.require_auth()
             if not session:
                 return
-            if not self.require_csrf(session):
+            provided = self.headers.get("X-CSRF-Token", "")
+            if not provided or not hmac.compare_digest(provided, session["csrf"]):
+                self.send_json({"error": "csrf_required"}, 403)
                 return
             token = self.session_token()
             audit_event(session["username"], "logout", "", self.client_address[0] if self.client_address else "")
