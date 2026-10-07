@@ -1855,7 +1855,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 15 if action == "event_logs" else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
+        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 45 if action == "recovery_action" else 15 if action in {"event_logs","recovery_status"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -3035,6 +3035,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
             return
 
+        if path == "/recovery":
+            if not self.require_auth():
+                return
+            result = vm_agent("recovery_status")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
         if path == "/hardware":
             if not self.require_auth():
                 return
@@ -3386,6 +3396,29 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(result, 503)
                     return
                 audit_event(session["username"], "scheduler_run", job_id, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/recovery/action":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                operation = str(data.get("operation", "")).strip()
+                allowed = {
+                    "restart-nginx", "restart-docker", "restart-libvirt", "restart-ha-proxy",
+                    "verify-latest-backup", "verify-update-backup",
+                }
+                if operation not in allowed:
+                    raise ValueError("invalid_recovery_action")
+                result = vm_agent("recovery_action", {"operation": operation})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "recovery_action", operation, self.client_ip())
                 self.send_json(result)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
