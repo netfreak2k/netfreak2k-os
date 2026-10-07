@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update",
-    "health_status", "service_logs", "service_action", "remote_access_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "remote_access_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -1051,6 +1051,128 @@ def network_device_analyze(device_id):
     return item
 
 
+def read_text_value(path, default=""):
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return default
+
+
+def hardware_status_payload():
+    cpu_model = ""
+    try:
+        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8", errors="replace").splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            if key.strip().lower() in {"model name", "hardware", "processor"} and value.strip():
+                cpu_model = value.strip()
+                if key.strip().lower() == "model name":
+                    break
+    except OSError:
+        pass
+
+    os_release = {}
+    try:
+        for line in Path("/etc/os-release").read_text(encoding="utf-8", errors="replace").splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                os_release[key] = value.strip().strip('"')
+    except OSError:
+        pass
+
+    hostname = socket.gethostname()
+    kernel = run("uname", "-r", timeout=4)
+    arch = run("uname", "-m", timeout=4)
+    uptime = 0
+    try:
+        uptime = int(float(Path("/proc/uptime").read_text(encoding="utf-8").split()[0]))
+    except (OSError, ValueError, IndexError):
+        pass
+
+    memory_total = 0
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemTotal:"):
+                memory_total = int(line.split()[1]) * 1024
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+
+    board_vendor = read_text_value("/sys/class/dmi/id/board_vendor")
+    board_name = read_text_value("/sys/class/dmi/id/board_name")
+    product_name = read_text_value("/sys/class/dmi/id/product_name")
+    product_vendor = read_text_value("/sys/class/dmi/id/sys_vendor")
+
+    drives = []
+    if shutil.which("lsblk"):
+        result = run(
+            "lsblk", "-J", "-b", "-o",
+            "NAME,PATH,TYPE,SIZE,MODEL,VENDOR,SERIAL,TRAN,ROTA,MOUNTPOINTS,FSTYPE",
+            timeout=10,
+        )
+        if result.returncode == 0:
+            try:
+                payload = json.loads(result.stdout)
+                for item in payload.get("blockdevices") or []:
+                    if item.get("type") not in {"disk", "rom"}:
+                        continue
+                    drive = {
+                        "name": item.get("name") or "",
+                        "path": item.get("path") or "",
+                        "type": item.get("type") or "",
+                        "size_bytes": item.get("size"),
+                        "model": str(item.get("model") or "").strip(),
+                        "vendor": str(item.get("vendor") or "").strip(),
+                        "serial": str(item.get("serial") or "").strip(),
+                        "transport": item.get("tran") or "",
+                        "rotational": bool(item.get("rota")),
+                        "mountpoints": [m for m in (item.get("mountpoints") or []) if m],
+                        "filesystem": item.get("fstype") or "",
+                    }
+                    drives.append(drive)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    return {
+        "hostname": hostname,
+        "os": os_release.get("PRETTY_NAME") or os_release.get("NAME") or "Linux",
+        "kernel": kernel.stdout.strip() if kernel.returncode == 0 else "",
+        "architecture": arch.stdout.strip() if arch.returncode == 0 else "",
+        "cpu_model": cpu_model,
+        "logical_cores": os.cpu_count() or 0,
+        "memory_total_bytes": memory_total,
+        "uptime_seconds": uptime,
+        "board": {
+            "vendor": board_vendor,
+            "name": board_name,
+            "system_vendor": product_vendor,
+            "product": product_name,
+        },
+        "drives": drives,
+        "temperatures": cpu_temperature_payload(),
+        "smart": smart_health_payload(),
+    }
+
+
+def host_power_action(operation):
+    operation = str(operation or "").strip().lower()
+    if operation not in {"reboot", "poweroff"}:
+        raise RuntimeError("invalid_power_action")
+    if not shutil.which("systemd-run"):
+        raise RuntimeError("systemd_run_unavailable")
+    command = "/usr/bin/systemctl reboot" if operation == "reboot" else "/usr/bin/systemctl poweroff"
+    unit = f"netfreak2k-{operation}-{int(time.time())}"
+    result = run(
+        "systemd-run", "--unit", unit, "--collect", "--on-active=3s",
+        "/bin/sh", "-c", command,
+        timeout=8,
+    )
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "power_action_failed").strip()[:500])
+    return {"accepted": True, "operation": operation, "delay_seconds": 3}
+
+
 def cpu_temperature_payload():
     readings = []
     roots = [Path("/sys/class/thermal"), Path("/sys/class/hwmon")]
@@ -1960,6 +2082,12 @@ def execute(action, request):
 
     if action == "health_status":
         return health_status_payload()
+
+    if action == "hardware_status":
+        return hardware_status_payload()
+
+    if action == "host_power_action":
+        return host_power_action(request.get("operation"))
 
     if action == "service_logs":
         return managed_service_logs(request.get("unit"), request.get("lines", 100))
