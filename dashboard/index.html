@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-security1">
+  <link rel="stylesheet" href="styles.css?v=20261007-remote1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -102,6 +102,7 @@
             <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
             <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
             <button class="nav-item nav-subitem" data-target="security-panel"><span>◆</span>Benutzer & Sicherheit</button>
+            <button class="nav-item nav-subitem" data-target="remote-panel"><span>↗</span>Remotezugriff</button>
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
@@ -542,6 +543,63 @@
             <div id="catalog-list" class="catalog-list">
               <div class="app-empty">Katalog wird geladen …</div>
             </div>
+          </article>
+
+          <article id="remote-panel" class="panel remote-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K SECURE ACCESS</p>
+                <h2>Remotezugriff & HTTPS</h2>
+                <p>Verschlüsselter Zugriff im Heimnetz und sichere Optionen für den Zugriff von unterwegs.</p>
+              </div>
+              <span id="remote-secure-pill" class="state-pill">Prüfe …</span>
+            </div>
+
+            <div class="remote-summary-grid">
+              <section><small>AKTUELLER ZUGRIFF</small><strong id="remote-current-protocol">–</strong><span id="remote-current-host">–</span></section>
+              <section><small>HTTPS</small><strong id="remote-https-port">–</strong><span>TLS 1.2 / 1.3</span></section>
+              <section><small>ZERTIFIKAT</small><strong id="remote-cert-state">–</strong><span id="remote-cert-expiry">–</span></section>
+              <section><small>EMPFEHLUNG</small><strong>VPN / Proxy</strong><span>Kein direkter Router-Portforward</span></section>
+            </div>
+
+            <div class="remote-grid">
+              <section class="remote-card remote-access-card">
+                <div class="remote-card-head"><div><small>HEIMNETZ</small><strong>Direkter Zugriff</strong></div><span class="security-badge ok">AKTIV</span></div>
+                <div class="remote-url-row">
+                  <div><small>HTTPS</small><code id="remote-https-url">–</code></div>
+                  <button id="remote-copy-https" class="secondary compact">Kopieren</button>
+                </div>
+                <div class="remote-url-row">
+                  <div><small>HTTP FALLBACK</small><code id="remote-http-url">–</code></div>
+                  <button id="remote-copy-http" class="secondary compact">Kopieren</button>
+                </div>
+                <div class="remote-note">
+                  Das lokale Zertifikat wird automatisch erzeugt und erneuert. Auf neuen Geräten kann beim ersten Aufruf eine Zertifikatswarnung erscheinen.
+                </div>
+              </section>
+
+              <section class="remote-card">
+                <div class="remote-card-head"><div><small>ZERTIFIKAT</small><strong>TLS-Identität</strong></div><span id="remote-cert-badge" class="security-badge">–</span></div>
+                <div class="remote-cert-detail"><small>COMMON NAME</small><strong id="remote-cert-subject">–</strong></div>
+                <div class="remote-cert-detail"><small>SHA-256 FINGERPRINT</small><code id="remote-cert-fingerprint">–</code></div>
+                <button id="remote-copy-fingerprint" class="secondary compact">Fingerprint kopieren</button>
+              </section>
+            </div>
+
+            <section class="remote-options">
+              <div class="remote-card-head"><div><small>VON UNTERWEGS</small><strong>Sichere Zugriffswege</strong></div></div>
+              <div class="remote-option-grid">
+                <article class="remote-option recommended">
+                  <span>1</span><div><strong>VPN / Mesh-VPN</strong><small>Empfohlen. Der Server bleibt privat und ist nur für autorisierte Geräte erreichbar.</small></div><em>EMPFOHLEN</em>
+                </article>
+                <article class="remote-option">
+                  <span>2</span><div><strong>Vertrauenswürdiger Reverse Proxy</strong><small>Eigene Domain + gültiges öffentliches Zertifikat vor Netfreak2k. HTTPS bis zum N2K-Backend beibehalten.</small></div><em>PROFI</em>
+                </article>
+                <article class="remote-option danger">
+                  <span>!</span><div><strong>Direktes Portforwarding</strong><small>Port 80/443 nicht einfach ungefiltert am Router ins Internet weiterleiten. VPN oder Reverse Proxy verwenden.</small></div><em>NICHT EMPFOHLEN</em>
+                </article>
+              </div>
+            </section>
           </article>
 
           <article id="security-panel" class="panel security-panel section-anchor">
@@ -1334,6 +1392,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-security1"></script>
+  <script src="app.js?v=20261007-remote1"></script>
 </body>
 </html>
