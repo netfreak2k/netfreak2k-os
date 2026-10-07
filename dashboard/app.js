@@ -3289,6 +3289,14 @@ if (notificationDesktopToggle) {
     typeof Notification !== "undefined" && Notification.permission === "granted";
 }
 
+document.getElementById("security-totp-begin")?.addEventListener("click", beginTotpSetup);
+document.getElementById("security-totp-confirm")?.addEventListener("click", confirmTotpSetup);
+document.getElementById("security-totp-disable")?.addEventListener("click", disableTotpSetup);
+document.getElementById("security-user-create-toggle")?.addEventListener("click", () => {
+  document.getElementById("security-user-create")?.classList.toggle("hidden");
+});
+document.getElementById("security-user-create-save")?.addEventListener("click", createSecurityUser);
+
 document.getElementById("refresh-status")?.addEventListener("click", () => {
   loadStatus();
   loadOverview();
@@ -4237,6 +4245,7 @@ setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
 setInterval(loadNotifications, 60000);
+setInterval(loadSecurity, 120000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
