@@ -197,6 +197,15 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Release Readiness sanity
+        run: |
+          grep -q 'release-readiness-card' dashboard/index.html
+          grep -q 'loadReleaseReadiness' dashboard/app.js
+          grep -q '/release/readiness' server/api/server.py
+          grep -q 'release_readiness_payload' host/vm-agent.py
+          grep -q '"release_readiness"' host/vm-agent.py
+          grep -q 'release-readiness-summary' dashboard/styles.css
+
       - name: Recovery Center 2.0 sanity
         run: |
           grep -q 'recovery-panel' dashboard/index.html
