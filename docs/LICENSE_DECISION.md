@@ -1,6 +1,6 @@
 # Netfreak2k Source License Decision
 
-Status: **decision required before public 1.0.0 stable release**
+Status: **DECIDED — AGPL-3.0-only for Netfreak2k-owned source code**
 
 This document is an engineering decision aid, not legal advice. The actual license only changes when an explicit `LICENSE` file is committed.
 
@@ -69,3 +69,10 @@ After the project owner explicitly chooses a license:
 3. record the choice in this document;
 4. rerun the full Validate workflow;
 5. only then clear the license gate for `1.0.0`.
+
+
+## Final decision
+
+For Netfreak2k Server-OS 1.0.0, the project owner selected **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**.
+
+The canonical license text is stored in the repository root as `LICENSE`. Third-party software remains under its respective upstream license.
