@@ -359,6 +359,69 @@ def delete_session(token):
         conn.commit()
 
 
+def user_auth_record(username):
+    with db_connect() as conn:
+        row = conn.execute(
+            "SELECT password_hash,salt,role,enabled,totp_secret,totp_enabled,last_login_at FROM users WHERE username=?",
+            (username,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "password_hash": row[0],
+        "salt": row[1],
+        "role": row[2] or "viewer",
+        "enabled": bool(row[3]),
+        "totp_secret": row[4],
+        "totp_enabled": bool(row[5]),
+        "last_login_at": row[6],
+    }
+
+
+def verify_login(username, password):
+    record = user_auth_record(username)
+    if not record or not record["enabled"]:
+        return False
+    stored = base64.b64decode(record["password_hash"])
+    salt = base64.b64decode(record["salt"])
+    supplied = hash_password(password, salt)
+    return hmac.compare_digest(stored, supplied)
+
+
+def new_session(username, user_agent="", remote_addr=""):
+    token = secrets.token_urlsafe(32)
+    csrf = secrets.token_urlsafe(24)
+    now = int(time.time())
+    expires = now + SESSION_TTL
+    token_hash = session_token_hash(token)
+    with db_connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at<=?", (now,))
+        conn.execute(
+            "INSERT INTO sessions (token_hash,username,csrf,expires_at,created_at,user_agent,remote_addr) VALUES (?,?,?,?,?,?,?)",
+            (token_hash, username, csrf, expires, now, str(user_agent or "")[:250], str(remote_addr or "")[:80]),
+        )
+        conn.execute("UPDATE users SET last_login_at=? WHERE username=?", (now, username))
+        conn.commit()
+    return token, csrf, expires
+
+
+def get_session(token):
+    if not token:
+        return None
+    now = int(time.time())
+    token_hash = session_token_hash(token)
+    with db_connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at<=?", (now,))
+        row = conn.execute(
+            "SELECT s.username,s.csrf,s.expires_at,u.role,u.enabled,s.created_at,s.user_agent,s.remote_addr FROM sessions s JOIN users u ON u.username=s.username WHERE s.token_hash=?",
+            (token_hash,),
+        ).fetchone()
+        conn.commit()
+    if not row or not bool(row[4]):
+        return None
+    return {"username": row[0], "csrf": row[1], "expires": row[2], "role": row[3] or "viewer", "created_at": row[5], "user_agent": row[6], "remote_addr": row[7]}
+
+
 def read_text(path, default=""):
     try:
         return Path(path).read_text(encoding="utf-8").strip()
