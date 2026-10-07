@@ -2288,3 +2288,27 @@ body::after{
 .remote-requirements strong{font-size:6px;color:#e4c576}.remote-requirements span{font-size:6px;color:#7c8995;margin-top:3px;line-height:1.45}
 .remote-security-note{margin-top:10px;padding:9px;border-radius:9px;font-size:6px;line-height:1.5;color:#74818d;background:rgba(68,164,114,.035);border:1px solid rgba(88,202,145,.06)}
 @media(max-width:800px){.remote-access-summary{grid-template-columns:1fr}.remote-mode-switch{grid-template-columns:1fr}.remote-domain-config{grid-template-columns:1fr}.remote-requirements{grid-column:auto}}
+
+/* N2K release channels & rollback */
+.update-release-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}
+.update-release-controls section{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;
+  padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.045)
+}
+.update-release-controls section>div{min-width:0}
+.update-release-controls small,.update-release-controls strong,.update-release-controls span{display:block}
+.update-release-controls small{font-size:5px;letter-spacing:.1em;color:#667481}
+.update-release-controls strong{font-size:9px;margin-top:2px}
+.update-release-controls span{font-size:6px;color:#71808d;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.update-release-controls select{
+  height:31px;min-width:110px;border-radius:8px;border:1px solid rgba(255,255,255,.06);
+  background:#111923;color:#dde5ec;padding:0 7px;font-size:7px;outline:0
+}
+.update-release-controls button:disabled{opacity:.42;cursor:not-allowed}
+@media(max-width:900px){
+  .update-release-controls{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .update-release-controls section{grid-template-columns:1fr}
+  .update-release-controls select,.update-release-controls button{justify-self:start}
+}
