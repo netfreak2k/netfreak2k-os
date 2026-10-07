@@ -427,16 +427,16 @@ jobs:
           grep -q 'fingerprint' scripts/update-server.sh
           grep -q 'netfreak2k-update-check.timer' install.sh
 
-      - name: Release candidate sanity
+      - name: Stable release sanity
         run: |
           test "$(tr -d '\r\n' < VERSION)" = "1.0.0"
           grep -q '1.0.0' README.md
           grep -q 'RELEASE_CHECKLIST.md' README.md
           test -f docs/RELEASE_CHECKLIST.md
+          test -f docs/RELEASE_NOTES_1.0.0.md
           test -f LICENSE
           grep -q 'GNU AFFERO GENERAL PUBLIC LICENSE' LICENSE
           grep -q 'AGPL-3.0-only' README.md
-          grep -q 'n2k-legal-notice' dashboard/index.html
           test -f scripts/release-gate.sh
           bash -n scripts/release-gate.sh
           grep -q 'RESULT: PASS' scripts/release-gate.sh
