@@ -24,7 +24,7 @@ ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
-    "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
+    "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
@@ -1910,22 +1910,186 @@ def storage_unmount(device_path):
 
 
 
+def virsh_vm_names():
+    result = run("virsh", "--connect", "qemu:///system", "list", "--all", "--name", timeout=10)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "virsh_list_failed")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def require_vm_name(name):
+    name = str(name or "").strip()
+    if not name or name not in virsh_vm_names():
+        raise RuntimeError("vm_not_found")
+    return name
+
+
+def parse_dominfo(name):
+    result = run("virsh", "--connect", "qemu:///system", "dominfo", name, timeout=8)
+    info = {}
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            info[key.strip().lower().replace(" ", "_")] = value.strip()
+    return info
+
+
+def vm_disks(name):
+    result = run("virsh", "--connect", "qemu:///system", "domblklist", name, "--details", timeout=8)
+    rows = []
+    if result.returncode != 0:
+        return rows
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 4 or parts[0].lower() in {"type", "----"}:
+            continue
+        dtype, device, target = parts[0], parts[1], parts[2]
+        source = " ".join(parts[3:])
+        size = None
+        if source.startswith("/"):
+            try:
+                size = Path(source).stat().st_size
+            except OSError:
+                pass
+        rows.append({"type": dtype, "device": device, "target": target, "source": source, "size_bytes": size})
+    return rows
+
+
+def vm_interfaces(name):
+    result = run("virsh", "--connect", "qemu:///system", "domiflist", name, timeout=8)
+    rows = []
+    if result.returncode != 0:
+        return rows
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 5 or parts[0].lower() in {"interface", "---------"}:
+            continue
+        rows.append({
+            "interface": parts[0],
+            "type": parts[1],
+            "source": parts[2],
+            "model": parts[3],
+            "mac": parts[4].upper(),
+        })
+    addr = run("virsh", "--connect", "qemu:///system", "domifaddr", name, "--source", "lease", timeout=8)
+    if addr.returncode == 0:
+        ips = {}
+        for line in addr.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 4 and re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", parts[1]):
+                ips[parts[1].upper()] = parts[3]
+        for row in rows:
+            row["address"] = ips.get(row["mac"], "")
+    return rows
+
+
+def vm_snapshots(name):
+    result = run("virsh", "--connect", "qemu:///system", "snapshot-list", name, "--name", timeout=8)
+    if result.returncode != 0:
+        return []
+    rows = []
+    for snapshot in [line.strip() for line in result.stdout.splitlines() if line.strip()][:30]:
+        info = run("virsh", "--connect", "qemu:///system", "snapshot-info", name, snapshot, timeout=6)
+        created = ""
+        state = ""
+        if info.returncode == 0:
+            for line in info.stdout.splitlines():
+                if ":" not in line:
+                    continue
+                key, value = line.split(":", 1)
+                key = key.strip().lower()
+                if key == "creation time":
+                    created = value.strip()
+                elif key == "state":
+                    state = value.strip()
+        rows.append({"name": snapshot, "created": created, "state": state})
+    return rows
+
+
+def vm_details(name):
+    name = require_vm_name(name)
+    state_result = run("virsh", "--connect", "qemu:///system", "domstate", name, timeout=6)
+    state = state_result.stdout.strip().lower() if state_result.returncode == 0 else "unknown"
+    info = parse_dominfo(name)
+    memory_kib = None
+    try:
+        memory_kib = int(str(info.get("used_memory") or info.get("max_memory") or "").split()[0])
+    except (ValueError, IndexError):
+        pass
+    vcpus = None
+    try:
+        vcpus = int(info.get("cpu(s)") or 0)
+    except ValueError:
+        pass
+    return {
+        "name": name,
+        "state": state,
+        "managed": name == VM_NAME,
+        "autostart": str(info.get("autostart") or "").lower() == "enable",
+        "persistent": str(info.get("persistent") or "").lower() == "yes",
+        "vcpus": vcpus,
+        "memory_bytes": memory_kib * 1024 if memory_kib is not None else None,
+        "cpu_time": info.get("cpu_time") or "",
+        "disks": vm_disks(name),
+        "interfaces": vm_interfaces(name),
+        "snapshots": vm_snapshots(name),
+    }
+
+
 def vm_list_payload():
+    names = virsh_vm_names()
+    vms = [vm_details(name) for name in names]
+    return {
+        "vms": vms,
+        "summary": {
+            "total": len(vms),
+            "running": sum(1 for vm in vms if vm.get("state") == "running"),
+            "autostart": sum(1 for vm in vms if vm.get("autostart")),
+            "snapshots": sum(len(vm.get("snapshots") or []) for vm in vms),
+        },
+    }
+
+
+def generic_vm_action(name, operation):
+    name = require_vm_name(name)
+    operation = str(operation or "").strip().lower()
+    state = run("virsh", "--connect", "qemu:///system", "domstate", name, timeout=6).stdout.strip().lower()
+    if operation == "start":
+        if state != "running":
+            run("virsh", "--connect", "qemu:///system", "start", name, check=True, timeout=30)
+    elif operation == "shutdown":
+        if state == "running":
+            run("virsh", "--connect", "qemu:///system", "shutdown", name, check=True, timeout=30)
+    elif operation == "restart":
+        if state == "running":
+            result = run("virsh", "--connect", "qemu:///system", "reboot", name, timeout=30)
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr.strip() or "vm_restart_failed")
+        else:
+            run("virsh", "--connect", "qemu:///system", "start", name, check=True, timeout=30)
+    else:
+        raise RuntimeError("invalid_vm_action")
+    time.sleep(0.4)
+    return vm_details(name)
+
+
+def vm_snapshot_create(name):
+    name = require_vm_name(name)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    snapshot = f"n2k-{stamp}"
     result = run(
         "virsh", "--connect", "qemu:///system",
-        "list", "--all", "--name",
-        check=True,
+        "snapshot-create-as", name, snapshot,
+        "--description", f"Netfreak2k snapshot {stamp}",
+        "--atomic",
+        timeout=120,
     )
-    vms = []
-    for name in [line.strip() for line in result.stdout.splitlines() if line.strip()]:
-        state_result = run("virsh", "--connect", "qemu:///system", "domstate", name)
-        state = state_result.stdout.strip().lower() if state_result.returncode == 0 else "unknown"
-        vms.append({
-            "name": name,
-            "state": state,
-            "managed": name == VM_NAME,
-        })
-    return {"vms": vms}
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "vm_snapshot_failed").strip()[:600])
+    return {"created": True, "vm": name, "snapshot": snapshot, "vm_details": vm_details(name)}
+
 
 
 
@@ -2508,6 +2672,12 @@ def execute(action, request):
 
     if action == "vm_list":
         return vm_list_payload()
+
+    if action == "vm_action":
+        return generic_vm_action(request.get("name"), request.get("operation"))
+
+    if action == "vm_snapshot_create":
+        return vm_snapshot_create(request.get("name"))
 
     if action == "backup_list":
         return backup_list_payload()
