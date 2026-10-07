@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "event_logs", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -1681,6 +1681,114 @@ def docker_health_payload():
     }
 
 
+def event_logs_payload(lines=240):
+    try:
+        lines = max(50, min(500, int(lines)))
+    except (TypeError, ValueError):
+        lines = 240
+
+    events = []
+    if shutil.which("journalctl"):
+        result = run(
+            "journalctl", "--no-pager", "-n", str(lines), "-o", "json",
+            "--since", "24 hours ago",
+            timeout=15,
+        )
+        if result.returncode == 0:
+            for raw in result.stdout.splitlines():
+                try:
+                    item = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                message = str(item.get("MESSAGE") or "").strip()
+                if not message:
+                    continue
+                realtime = str(item.get("__REALTIME_TIMESTAMP") or "")
+                timestamp = None
+                try:
+                    timestamp = int(int(realtime) / 1000000) if realtime else None
+                except (TypeError, ValueError):
+                    timestamp = None
+                priority = 6
+                try:
+                    priority = int(item.get("PRIORITY") or 6)
+                except (TypeError, ValueError):
+                    priority = 6
+                identifier = str(
+                    item.get("SYSLOG_IDENTIFIER")
+                    or item.get("_SYSTEMD_UNIT")
+                    or item.get("_COMM")
+                    or "system"
+                )[:120]
+                unit = str(item.get("_SYSTEMD_UNIT") or "")[:160]
+                source = "system"
+                if unit in MANAGED_SERVICES or identifier.startswith("netfreak2k"):
+                    source = "n2k"
+                elif "docker" in identifier.lower() or unit == "docker.service":
+                    source = "docker"
+                elif "libvirt" in identifier.lower() or unit == "libvirtd.service":
+                    source = "vm"
+                elif identifier.lower() in {"sshd", "ssh"} or "ssh" in unit.lower():
+                    source = "security"
+                events.append({
+                    "source": source,
+                    "timestamp": timestamp,
+                    "priority": priority,
+                    "level": (
+                        "critical" if priority <= 2 else
+                        "error" if priority == 3 else
+                        "warning" if priority == 4 else
+                        "info"
+                    ),
+                    "identifier": identifier,
+                    "unit": unit,
+                    "message": message[:1800],
+                })
+
+    if shutil.which("docker"):
+        names_result = run("docker", "ps", "-a", "--format", "{{.Names}}", timeout=8)
+        if names_result.returncode == 0:
+            names = [name.strip() for name in names_result.stdout.splitlines() if name.strip().startswith("netfreak2k-")][:30]
+            for name in names:
+                result = run("docker", "logs", "--timestamps", "--tail", "8", name, timeout=8)
+                output = (result.stdout or "") + (result.stderr or "")
+                for raw in output.splitlines()[-8:]:
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    timestamp = None
+                    message = raw
+                    match = re.match(r"^(\d{4}-\d{2}-\d{2}T\S+)\s+(.*)$", raw)
+                    if match:
+                        message = match.group(2)
+                        try:
+                            timestamp = int(time.mktime(time.strptime(match.group(1)[:19], "%Y-%m-%dT%H:%M:%S")))
+                        except ValueError:
+                            timestamp = None
+                    events.append({
+                        "source": "docker",
+                        "timestamp": timestamp,
+                        "priority": 6,
+                        "level": "info",
+                        "identifier": name,
+                        "unit": "",
+                        "message": message[:1800],
+                    })
+
+    events.sort(key=lambda item: int(item.get("timestamp") or 0), reverse=True)
+    events = events[:500]
+    return {
+        "events": events,
+        "summary": {
+            "total": len(events),
+            "critical": sum(1 for item in events if item.get("level") == "critical"),
+            "errors": sum(1 for item in events if item.get("level") == "error"),
+            "warnings": sum(1 for item in events if item.get("level") == "warning"),
+        },
+        "sampled_at": int(time.time()),
+    }
+
+
 SCHEDULER_STATE_FILE = Path("/var/lib/netfreak2k/scheduler-state.json")
 
 
@@ -3290,6 +3398,9 @@ def execute(action, request):
 
     if action == "service_action":
         return managed_service_action(request.get("unit"), request.get("operation"))
+
+    if action == "event_logs":
+        return event_logs_payload(request.get("lines", 240))
 
     if action == "scheduler_status":
         return scheduler_status_payload()
