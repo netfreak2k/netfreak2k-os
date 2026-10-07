@@ -183,6 +183,14 @@ jobs:
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
 
+      - name: Notification center sanity
+        run: |
+          grep -q 'notification-panel' dashboard/index.html
+          grep -q 'loadNotifications' dashboard/app.js
+          grep -q 'CREATE TABLE IF NOT EXISTS notifications' server/api/server.py
+          grep -q 'notifications_payload' server/api/server.py
+          grep -q '/notifications/read' server/api/server.py
+
       - name: System Health sanity
         run: |
           grep -q 'health-panel' dashboard/index.html
