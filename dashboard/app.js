@@ -115,6 +115,7 @@ function enterApp(username) {
   loadSyncCredentials();
   renderWallpaperGallery();
   loadPreferences();
+  initMediaCenter();
   updateDesktopClock();
   loadOverview();
   switchView("dashboard-top");
@@ -2742,3 +2743,312 @@ setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
 setInterval(loadCalendar, 60000);
 setInterval(loadSyncCredentials, 60000);
+
+
+/* N2K Media Center */
+const N2K_RADIO_STATIONS = [
+  {id:"dlf",country:"DE",name:"Deutschlandfunk",genre:"News · Kultur",bitrate:"128 kbps",url:"https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3"},
+  {id:"swr3",country:"DE",name:"SWR3",genre:"Pop · Charts",bitrate:"128 kbps",url:"https://liveradio.swr.de/sw282p3/swr3/play.mp3"},
+  {id:"njoy",country:"DE",name:"N-JOY",genre:"Pop · Hits",bitrate:"128 kbps",url:"https://icecast.ndr.de/ndr/njoy/live/mp3/128/stream.mp3"},
+  {id:"wdr2",country:"DE",name:"WDR 2",genre:"Pop · Information",bitrate:"128 kbps",url:"https://wdr-wdr2-rheinland.icecastssl.wdr.de/wdr/wdr2/rheinland/mp3/128/stream.mp3"},
+  {id:"bbc6",country:"GB",name:"BBC Radio 6 Music",genre:"Alternative · Music",bitrate:"AAC",url:"https://stream.live.vc.bbcmedia.co.uk/bbc_6music"},
+  {id:"bbc4",country:"GB",name:"BBC Radio 4",genre:"Talk · News",bitrate:"AAC",url:"https://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm"},
+  {id:"somafm",country:"US",name:"SomaFM Groove Salad",genre:"Ambient · Chill",bitrate:"128 kbps",url:"https://ice2.somafm.com/groovesalad-128-mp3"},
+  {id:"defcon",country:"US",name:"SomaFM DEF CON Radio",genre:"Electronic · Hacker",bitrate:"128 kbps",url:"https://ice2.somafm.com/defcon-128-mp3"},
+  {id:"fip",country:"FR",name:"FIP",genre:"Eclectic · Culture",bitrate:"AAC",url:"https://icecast.radiofrance.fr/fip-midfi.mp3"},
+  {id:"franceinfo",country:"FR",name:"France Info",genre:"News",bitrate:"AAC",url:"https://icecast.radiofrance.fr/franceinfo-midfi.mp3"},
+  {id:"nporadio2",country:"NL",name:"NPO Radio 2",genre:"Pop · Classics",bitrate:"AAC",url:"https://icecast.omroep.nl/radio2-bb-mp3"},
+  {id:"npo3fm",country:"NL",name:"NPO 3FM",genre:"Alternative · Pop",bitrate:"AAC",url:"https://icecast.omroep.nl/3fm-bb-mp3"}
+];
+
+const N2K_EQ_PRESETS = {
+  flat:[0,0,0,0,0,0,0,0,0,0],
+  bass:[8,7,5,3,1,0,0,1,1,1],
+  rock:[5,4,2,0,-1,1,3,5,6,5],
+  electronic:[6,5,2,0,-2,1,3,5,6,7],
+  vocal:[-2,-1,0,2,4,5,4,2,0,-1]
+};
+
+let mediaAudio = null;
+let mediaCountry = "DE";
+let mediaStationIndex = -1;
+let mediaInitialized = false;
+let mediaAudioContext = null;
+let mediaEqFilters = [];
+let mediaSourceNode = null;
+
+function ensureMediaAudio() {
+  if (mediaAudio) return mediaAudio;
+  mediaAudio = new Audio();
+  mediaAudio.preload = "none";
+  mediaAudio.crossOrigin = "anonymous";
+  mediaAudio.volume = 0.72;
+  mediaAudio.addEventListener("play", updateMediaPlaybackUi);
+  mediaAudio.addEventListener("pause", updateMediaPlaybackUi);
+  mediaAudio.addEventListener("waiting", () => setMediaStatus("Puffert …"));
+  mediaAudio.addEventListener("playing", updateMediaPlaybackUi);
+  mediaAudio.addEventListener("error", () => setMediaStatus("Stream nicht erreichbar"));
+  return mediaAudio;
+}
+
+function mediaCurrentStation() {
+  return mediaStationIndex >= 0 ? N2K_RADIO_STATIONS[mediaStationIndex] : null;
+}
+
+function setMediaStatus(text) {
+  const subtitle = document.getElementById("media-subtitle");
+  if (subtitle && text) subtitle.textContent = text;
+}
+
+function updateMediaPlaybackUi() {
+  const audio = ensureMediaAudio();
+  const playing = !audio.paused && Boolean(audio.src);
+  const station = mediaCurrentStation();
+  const play = document.getElementById("media-play");
+  const topState = document.getElementById("top-media-state");
+  const topTitle = document.getElementById("top-media-title");
+  const liveDot = document.getElementById("media-live-dot");
+  const visualizer = document.querySelector(".media-visualizer");
+
+  if (play) play.textContent = playing ? "Ⅱ" : "▶";
+  if (topState) topState.textContent = playing ? "Ⅱ" : "▶";
+  if (topTitle) topTitle.textContent = station ? station.name : "Bereit";
+  if (liveDot) liveDot.classList.toggle("active", playing);
+  if (visualizer) visualizer.classList.toggle("is-playing", playing);
+
+  if (station) {
+    const title = document.getElementById("media-title");
+    const subtitle = document.getElementById("media-subtitle");
+    if (title) title.textContent = station.name;
+    if (subtitle) subtitle.textContent = `${station.genre} · ${station.bitrate} · ${station.country}`;
+  }
+}
+
+function filteredMediaStations() {
+  const q = (document.getElementById("media-radio-search")?.value || "").trim().toLowerCase();
+  return N2K_RADIO_STATIONS
+    .map((station,index) => ({station,index}))
+    .filter(({station}) => station.country === mediaCountry)
+    .filter(({station}) => !q || `${station.name} ${station.genre}`.toLowerCase().includes(q));
+}
+
+function renderMediaStations() {
+  const list = document.getElementById("media-station-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
+  for (const {station,index} of filteredMediaStations()) {
+    const row = document.createElement("div");
+    row.className = "media-station-row";
+    if (index === mediaStationIndex) row.classList.add("active");
+    row.innerHTML = '<span class="media-station-logo">♪</span><div><strong></strong><small></small></div><button class="media-fav">♡</button><button class="media-station-play">▶</button>';
+    row.querySelector("strong").textContent = station.name;
+    row.querySelector("small").textContent = `${station.genre} · ${station.bitrate}`;
+    const fav = row.querySelector(".media-fav");
+    fav.textContent = favorites.has(station.id) ? "♥" : "♡";
+    fav.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleMediaFavorite(station.id);
+      renderMediaStations();
+    });
+    row.querySelector(".media-station-play").addEventListener("click", () => playMediaStation(index));
+    row.addEventListener("dblclick", () => playMediaStation(index));
+    list.appendChild(row);
+  }
+  if (!list.children.length) list.innerHTML = '<div class="media-empty">Keine Sender gefunden.</div>';
+}
+
+function toggleMediaFavorite(id) {
+  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
+  if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  localStorage.setItem("n2k-media-favorites", JSON.stringify([...favorites]));
+  updateMediaFavoriteButton();
+}
+
+function updateMediaFavoriteButton() {
+  const button = document.getElementById("media-favorite");
+  const station = mediaCurrentStation();
+  if (!button || !station) return;
+  const favorites = new Set(JSON.parse(localStorage.getItem("n2k-media-favorites") || "[]"));
+  button.textContent = favorites.has(station.id) ? "♥" : "♡";
+}
+
+async function playMediaStation(index) {
+  const station = N2K_RADIO_STATIONS[index];
+  if (!station) return;
+  const audio = ensureMediaAudio();
+  mediaStationIndex = index;
+  if (audio.src !== station.url) {
+    audio.src = station.url;
+    audio.load();
+  }
+  document.getElementById("media-title").textContent = station.name;
+  document.getElementById("media-subtitle").textContent = `${station.genre} · ${station.bitrate} · ${station.country}`;
+  updateMediaFavoriteButton();
+  renderMediaStations();
+  try {
+    await audio.play();
+  } catch (error) {
+    console.error(error);
+    setMediaStatus("Wiedergabe wurde vom Browser blockiert oder der Stream ist nicht erreichbar.");
+  }
+  updateMediaPlaybackUi();
+}
+
+function stepMediaStation(direction) {
+  const candidates = N2K_RADIO_STATIONS
+    .map((station,index) => ({station,index}))
+    .filter(({station}) => station.country === mediaCountry);
+  if (!candidates.length) return;
+  const pos = candidates.findIndex(item => item.index === mediaStationIndex);
+  const next = pos < 0 ? 0 : (pos + direction + candidates.length) % candidates.length;
+  playMediaStation(candidates[next].index);
+}
+
+async function refreshMediaDevices() {
+  const list = document.getElementById("media-device-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const audio = ensureMediaAudio();
+  const addRow = (icon,name,detail,status,action) => {
+    const row = document.createElement("div");
+    row.className = "media-device-row";
+    row.innerHTML = '<span></span><div><strong></strong><small></small></div><em></em>';
+    row.querySelector("span").textContent = icon;
+    row.querySelector("strong").textContent = name;
+    row.querySelector("small").textContent = detail;
+    row.querySelector("em").textContent = status;
+    if (action) {
+      row.classList.add("clickable");
+      row.addEventListener("click", action);
+    }
+    list.appendChild(row);
+  };
+
+  addRow("◉","System Audio","Browser-Standardausgang","aktiv");
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    addRow("•","Audio-Ausgänge","Browser unterstützt keine Geräteauswahl","–");
+    return;
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devices.filter(device => device.kind === "audiooutput");
+    outputs.forEach((device,index) => {
+      const label = device.label || `Audio-Ausgang ${index + 1}`;
+      const canRoute = typeof audio.setSinkId === "function";
+      addRow("◌",label,canRoute ? "Direkt auswählbarer Browser-Ausgang" : "Vom System verwaltet",canRoute ? "wählen" : "bereit",
+        canRoute ? async () => {
+          try {
+            await audio.setSinkId(device.deviceId);
+            Array.from(list.querySelectorAll("em")).forEach(node => { if (node.textContent === "aktiv") node.textContent = "bereit"; });
+          } catch (error) {
+            console.error(error);
+          }
+        } : null);
+    });
+    if (!outputs.length) addRow("•","Keine zusätzlichen Ausgänge","Bluetooth/HDMI/USB werden vom Host bereitgestellt","–");
+  } catch (error) {
+    console.error(error);
+    addRow("•","Geräte konnten nicht gelesen werden","Browser-Berechtigung prüfen","–");
+  }
+}
+
+function applyEqPreset(name) {
+  const values = N2K_EQ_PRESETS[name] || N2K_EQ_PRESETS.flat;
+  document.querySelectorAll("#media-equalizer input[data-eq]").forEach((input,index) => {
+    input.value = values[index] ?? 0;
+  });
+  document.querySelectorAll(".media-eq-presets button").forEach(button => button.classList.toggle("active", button.dataset.eqPreset === name));
+  applyMediaEq();
+}
+
+function ensureMediaEqGraph() {
+  const audio = ensureMediaAudio();
+  if (mediaAudioContext || !(window.AudioContext || window.webkitAudioContext)) return;
+  try {
+    mediaAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    mediaSourceNode = mediaAudioContext.createMediaElementSource(audio);
+    const freqs = [32,64,125,250,500,1000,2000,4000,8000,16000];
+    mediaEqFilters = freqs.map(freq => {
+      const filter = mediaAudioContext.createBiquadFilter();
+      filter.type = "peaking";
+      filter.frequency.value = freq;
+      filter.Q.value = 1.1;
+      filter.gain.value = 0;
+      return filter;
+    });
+    let previous = mediaSourceNode;
+    for (const filter of mediaEqFilters) {
+      previous.connect(filter);
+      previous = filter;
+    }
+    previous.connect(mediaAudioContext.destination);
+  } catch (error) {
+    console.warn("N2K DSP unavailable", error);
+    mediaAudioContext = null;
+    mediaEqFilters = [];
+    mediaSourceNode = null;
+  }
+}
+
+function applyMediaEq() {
+  ensureMediaEqGraph();
+  const inputs = Array.from(document.querySelectorAll("#media-equalizer input[data-eq]"));
+  inputs.forEach((input,index) => {
+    if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = Number(input.value) || 0;
+  });
+  const mode = document.getElementById("media-eq-mode");
+  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv" : "EQ Oberfläche · System-DSP folgt";
+}
+
+function initMediaCenter() {
+  if (mediaInitialized) return;
+  mediaInitialized = true;
+  ensureMediaAudio();
+  renderMediaStations();
+  refreshMediaDevices();
+  updateMediaPlaybackUi();
+
+  document.querySelectorAll("#media-country-tabs button").forEach(button => button.addEventListener("click", () => {
+    mediaCountry = button.dataset.country || "DE";
+    document.querySelectorAll("#media-country-tabs button").forEach(item => item.classList.toggle("active", item === button));
+    renderMediaStations();
+  }));
+  document.getElementById("media-radio-search")?.addEventListener("input", renderMediaStations);
+  document.getElementById("media-play")?.addEventListener("click", async () => {
+    const audio = ensureMediaAudio();
+    if (!audio.src) {
+      const first = filteredMediaStations()[0];
+      if (first) await playMediaStation(first.index);
+      return;
+    }
+    if (audio.paused) {
+      try { await audio.play(); } catch (error) { console.error(error); }
+    } else {
+      audio.pause();
+    }
+    updateMediaPlaybackUi();
+  });
+  document.getElementById("media-prev")?.addEventListener("click", () => stepMediaStation(-1));
+  document.getElementById("media-next")?.addEventListener("click", () => stepMediaStation(1));
+  document.getElementById("media-favorite")?.addEventListener("click", () => {
+    const station = mediaCurrentStation();
+    if (station) {
+      toggleMediaFavorite(station.id);
+      renderMediaStations();
+    }
+  });
+  document.getElementById("media-volume")?.addEventListener("input", event => {
+    const value = Number(event.target.value) || 0;
+    ensureMediaAudio().volume = value / 100;
+    const copy = document.getElementById("media-volume-value");
+    if (copy) copy.textContent = `${value}%`;
+  });
+  document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
+  document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
+    window.open(button.dataset.mediaService, "_blank", "noopener,noreferrer");
+  }));
+  document.querySelectorAll(".media-eq-presets button").forEach(button => button.addEventListener("click", () => applyEqPreset(button.dataset.eqPreset)));
+  document.getElementById("media-eq-reset")?.addEventListener("click", () => applyEqPreset("flat"));
+  document.querySelectorAll("#media-equalizer input[data-eq]").forEach(input => input.addEventListener("input", applyMediaEq));
+}
