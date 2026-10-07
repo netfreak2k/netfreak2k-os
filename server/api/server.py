@@ -2532,9 +2532,6 @@ class Handler(BaseHTTPRequestHandler):
     def require_csrf(self, session):
         if not self.require_csrf_token(session):
             return False
-        if session.get("role") == "viewer":
-            self.send_json({"error": "read_only_role"}, 403)
-            return False
         return True
 
     def require_admin(self, session):
@@ -3014,6 +3011,12 @@ class Handler(BaseHTTPRequestHandler):
                     return
             audit_event(username, "login", "Anmeldung erfolgreich", self.client_address[0] if self.client_address else "")
             self.set_session_response(username)
+            return
+
+        viewer_mutation_session = self.session()
+        viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
+        if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
+            self.send_json({"error": "read_only_role"}, 403)
             return
 
         if path == "/security/users/create":
