@@ -80,7 +80,12 @@ def db_connect():
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             salt TEXT NOT NULL,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'viewer',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            totp_secret TEXT,
+            totp_enabled INTEGER NOT NULL DEFAULT 0,
+            last_login_at INTEGER
         )
         """
     )
@@ -157,10 +162,25 @@ def db_connect():
             username TEXT NOT NULL,
             csrf TEXT NOT NULL,
             expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            user_agent TEXT NOT NULL DEFAULT '',
+            remote_addr TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            action TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            remote_addr TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL
         )
         """
     )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log(created_at DESC)")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS user_preferences (
@@ -207,6 +227,23 @@ def db_connect():
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notifications_active ON notifications(active, last_seen DESC)")
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if "role" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'viewer'")
+        conn.execute("UPDATE users SET role='admin' WHERE id=(SELECT MIN(id) FROM users)")
+    if "enabled" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
+    if "totp_secret" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN totp_secret TEXT")
+    if "totp_enabled" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0")
+    if "last_login_at" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN last_login_at INTEGER")
+    session_columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+    if "user_agent" not in session_columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN user_agent TEXT NOT NULL DEFAULT ''")
+    if "remote_addr" not in session_columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN remote_addr TEXT NOT NULL DEFAULT ''")
     columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)").fetchall()}
     if "uid" not in columns:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN uid TEXT")
@@ -250,12 +287,13 @@ def create_admin(username, password):
         if conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             raise ValueError("already_configured")
         conn.execute(
-            "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+            "INSERT INTO users (username,password_hash,salt,created_at,role,enabled) VALUES (?,?,?,?,?,1)",
             (
                 username,
                 base64.b64encode(digest).decode("ascii"),
                 base64.b64encode(salt).decode("ascii"),
                 int(time.time()),
+                "admin",
             ),
         )
         conn.commit()
@@ -2368,6 +2406,15 @@ class Handler(BaseHTTPRequestHandler):
         if not provided or not hmac.compare_digest(provided, session["csrf"]):
             self.send_json({"error": "csrf_required"}, 403)
             return False
+        if session.get("role") == "viewer":
+            self.send_json({"error": "read_only_role"}, 403)
+            return False
+        return True
+
+    def require_admin(self, session):
+        if not session or session.get("role") != "admin":
+            self.send_json({"error": "admin_required"}, 403)
+            return False
         return True
 
     def send_xml(self, xml, status=207, extra_headers=None):
@@ -2433,13 +2480,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def set_session_response(self, username):
         ensure_workspace(username)
-        token, csrf, _ = new_session(username)
+        token, csrf, _ = new_session(username, self.headers.get("User-Agent", ""), self.client_address[0] if self.client_address else "")
         cookie = (
             f"n2k_session={token}; Path=/; HttpOnly; SameSite=Strict; "
             f"Max-Age={SESSION_TTL}"
         )
         self.send_json(
-            {"authenticated": True, "username": username, "csrf": csrf},
+            {"authenticated": True, "username": username, "csrf": csrf, "role": user_auth_record(username).get("role", "viewer")},
             200,
             {"Set-Cookie": cookie},
         )
@@ -2525,8 +2572,16 @@ class Handler(BaseHTTPRequestHandler):
                     "authenticated": True,
                     "username": session["username"],
                     "csrf": session["csrf"],
+                    "role": session.get("role", "viewer"),
                 }
             )
+            return
+
+        if path == "/security":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(security_payload(session["username"]))
             return
 
         if path == "/status":
@@ -2822,9 +2877,98 @@ class Handler(BaseHTTPRequestHandler):
             password = str(data.get("password", ""))
             if not verify_login(username, password):
                 time.sleep(0.35)
+                audit_event(username or "unknown", "login_failed", "Ungültige Zugangsdaten", self.client_address[0] if self.client_address else "")
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
+            record = user_auth_record(username)
+            if record and record.get("totp_enabled"):
+                code = str(data.get("totp", ""))
+                if not verify_totp(record.get("totp_secret") or "", code):
+                    self.send_json({"error": "totp_required"}, 401)
+                    return
+            audit_event(username, "login", "Anmeldung erfolgreich", self.client_address[0] if self.client_address else "")
             self.set_session_response(username)
+            return
+
+        if path == "/security/users/create":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                username = str(data.get("username", "")).strip()
+                create_user_account(username, str(data.get("password", "")), str(data.get("role", "viewer")))
+                audit_event(session["username"], "user_create", username, self.client_address[0] if self.client_address else "")
+                self.send_json({"ok": True}, 201)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/security/users/update":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                username = str(data.get("username", "")).strip()
+                update_user_account(username, data.get("role"), data.get("enabled") if "enabled" in data else None)
+                audit_event(session["username"], "user_update", username, self.client_address[0] if self.client_address else "")
+                self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/security/totp/begin":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            result = begin_totp_setup(session["username"])
+            audit_event(session["username"], "totp_begin", "", self.client_address[0] if self.client_address else "")
+            self.send_json(result)
+            return
+
+        if path == "/security/totp/confirm":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                confirm_totp_setup(session["username"], data.get("code"))
+                audit_event(session["username"], "totp_enable", "", self.client_address[0] if self.client_address else "")
+                self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/security/totp/disable":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            disable_totp(session["username"])
+            audit_event(session["username"], "totp_disable", "", self.client_address[0] if self.client_address else "")
+            self.send_json({"ok": True})
+            return
+
+        if path == "/security/session/revoke":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                session_id = str(data.get("id", ""))
+                if not re.fullmatch(r"[0-9a-f]{16}", session_id):
+                    raise ValueError("invalid_session")
+                with db_connect() as conn:
+                    rows = conn.execute("SELECT token_hash,username FROM sessions WHERE token_hash LIKE ?", (session_id + "%",)).fetchall()
+                    allowed = [row for row in rows if session.get("role") == "admin" or row[1] == session["username"]]
+                    if len(allowed) != 1:
+                        raise ValueError("session_not_found")
+                    conn.execute("DELETE FROM sessions WHERE token_hash=?", (allowed[0][0],))
+                    conn.commit()
+                audit_event(session["username"], "session_revoke", allowed[0][1], self.client_address[0] if self.client_address else "")
+                self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/notifications/read":
@@ -3459,6 +3603,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_csrf(session):
                 return
             token = self.session_token()
+            audit_event(session["username"], "logout", "", self.client_address[0] if self.client_address else "")
             delete_session(token)
             self.send_json(
                 {"authenticated": False},
