@@ -20,7 +20,7 @@ Target candidate: **1.0.0-rc1**
 - [ ] Home Assistant OS provisioning/startup verified after fresh install
 - [ ] HTTPS local gateway verified on ports selected by installer
 - [ ] Mobile UI pass on phone-sized viewport
-- [ ] Project-wide license for Netfreak2k-owned code selected and committed
+- [ ] Project-wide license for Netfreak2k-owned code selected and committed (decision aid: `docs/LICENSE_DECISION.md`)
 - [x] THIRD_PARTY_NOTICES.md reviewed against installer, API container dependencies and managed app catalog
 - [ ] Stable VERSION changed from 1.0.0-rc1 to 1.0.0
 - [ ] Stable release/tag created only after the gates above are complete
