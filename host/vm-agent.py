@@ -2,6 +2,7 @@
 import hmac
 import json
 import os
+import pwd
 import re
 import secrets
 import socket
@@ -20,10 +21,13 @@ ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "storage_status",
-    "backup_list", "backup_create", "backup_restore", "vm_list"
+    "backup_list", "backup_create", "backup_restore", "vm_list",
+    "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
+BLUETOOTH_MAC_RE = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
+AUDIO_NODE_RE = re.compile(r"^[0-9]{1,6}$")
 BACKUP_DIR = Path("/var/lib/netfreak2k/backups")
 
 APP_CATALOG = {
@@ -98,6 +102,175 @@ def run(*args, check=False, timeout=20):
     if check and result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "command_failed")
     return result
+
+
+def audio_session_user():
+    forced = os.environ.get("N2K_AUDIO_USER", "").strip()
+    if forced:
+        try:
+            entry = pwd.getpwnam(forced)
+            runtime = Path(f"/run/user/{entry.pw_uid}")
+            if (runtime / "pipewire-0").exists():
+                return entry.pw_name, entry.pw_uid, runtime
+        except KeyError:
+            pass
+
+    run_user = Path("/run/user")
+    try:
+        candidates = sorted(
+            [item for item in run_user.iterdir() if item.name.isdigit() and int(item.name) >= 1000],
+            key=lambda item: int(item.name),
+        )
+    except OSError:
+        candidates = []
+
+    for runtime in candidates:
+        if not (runtime / "pipewire-0").exists():
+            continue
+        uid = int(runtime.name)
+        try:
+            entry = pwd.getpwuid(uid)
+        except KeyError:
+            continue
+        return entry.pw_name, uid, runtime
+    return None, None, None
+
+
+def run_audio_user(*args, timeout=12):
+    username, uid, runtime = audio_session_user()
+    if not username or uid is None or runtime is None:
+        raise RuntimeError("pipewire_session_unavailable")
+    env = os.environ.copy()
+    env["XDG_RUNTIME_DIR"] = str(runtime)
+    env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime}/bus"
+    command = ["runuser", "-u", username, "--", "env",
+               f"XDG_RUNTIME_DIR={runtime}",
+               f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus",
+               *args]
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout,
+        check=False,
+        env=env,
+    )
+    return result
+
+
+def pipewire_sinks():
+    result = run_audio_user("wpctl", "status", "--name", timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "wpctl_status_failed")
+
+    sinks = []
+    in_sinks = False
+    for raw in result.stdout.splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        if stripped.startswith("Sinks:"):
+            in_sinks = True
+            continue
+        if in_sinks and stripped and not line.startswith(" ") and not line.startswith("│") and not line.startswith("├") and not line.startswith("└"):
+            break
+        if not in_sinks:
+            continue
+        match = re.search(r"([*]?)\s*(\d+)\.\s+(.+?)(?:\s+\[vol:.*)?$", stripped)
+        if not match:
+            continue
+        sinks.append({
+            "id": match.group(2),
+            "name": match.group(3).strip(),
+            "default": match.group(1) == "*",
+            "backend": "PipeWire",
+        })
+    return sinks
+
+
+def bluetooth_devices():
+    devices = []
+    result = run("bluetoothctl", "devices")
+    if result.returncode != 0:
+        return devices
+    for line in result.stdout.splitlines():
+        match = re.match(r"Device\s+((?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})\s+(.+)", line.strip())
+        if not match:
+            continue
+        mac = match.group(1).upper()
+        name = match.group(2).strip()
+        info = run("bluetoothctl", "info", mac, timeout=5)
+        text = info.stdout if info.returncode == 0 else ""
+        devices.append({
+            "mac": mac,
+            "name": name,
+            "connected": "Connected: yes" in text,
+            "paired": "Paired: yes" in text,
+            "trusted": "Trusted: yes" in text,
+            "audio": any(token in text for token in ("Audio Sink", "0000110b-", "0000110e-", "0000111e-")),
+        })
+    return devices
+
+
+def audio_status_payload():
+    username, uid, _ = audio_session_user()
+    pipewire_available = bool(username)
+    sinks = []
+    pipewire_error = None
+    if pipewire_available:
+        try:
+            sinks = pipewire_sinks()
+        except Exception as exc:
+            pipewire_error = str(exc)
+    return {
+        "pipewire": {
+            "available": pipewire_available and pipewire_error is None,
+            "user": username,
+            "uid": uid,
+            "error": pipewire_error,
+            "sinks": sinks,
+        },
+        "bluetooth": {
+            "available": shutil.which("bluetoothctl") is not None,
+            "devices": bluetooth_devices() if shutil.which("bluetoothctl") else [],
+        },
+        "airplay": {
+            "available": shutil.which("raop-discover") is not None,
+            "note": "PipeWire RAOP discovery" if shutil.which("raop-discover") else "RAOP discovery service not installed",
+        },
+        "dlna": {
+            "available": shutil.which("gmediarender") is not None or shutil.which("upmpdcli") is not None,
+            "note": "DLNA helper detected" if (shutil.which("gmediarender") or shutil.which("upmpdcli")) else "DLNA helper not installed",
+        },
+    }
+
+
+def audio_set_default(node_id):
+    node_id = str(node_id or "").strip()
+    if not AUDIO_NODE_RE.fullmatch(node_id):
+        raise RuntimeError("invalid_audio_node")
+    sinks = pipewire_sinks()
+    if node_id not in {sink["id"] for sink in sinks}:
+        raise RuntimeError("audio_node_not_found")
+    result = run_audio_user("wpctl", "set-default", node_id, timeout=8)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "audio_route_failed")
+    time.sleep(0.15)
+    return audio_status_payload()
+
+
+def bluetooth_action(action, mac):
+    mac = str(mac or "").strip().upper()
+    if not BLUETOOTH_MAC_RE.fullmatch(mac):
+        raise RuntimeError("invalid_bluetooth_mac")
+    if shutil.which("bluetoothctl") is None:
+        raise RuntimeError("bluetooth_unavailable")
+    verb = "connect" if action == "bluetooth_connect" else "disconnect"
+    result = run("bluetoothctl", verb, mac, timeout=20)
+    if result.returncode != 0 or "Failed" in result.stdout or "Failed" in result.stderr:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or f"bluetooth_{verb}_failed")
+    time.sleep(0.6)
+    return audio_status_payload()
 
 
 def vm_exists():
@@ -491,6 +664,15 @@ def execute(action, request):
 
     if action == "backup_create":
         return backup_create()
+
+    if action == "audio_status":
+        return audio_status_payload()
+
+    if action == "audio_set_default":
+        return audio_set_default(request.get("node_id"))
+
+    if action in {"bluetooth_connect", "bluetooth_disconnect"}:
+        return bluetooth_action(action, request.get("mac"))
 
     if action == "backup_restore":
         return backup_restore(str(request.get("backup_id", "")))
