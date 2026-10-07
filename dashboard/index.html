@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-media1">
-  <link rel="stylesheet" href="media-center.css?v=20261007-media1">
+  <link rel="stylesheet" href="styles.css?v=20261007-media2">
+  <link rel="stylesheet" href="media-center.css?v=20261007-media4">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -99,11 +99,20 @@
         </div>
 
         <div class="topbar-right">
-          <button id="top-media-player" class="top-media-player" data-target-view="media-center-panel" title="N2K Media Center öffnen">
-            <span class="top-media-art">♪</span>
-            <span class="top-media-copy"><small>MEDIA</small><strong id="top-media-title">Bereit</strong></span>
-            <span id="top-media-state" class="top-media-state">▶</span>
-          </button>
+          <div id="top-media-player" class="top-media-player" aria-label="N2K Media Steuerung">
+            <button class="top-media-open" data-target-view="media-center-panel" title="N2K Media Center öffnen">
+              <span class="top-media-art">♪</span>
+              <span class="top-media-copy"><small>MEDIA</small><strong id="top-media-title">Bereit</strong></span>
+            </button>
+            <div class="top-media-controls" aria-label="Wiedergabesteuerung">
+              <button id="top-media-prev" title="Vorheriger Sender">‹</button>
+              <button id="top-media-play" title="Play">▶</button>
+              <button id="top-media-pause" title="Pause">Ⅱ</button>
+              <button id="top-media-stop" title="Stop">■</button>
+              <button id="top-media-next" title="Nächster Sender">›</button>
+              <button id="top-media-mute" title="Stumm">🔊</button>
+            </div>
+          </div>
           <div class="top-actions">
             <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
             <div class="online-pill"><span class="dot ok"></span>System läuft</div>
@@ -190,6 +199,24 @@
                 <div><strong id="overview-ha">Prüfe HAOS …</strong><span id="overview-ha-detail">–</span></div>
               </div>
             </button>
+
+            <div id="overview-media-widget" class="widget overview-media-widget">
+              <div class="widget-head"><div><small>N2K MEDIA</small><h3>Schnellsteuerung</h3></div><button class="widget-open-mini" data-target-view="media-center-panel" title="Media Center öffnen">›</button></div>
+              <div class="overview-media-now">
+                <span class="overview-media-icon">♪</span>
+                <div><strong id="overview-media-title">Bereit</strong><small id="overview-media-subtitle">Radio & Streaming</small></div>
+              </div>
+              <div class="overview-media-controls">
+                <button id="overview-media-prev" title="Vorheriger Sender">‹</button>
+                <button id="overview-media-play" class="main" title="Play / Pause">▶</button>
+                <button id="overview-media-next" title="Nächster Sender">›</button>
+                <button data-target-view="media-center-panel" title="Media Center öffnen">☷</button>
+              </div>
+              <div class="overview-media-favorites">
+                <small>FAVORITEN</small>
+                <div id="overview-media-favorites"><span class="widget-empty">Noch keine Radio-Favoriten.</span></div>
+              </div>
+            </div>
 
             <div class="widget activity-widget">
               <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
@@ -604,8 +631,13 @@
                   <label class="media-volume">🔊<input id="media-volume" type="range" min="0" max="100" value="72"><span id="media-volume-value">72%</span></label>
                 </div>
               </div>
-              <div class="media-visualizer" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="media-visualizer">
+                <canvas id="media-spectrum" width="520" height="150" aria-label="Echtes Audiospektrum"></canvas>
+                <div class="media-spectrum-meta">
+                  <span><small>REAL FFT</small><strong id="media-spectrum-state">Warte auf Signal</strong></span>
+                  <span><small>PEAK</small><strong id="media-spectrum-peak">– dBFS</strong></span>
+                  <span><small>RMS</small><strong id="media-spectrum-rms">– dBFS</strong></span>
+                </div>
               </div>
             </div>
 
@@ -630,17 +662,48 @@
                 </div>
                 <div id="media-radio-status" class="media-radio-status">Senderverzeichnis wird geladen …</div>
                 <div id="media-station-list" class="media-station-list"></div>
+                <div class="media-favorites-block">
+                  <div class="media-favorites-head">
+                    <div><small>DEINE FAVORITEN</small><strong>Direkt abspielen</strong></div>
+                    <span id="media-favorites-count">0</span>
+                  </div>
+                  <div id="media-favorites-list" class="media-favorites-list">
+                    <div class="media-empty">Noch keine Favoriten gespeichert.</div>
+                  </div>
+                </div>
               </section>
 
               <section class="media-card media-streaming-card">
                 <div class="media-card-head"><div><small>STREAMING</small><h3>Deine Dienste</h3></div><span>↗</span></div>
                 <div class="media-service-grid">
-                  <button class="media-service apple" data-media-service="https://music.apple.com/"><span>♪</span><strong>Apple Music</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service tidal" data-media-service="https://listen.tidal.com/"><span>◆</span><strong>TIDAL</strong><small>Web-App öffnen</small></button>
+                  <button class="media-service apple" data-media-service="https://music.apple.com/de/"><span>♪</span><strong>Apple Music</strong><small>Musik</small></button>
+                  <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Musik & Podcasts</small></button>
+                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Musik</small></button>
+                  <button class="media-service netflix" data-media-service="https://www.netflix.com/de/"><span>N</span><strong>Netflix</strong><small>Filme & Serien</small></button>
+                  <button class="media-service youtube" data-media-service="https://www.youtube.com/"><span>▶</span><strong>YouTube</strong><small>Video & Live</small></button>
+                  <button id="media-more-services" class="media-service more"><span>＋</span><strong>Weitere</strong><small>Dienste & Mediatheken</small></button>
                 </div>
                 <div class="media-service-note">Anmeldung erfolgt direkt beim jeweiligen Anbieter. Netfreak2k speichert keine Streaming-Passwörter.</div>
+                <div id="media-service-directory" class="media-service-directory hidden">
+                  <div class="media-directory-head">
+                    <div><small>DEUTSCHLAND</small><strong>Weitere Streaming-Dienste & Mediatheken</strong></div>
+                    <button id="media-service-directory-close" class="secondary compact">Schließen</button>
+                  </div>
+                  <p>Nach aktueller Relevanz in Deutschland sortiert; öffentlich-rechtliche Mediatheken sind mit enthalten.</p>
+                  <div id="media-service-directory-list" class="media-directory-list"></div>
+                </div>
+              </section>
+
+              <section class="media-card media-library-card">
+                <div class="media-card-head"><div><small>LOKALE MUSIK</small><h3>Audio-Ordner</h3></div><button id="media-library-refresh" class="secondary compact">Neu laden</button></div>
+                <div class="media-library-toolbar">
+                  <input id="media-library-search" type="search" placeholder="Lokale Musik durchsuchen …">
+                  <span id="media-library-count">0 Titel</span>
+                </div>
+                <div id="media-library-list" class="media-library-list">
+                  <div class="media-empty">Audio-Ordner wird geladen …</div>
+                </div>
+                <small class="media-hint">Quelle: Arbeitsplatz → Audio. MP3, M4A, AAC, FLAC, WAV, OGG, OPUS und WebA.</small>
               </section>
 
               <section class="media-card media-devices-card">
@@ -668,7 +731,7 @@
                   <button data-eq-preset="vocal">Vocal</button>
                 </div>
                 <div id="media-equalizer" class="media-equalizer">
-                  <label><span>+12</span><input data-eq="0" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>32</b></label><label><span>+12</span><input data-eq="1" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>64</b></label><label><span>+12</span><input data-eq="2" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>125</b></label><label><span>+12</span><input data-eq="3" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>250</b></label><label><span>+12</span><input data-eq="4" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>500</b></label><label><span>+12</span><input data-eq="5" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>1K</b></label><label><span>+12</span><input data-eq="6" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>2K</b></label><label><span>+12</span><input data-eq="7" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>4K</b></label><label><span>+12</span><input data-eq="8" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>8K</b></label><label><span>+12</span><input data-eq="9" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><b>16K</b></label>
+                  <label><span>+12</span><input data-eq="0" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="0">– dB</em><b>32</b></label><label><span>+12</span><input data-eq="1" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="1">– dB</em><b>64</b></label><label><span>+12</span><input data-eq="2" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="2">– dB</em><b>125</b></label><label><span>+12</span><input data-eq="3" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="3">– dB</em><b>250</b></label><label><span>+12</span><input data-eq="4" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="4">– dB</em><b>500</b></label><label><span>+12</span><input data-eq="5" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="5">– dB</em><b>1K</b></label><label><span>+12</span><input data-eq="6" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="6">– dB</em><b>2K</b></label><label><span>+12</span><input data-eq="7" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="7">– dB</em><b>4K</b></label><label><span>+12</span><input data-eq="8" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="8">– dB</em><b>8K</b></label><label><span>+12</span><input data-eq="9" type="range" min="-12" max="12" step="1" value="0" orient="vertical"><em data-eq-level="9">– dB</em><b>16K</b></label>
                 </div>
                 <div class="media-eq-footer"><span>-12 dB</span><strong id="media-eq-mode">DSP bereit</strong><span>+12 dB</span></div>
               </section>
@@ -876,6 +939,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-media1"></script>
+  <script src="app.js?v=20261007-media4"></script>
 </body>
 </html>

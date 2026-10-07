@@ -87,6 +87,7 @@ jobs:
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/overview | grep -q '"network":'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/media/devices | grep -q '"devices":'
+          curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/media/library | grep -q '"tracks":'
           curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K DESKTOP'
           curl -fsS http://127.0.0.1:18080/ | grep -q 'N2K MEDIA CENTER'
           curl -fsS -o /tmp/n2k-media-center.css http://127.0.0.1:18080/media-center.css
@@ -154,6 +155,10 @@ jobs:
           grep -q 'initMediaCenter' dashboard/app.js
           grep -q 'audio_multiroom_set' host/vm-agent.py
           grep -q 'module-combine-sink' host/vm-agent.py
+          grep -q 'media-library-list' dashboard/index.html
+          grep -q 'media-spectrum' dashboard/index.html
+          grep -q 'top-media-mute' dashboard/index.html
+          grep -q 'Accept-Ranges' server/api/server.py
           grep -q 'pipewire-pulse' install.sh
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
