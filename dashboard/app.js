@@ -278,6 +278,88 @@ async function configureDesktopNotifications(enabled) {
 }
 
 
+function renderHostSecurity(data = {}) {
+  const firewall = data.firewall || {};
+  const ssh = data.ssh || {};
+  const failed = data.failed_logins || {};
+  const summary = data.summary || {};
+
+  const badge = document.getElementById("security-hardening-score");
+  if (badge) {
+    const score = Number(data.score);
+    badge.textContent = Number.isFinite(score) ? `${score}/100` : "–";
+    badge.className = "security-badge " + (score >= 85 ? "ok" : score >= 65 ? "warn" : "bad");
+  }
+
+  setHealthText("security-firewall-state",
+    firewall.active ? `${(firewall.engine || "Firewall").toUpperCase()} AKTIV` :
+    firewall.engine && firewall.engine !== "none" ? `${firewall.engine.toUpperCase()} NICHT RESTRIKTIV` : "NICHT ERKANNT");
+  setHealthText("security-firewall-detail", firewall.detail || "–");
+  setHealthText("security-ssh-state", ssh.ok ? "AKTIV" : "NICHT AKTIV");
+  setHealthText("security-ssh-unit", ssh.unit || ssh.state || "–");
+  setHealthText("security-failed-logins", String(failed.count_24h ?? 0));
+  setHealthText("security-failed-login-meta",
+    Array.isArray(failed.sources) && failed.sources.length
+      ? `${failed.sources.length} Quelladressen erkannt`
+      : failed.available === false ? "Journal nicht verfügbar" : "keine auffälligen Quellen");
+  setHealthText("security-listener-count", String(summary.listeners ?? 0));
+  setHealthText("security-exposed-count", `${summary.distinct_exposed_ports ?? 0} Ports auf allen Interfaces`);
+
+  const listeners = document.getElementById("security-listener-list");
+  if (listeners) {
+    listeners.innerHTML = "";
+    const rows = Array.isArray(data.listeners) ? data.listeners : [];
+    rows.slice(0, 40).forEach(item => {
+      const row = document.createElement("div");
+      row.className = "security-listener-row";
+      row.innerHTML = "<span class='security-port-scope'></span><div><strong></strong><small></small></div><em></em>";
+      const scope = row.querySelector(".security-port-scope");
+      scope.textContent = item.scope === "all_interfaces" ? "WAN/LAN" : item.scope === "loopback" ? "LOCAL" : "IFACE";
+      scope.classList.add(item.scope === "all_interfaces" ? "exposed" : item.scope === "loopback" ? "local" : "iface");
+      row.querySelector("strong").textContent = `${String(item.protocol || "").toUpperCase()} ${item.address || "*"}:${item.port || "–"}`;
+      row.querySelector("small").textContent = item.process
+        ? `${item.process}${item.pid ? " · PID " + item.pid : ""}`
+        : "Prozess nicht auflösbar";
+      row.querySelector("em").textContent =
+        item.scope === "all_interfaces" ? "alle Interfaces" :
+        item.scope === "loopback" ? "nur localhost" : "Interface-Bindung";
+      listeners.appendChild(row);
+    });
+    if (!rows.length) listeners.innerHTML = '<div class="app-empty">Keine Listening-Sockets erkannt.</div>';
+  }
+
+  const findings = document.getElementById("security-finding-list");
+  if (findings) {
+    findings.innerHTML = "";
+    const rows = Array.isArray(data.findings) ? data.findings : [];
+    rows.forEach(item => {
+      const row = document.createElement("div");
+      row.className = `security-finding-row ${item.level || "info"}`;
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div>";
+      row.querySelector("span").textContent = item.level === "warning" ? "!" : "i";
+      row.querySelector("strong").textContent = item.title || "Hinweis";
+      row.querySelector("small").textContent = item.detail || "–";
+      findings.appendChild(row);
+    });
+    if (!rows.length) findings.innerHTML = '<div class="app-empty">Keine auffälligen Host-Findings erkannt.</div>';
+  }
+}
+
+async function loadHostSecurity() {
+  if (!document.getElementById("security-host-hardening")) return;
+  try {
+    const data = await request("/api/security/host", {headers:{}});
+    renderHostSecurity(data);
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("security-hardening-score");
+    if (badge) {
+      badge.textContent = "FEHLER";
+      badge.className = "security-badge bad";
+    }
+  }
+}
+
 async function loadSecurity() {
   const panel = document.getElementById("security-panel");
   if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
@@ -363,6 +445,7 @@ async function loadSecurity() {
       });
       if (!audit.length) auditList.innerHTML = '<div class="app-empty">Noch keine Audit-Ereignisse.</div>';
     }
+    await loadHostSecurity();
   } catch (error) {
     console.error(error);
     const badge = document.getElementById("security-role-badge");
