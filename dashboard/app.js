@@ -3006,7 +3006,13 @@ function ensureMediaAudio() {
   mediaAudio.addEventListener("pause", updateMediaPlaybackUi);
   mediaAudio.addEventListener("waiting", () => setMediaStatus("Puffert …"));
   mediaAudio.addEventListener("playing", updateMediaPlaybackUi);
-  mediaAudio.addEventListener("error", () => setMediaStatus("Stream nicht erreichbar"));
+  mediaAudio.addEventListener("error", () => {
+    setMediaStatus("Wiedergabe nicht erreichbar");
+    showN2KToast("Die aktuelle Audioquelle konnte nicht wiedergegeben werden.", "error");
+  });
+  mediaAudio.addEventListener("ended", handleMediaEnded);
+  mediaAudio.addEventListener("timeupdate", updateMediaProgress);
+  mediaAudio.addEventListener("durationchange", updateMediaProgress);
   return mediaAudio;
 }
 
@@ -3025,12 +3031,11 @@ function updateMediaSessionMetadata() {
   if (!("mediaSession" in navigator) || !station) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: station.name,
-      artist: station.genre || "Internet Radio",
-      album: station.source === "local" ? "N2K Audio" : "N2K Media Center",
-      artwork: station.favicon ? [
-        {src: station.favicon, sizes: "96x96"},
-        {src: station.favicon, sizes: "256x256"}
+      title: station.title || station.name,
+      artist: station.source === "local" ? (station.artist || "Eigene Musik") : (station.genre || "Internet Radio"),
+      album: station.source === "local" ? (station.album || "N2K Audio") : "N2K Media Center",
+      artwork: (station.artwork_url || station.favicon) ? [
+        {src: station.artwork_url || station.favicon, sizes: "256x256"}
       ] : []
     });
     navigator.mediaSession.playbackState = ensureMediaAudio().paused ? "paused" : "playing";
@@ -3073,7 +3078,7 @@ function updateMediaPlaybackUi() {
   const visualizer = document.querySelector(".media-visualizer");
 
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
-  if (topTitle) topTitle.textContent = station ? station.name : "Bereit";
+  if (topTitle) topTitle.textContent = station ? (station.title || station.name) : "Bereit";
   if (topPlay) topPlay.classList.toggle("active", playing);
   if (topPause) topPause.classList.toggle("active", Boolean(mediaAudio?.paused && mediaAudio?.src));
   if (topMute) {
@@ -3083,9 +3088,11 @@ function updateMediaPlaybackUi() {
   const overviewTitle = document.getElementById("overview-media-title");
   const overviewSubtitle = document.getElementById("overview-media-subtitle");
   const overviewPlay = document.getElementById("overview-media-play");
-  if (overviewTitle) overviewTitle.textContent = station ? station.name : "Bereit";
+  if (overviewTitle) overviewTitle.textContent = station ? (station.title || station.name) : "Bereit";
   if (overviewSubtitle) overviewSubtitle.textContent = station
-    ? `${station.genre || "Radio"} · ${station.country || "Internet"}`
+    ? (station.source === "local"
+      ? [station.artist || "Eigene Musik", station.album].filter(Boolean).join(" · ")
+      : `${station.genre || "Radio"} · ${station.country || "Internet"}`)
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
   if (liveDot) liveDot.classList.toggle("active", playing);
@@ -3095,10 +3102,39 @@ function updateMediaPlaybackUi() {
     updateMediaSessionMetadata();
     const title = document.getElementById("media-title");
     const subtitle = document.getElementById("media-subtitle");
-    if (title) title.textContent = station.name;
+    if (title) title.textContent = station.title || station.name;
     if (subtitle) subtitle.textContent = station.source === "local"
-      ? `${station.genre} · ${station.path || "Audio"} · ${station.bitrate}`
+      ? [station.artist || "Eigene Musik", station.album, station.genre, station.bitrate].filter(Boolean).join(" · ")
       : `${station.genre} · ${station.bitrate} · ${station.country}`;
+    updateMediaArtwork(station);
+  }
+}
+
+function updateMediaArtwork(item) {
+  const cover = document.getElementById("media-cover");
+  if (!cover) return;
+  const artwork = item?.artwork_url || item?.favicon || "";
+  cover.classList.toggle("has-artwork", Boolean(artwork));
+  cover.style.backgroundImage = artwork ? `url("${artwork.replace(/"/g, "%22")}")` : "";
+  const label = cover.querySelector("span");
+  const sub = cover.querySelector("strong");
+  if (label) label.textContent = artwork ? "" : "N2K";
+  if (sub) sub.textContent = artwork ? "" : "MEDIA";
+}
+
+function updateMediaProgress() {
+  const audio = mediaAudio;
+  const fill = document.getElementById("media-progress-fill");
+  const time = document.getElementById("media-time");
+  const current = mediaCurrentStation();
+  if (!audio || !fill || !time) return;
+  if (current?.source === "local" && Number.isFinite(audio.duration) && audio.duration > 0) {
+    const percent = Math.max(0, Math.min(100, (audio.currentTime / audio.duration) * 100));
+    fill.style.width = `${percent}%`;
+    time.textContent = `${formatMediaDuration(audio.currentTime)} / ${formatMediaDuration(audio.duration)}`;
+  } else {
+    fill.style.width = "100%";
+    time.textContent = audio.src ? "LIVE" : "–";
   }
 }
 
