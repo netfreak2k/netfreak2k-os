@@ -701,6 +701,7 @@ function enterApp(username, role = "viewer") {
   loadRemoteAccess();
   loadScheduler();
   loadEventCenter();
+  loadRecoveryCenter();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -4386,6 +4387,7 @@ document.getElementById("network-device-wake")?.addEventListener("click", wakeNe
 document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
 document.getElementById("scheduler-refresh")?.addEventListener("click", loadScheduler);
 document.getElementById("events-refresh")?.addEventListener("click", loadEventCenter);
+document.getElementById("recovery-refresh")?.addEventListener("click", loadRecoveryCenter);
 document.getElementById("events-search")?.addEventListener("input", renderEventCenter);
 document.getElementById("events-source")?.addEventListener("change", renderEventCenter);
 document.getElementById("events-level")?.addEventListener("change", renderEventCenter);
@@ -4737,6 +4739,7 @@ const viewGroups = {
   "security-panel": ["security-panel"],
   "scheduler-panel": ["scheduler-panel"],
   "events-panel": ["events-panel"],
+  "recovery-panel": ["recovery-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -4749,7 +4752,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","scheduler-panel","events-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","scheduler-panel","events-panel","recovery-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -4948,6 +4951,126 @@ async function loadEventCenter() {
     console.error(error);
     const list = document.getElementById("events-list");
     if (list) list.innerHTML = '<div class="app-empty">Logs & Ereignisse konnten nicht geladen werden.</div>';
+  }
+}
+
+function renderRecoveryCenter(data = {}) {
+  const health = data.health || {};
+  const checks = Array.isArray(data.checks) ? data.checks : [];
+  const latest = data.latest_backup || {};
+  const updateBackup = data.latest_update_backup || {};
+
+  setHealthText("recovery-health-score", Number.isFinite(Number(health.score)) ? String(Math.round(Number(health.score))) : "–");
+  setHealthText("recovery-health-state", health.overall || "unknown");
+  setHealthText("recovery-check-count", `${checks.filter(item => item.ok).length} / ${checks.length} OK`);
+  setHealthText("recovery-latest-backup", latest.id || "Keines");
+  setHealthText("recovery-latest-backup-meta",
+    latest.created_at ? `${formatDateTime(Number(latest.created_at))} · ${latest.verified === true ? "verifiziert" : latest.verified === false ? "Fehler" : "ungeprüft"}` : "Kein Wiederherstellungspunkt");
+  setHealthText("recovery-update-backup", updateBackup.id || "Keines");
+  setHealthText("recovery-update-backup-meta",
+    updateBackup.created_at ? `${formatDateTime(Number(updateBackup.created_at))} · Update-Recovery` : "Noch kein Update-Recovery vorhanden");
+
+  const badge = document.getElementById("recovery-ready-badge");
+  if (badge) {
+    badge.textContent = data.ready ? "BEREIT" : "PRÜFEN";
+    badge.className = "health-badge " + (data.ready ? "ok" : "warn");
+  }
+
+  const checkList = document.getElementById("recovery-check-list");
+  if (checkList) {
+    checkList.innerHTML = "";
+    checks.forEach(check => {
+      const row = document.createElement("div");
+      row.className = "recovery-check-row";
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div><em></em>";
+      row.querySelector("span").className = "recovery-check-dot " + (check.ok ? "ok" : "bad");
+      row.querySelector("strong").textContent = check.label || check.id || "Prüfung";
+      row.querySelector("small").textContent = check.detail || "–";
+      row.querySelector("em").textContent = check.ok ? "OK" : "PRÜFEN";
+      checkList.appendChild(row);
+    });
+    if (!checks.length) checkList.innerHTML = '<div class="app-empty">Keine Recovery-Prüfungen verfügbar.</div>';
+  }
+
+  const actionList = document.getElementById("recovery-action-list");
+  if (actionList) {
+    actionList.innerHTML = "";
+    const actions = Array.isArray(data.safe_actions) ? data.safe_actions : [];
+    actions.forEach(action => {
+      const button = document.createElement("button");
+      button.className = "recovery-action-button";
+      button.disabled = currentRole !== "admin";
+      button.innerHTML = "<strong></strong><small></small>";
+      button.querySelector("strong").textContent = action.label || action.id;
+      button.querySelector("small").textContent =
+        action.id.startsWith("restart-") ? "Dienst kontrolliert neu starten" : "Recovery-Punkt vollständig prüfen";
+      button.addEventListener("click", () => runRecoveryAction(action.id, button));
+      actionList.appendChild(button);
+    });
+    if (!actions.length) actionList.innerHTML = '<div class="app-empty">Keine sicheren Recovery-Aktionen verfügbar.</div>';
+  }
+
+  const warningList = document.getElementById("recovery-warning-list");
+  if (warningList) {
+    warningList.innerHTML = "";
+    const warnings = Array.isArray(health.warnings) ? health.warnings : [];
+    warnings.forEach(item => {
+      const row = document.createElement("div");
+      row.className = `recovery-warning-row ${item.level || "warning"}`;
+      row.innerHTML = "<span></span><div><strong></strong><small></small></div>";
+      row.querySelector("span").textContent = item.level === "critical" ? "!" : "i";
+      row.querySelector("strong").textContent = item.title || "Systemhinweis";
+      row.querySelector("small").textContent = item.detail || "–";
+      warningList.appendChild(row);
+    });
+    if (!warnings.length) warningList.innerHTML = '<div class="app-empty">Keine aktiven Systemwarnungen.</div>';
+  }
+}
+
+async function loadRecoveryCenter() {
+  const panel = document.getElementById("recovery-panel");
+  if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/recovery", {headers:{}});
+    renderRecoveryCenter(data);
+  } catch (error) {
+    console.error(error);
+    const list = document.getElementById("recovery-check-list");
+    if (list) list.innerHTML = '<div class="app-empty">Recovery-Status konnte nicht geladen werden.</div>';
+  }
+}
+
+async function runRecoveryAction(operation, button) {
+  if (currentRole !== "admin" || !operation) return;
+  const label = button?.querySelector("strong")?.textContent || operation;
+  if (!confirm(`${label} wirklich ausführen?`)) return;
+  const original = button?.innerHTML || "";
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = "<strong>Aktion läuft …</strong><small>Bitte nicht unterbrechen</small>";
+  }
+  try {
+    const result = await request("/api/recovery/action", {
+      method:"POST",
+      body:JSON.stringify({operation}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    const verification = result.verification || {};
+    const message = verification.ok === false
+      ? "Recovery-Prüfung meldet einen Integritätsfehler."
+      : operation.startsWith("verify-")
+        ? "Recovery-Punkt wurde verifiziert."
+        : "Recovery-Aktion wurde erfolgreich ausgeführt.";
+    showN2KToast(message, verification.ok === false ? "error" : "success");
+    await loadRecoveryCenter();
+    await loadSystemHealth();
+    await loadNotifications();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Recovery-Aktion konnte nicht abgeschlossen werden.", "error");
+    await loadRecoveryCenter();
+  } finally {
+    if (button && original) button.innerHTML = original;
   }
 }
 
@@ -5583,6 +5706,7 @@ setInterval(loadSecurity, 120000);
 setInterval(loadRemoteAccess, 120000);
 setInterval(loadScheduler, 60000);
 setInterval(loadEventCenter, 60000);
+setInterval(loadRecoveryCenter, 120000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
