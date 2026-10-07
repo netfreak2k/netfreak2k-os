@@ -36,3 +36,7 @@ User data is not copied into the rollback snapshot. Persistent Docker volumes, N
 6. `VERSION` and `CHANGELOG.md` are updated.
 7. Create the signed/annotated version tag and GitHub release.
 8. Mark prerelease for beta builds; leave prerelease off for stable builds.
+
+## Compatibility promise
+
+Changing the update channel never deletes user data. Stable and Beta resolve published GitHub releases; Development follows `main`. Before source replacement, the updater preserves the immediately previous program state for one explicit rollback.
