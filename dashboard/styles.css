@@ -2536,3 +2536,25 @@ body::after{
   .app-v2-footer{align-items:flex-start;flex-direction:column}
   .app-v2-footer .app-actions{justify-content:flex-start}
 }
+
+
+/* Network 2.0 */
+.network-toolbar-status{
+  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  min-width:190px
+}
+.network-toolbar-status span{
+  font-size:7px;color:#78848f;white-space:nowrap
+}
+#network-traffic-mode{
+  color:#9a8764
+}
+.network-history-dot.ip_change{
+  box-shadow:0 0 0 3px rgba(104,167,255,.08)
+}
+.network-history-dot.wake_sent{
+  box-shadow:0 0 0 3px rgba(216,180,90,.08)
+}
+@media(max-width:720px){
+  .network-toolbar-status{align-items:flex-start;min-width:0}
+}
