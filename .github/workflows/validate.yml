@@ -197,6 +197,16 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Remote Connectivity 2.0 sanity
+        run: |
+          grep -q 'remote-connectivity-grid' dashboard/index.html
+          grep -q 'loadRemoteConnectivity' dashboard/app.js
+          grep -q '/remote-access/connectivity' server/api/server.py
+          grep -q 'remote_connectivity_status' host/vm-agent.py
+          grep -q 'dns_matches_public_ip' host/vm-agent.py
+          grep -q 'outside_in_verified' host/vm-agent.py
+          grep -q 'remote-connectivity-row' dashboard/styles.css
+
       - name: Monitoring Automation 2.0 sanity
         run: |
           grep -q 'monitoring-automation-card' dashboard/index.html
