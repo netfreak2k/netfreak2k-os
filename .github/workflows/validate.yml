@@ -120,7 +120,7 @@ jobs:
           SHARE_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"area":"documents","path":"","name":"drive-renamed.txt","hours":1}' http://127.0.0.1:18080/api/workspace/share)"
           SHARE_TOKEN="$(printf '%s' "$SHARE_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
           curl -fsS "http://127.0.0.1:18080/api/share?token=$SHARE_TOKEN" | grep -q 'hello n2k'
-          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shares | grep -q "$SHARE_TOKEN"
+          curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shares | grep -Fq -- "$SHARE_TOKEN"
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"token\":\"$SHARE_TOKEN\"}" http://127.0.0.1:18080/api/shares/revoke | grep -q '"revoked":true'
 
           SYNC_RESPONSE="$(curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"label":"CI Sync"}' http://127.0.0.1:18080/api/sync/credentials/create)"
