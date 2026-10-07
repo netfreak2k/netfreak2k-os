@@ -5,7 +5,9 @@ N2K_REPO="${N2K_REPO:-netfreak2k/netfreak2k-os}"
 N2K_REF="${N2K_REF:-main}"
 N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 STATE_DIR="${N2K_STATE_DIR:-/var/lib/netfreak2k}"
-ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
+STATUS_FILE="${STATE_DIR}/update-status.json"
+CHANNEL_FILE="${STATE_DIR}/update-channel"
+ROLLBACK_DIR="${STATE_DIR}/rollback"
 PROGRESS_FILE="${STATE_DIR}/update-progress.json"
 STARTED_AT="$(date +%s)"
 
@@ -42,8 +44,31 @@ command -v curl >/dev/null || die "curl fehlt."
 command -v docker >/dev/null || die "Docker fehlt."
 docker compose version >/dev/null || die "Docker Compose v2 fehlt."
 
-log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
-archive_url="${ARCHIVE_URL}"
+update_channel="development"
+target_ref="${N2K_REF}"
+if [[ -s "${STATUS_FILE}" ]]; then
+  readarray -t update_target < <(python3 - "${STATUS_FILE}" <<'PY'
+import json, sys
+try:
+    data=json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    data={}
+print(data.get("target_ref") or "")
+print(data.get("channel") or "")
+PY
+)
+  [[ -n "${update_target[0]:-}" ]] && target_ref="${update_target[0]}"
+  [[ -n "${update_target[1]:-}" ]] && update_channel="${update_target[1]}"
+elif [[ -s "${CHANNEL_FILE}" ]]; then
+  update_channel="$(tr -d '[:space:]' < "${CHANNEL_FILE}")"
+fi
+case "${update_channel}" in stable|beta|development) ;; *) update_channel="development";; esac
+[[ "${target_ref}" =~ ^[A-Za-z0-9._/-]+$ ]] || die "Ungültiger Update-Ref."
+ref_kind="tags"
+[[ "${target_ref}" == "main" ]] && ref_kind="heads"
+archive_url="https://github.com/${N2K_REPO}/archive/refs/${ref_kind}/${target_ref}.tar.gz"
+
+log "Lade Netfreak2k-Stand ${target_ref} aus GitHub (Kanal: ${update_channel})."
 tmp="$(mktemp -d)"
 backup_env="$(mktemp)"
 cleanup(){
@@ -69,8 +94,23 @@ tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
 
 write_progress "running" 42 "validate" "Update-Dateien werden validiert."
 [[ -f "${tmp}/src/server/docker-compose.yml" ]] || die "Update-Archiv ist ungültig."
+[[ -s "${tmp}/src/VERSION" ]] || die "Update enthält keine VERSION-Datei."
+target_version="$(tr -d '\r\n' < "${tmp}/src/VERSION")"
+[[ "${target_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9.]+)?$ ]] || die "Ungültige Versionsnummer im Update."
 bash -n "${tmp}/src/scripts/update-server.sh"
+bash -n "${tmp}/src/scripts/rollback-server.sh"
 python3 -m py_compile "${tmp}/src/server/api/server.py" "${tmp}/src/host/vm-agent.py"
+
+log "Erzeuge lokalen Rollback-Punkt."
+write_progress "running" 49 "snapshot" "Vorheriger Programmstand wird für Rollback gesichert."
+rm -rf "${ROLLBACK_DIR}"
+mkdir -p "${ROLLBACK_DIR}"
+tar -czf "${ROLLBACK_DIR}/source.tar.gz" -C "${N2K_DIR}" .
+cp "${N2K_DIR}/server/.env" "${ROLLBACK_DIR}/server.env"
+if [[ -s "${STATE_DIR}/version.json" ]]; then
+  cp "${STATE_DIR}/version.json" "${ROLLBACK_DIR}/version.json"
+fi
+printf '{"created_at":%s,"from_version":"%s","to_version":"%s","target_ref":"%s"}\n'   "$(date +%s)" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("version","unknown"))' "${STATE_DIR}/version.json" 2>/dev/null || printf unknown)"   "${target_version}" "${target_ref}" > "${ROLLBACK_DIR}/meta.json"
 
 log "Aktualisiere Netfreak2k-Programmdateien."
 write_progress "running" 55 "install" "Netfreak2k-Programmdateien werden aktualisiert."
@@ -101,6 +141,7 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 install -m 0755 "${N2K_DIR}/scripts/update-server.sh" /usr/local/sbin/netfreak2k-update
 install -m 0755 "${N2K_DIR}/scripts/uninstall-server.sh" /usr/local/sbin/netfreak2k-uninstall
+install -m 0755 "${N2K_DIR}/scripts/rollback-server.sh" /usr/local/sbin/netfreak2k-rollback
 
 install -m 0755 "${N2K_DIR}/host/vm-agent.py" /usr/local/lib/netfreak2k/vm-agent.py
 install -m 0644 "${N2K_DIR}/host/netfreak2k-vm-agent.service" /etc/systemd/system/netfreak2k-vm-agent.service
@@ -165,7 +206,8 @@ fi
 write_progress "running" 92 "restart" "Neue Webplattform und HTTPS-Gateway wurden gestartet. Abschlusspruefung laeuft."
 
 mkdir -p "${STATE_DIR}"
-printf '{"repo":"%s","ref":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
+printf '{"repo":"%s","ref":"%s","version":"%s","channel":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${target_ref}" "${target_version}" "${update_channel}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
+printf '%s\n' "${update_channel}" > "${CHANNEL_FILE}"
 
 write_progress "running" 97 "verify" "Installierter Stand wird geprueft."
 "${N2K_DIR}/scripts/check-updates.sh" || true
