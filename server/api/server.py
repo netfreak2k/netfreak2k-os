@@ -183,6 +183,17 @@ def db_connect():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log(created_at DESC)")
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS release_gate_confirmations (
+            gate_id TEXT PRIMARY KEY,
+            confirmed INTEGER NOT NULL DEFAULT 0,
+            confirmed_by TEXT NOT NULL DEFAULT '',
+            confirmed_at INTEGER
+        )
+        """
+    )
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS user_preferences (
             username TEXT NOT NULL,
             pref_key TEXT NOT NULL,
@@ -2386,6 +2397,104 @@ def event_center_payload(lines=240):
     }
 
 
+RELEASE_MANUAL_GATES = {
+    "fresh_install": {
+        "label": "Fresh-Install-Smoke-Test",
+        "detail": "Installation auf einem unterstützten amd64 Linux Mint/Ubuntu Host vollständig geprüft.",
+    },
+    "upgrade": {
+        "label": "Upgrade-Smoke-Test",
+        "detail": "Upgrade einer bestehenden Netfreak2k-Installation erfolgreich geprüft.",
+    },
+    "backup_recovery": {
+        "label": "Backup & Recovery real geprüft",
+        "detail": "Backup-Verifikation und Restore-Test auf dem Zielhost erfolgreich ausgeführt.",
+    },
+    "haos": {
+        "label": "Home Assistant OS real geprüft",
+        "detail": "HAOS wurde nach Installation/Upgrade erfolgreich gestartet und ist erreichbar.",
+    },
+    "https": {
+        "label": "HTTPS Gateway real geprüft",
+        "detail": "Lokales HTTPS funktioniert auf den vom Installer gewählten Ports.",
+    },
+    "mobile": {
+        "label": "Mobile UI geprüft",
+        "detail": "Die wichtigsten Ansichten wurden auf einem Smartphone-Browser geprüft.",
+    },
+}
+
+
+def release_manual_gates_payload():
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT gate_id,confirmed,confirmed_by,confirmed_at FROM release_gate_confirmations"
+        ).fetchall()
+    saved = {
+        row[0]: {
+            "complete": bool(row[1]),
+            "confirmed_by": row[2] or "",
+            "confirmed_at": row[3],
+        }
+        for row in rows
+    }
+    gates = []
+    for gate_id, meta in RELEASE_MANUAL_GATES.items():
+        state = saved.get(gate_id, {})
+        gates.append({
+            "id": gate_id,
+            "label": meta["label"],
+            "detail": meta["detail"],
+            "complete": bool(state.get("complete")),
+            "confirmed_by": state.get("confirmed_by") or "",
+            "confirmed_at": state.get("confirmed_at"),
+            "can_confirm": True,
+        })
+    gates.append({
+        "id": "license",
+        "label": "Projektlizenz",
+        "detail": "Nicht manuell abhackbar: Erst eine tatsächlich committe LICENSE-Datei räumt diesen Stable-Gate aus.",
+        "complete": False,
+        "confirmed_by": "",
+        "confirmed_at": None,
+        "can_confirm": False,
+    })
+    return gates
+
+
+def release_gate_update(gate_id, complete, username):
+    gate_id = str(gate_id or "").strip()
+    if gate_id not in RELEASE_MANUAL_GATES:
+        raise ValueError("invalid_release_gate")
+    now = int(time.time())
+    with db_connect() as conn:
+        conn.execute(
+            """INSERT INTO release_gate_confirmations(gate_id,confirmed,confirmed_by,confirmed_at)
+               VALUES(?,?,?,?)
+               ON CONFLICT(gate_id) DO UPDATE SET
+                 confirmed=excluded.confirmed,
+                 confirmed_by=excluded.confirmed_by,
+                 confirmed_at=excluded.confirmed_at""",
+            (gate_id, int(bool(complete)), username if complete else "", now if complete else None),
+        )
+        conn.commit()
+    return release_manual_gates_payload()
+
+
+def release_readiness_response():
+    result = vm_agent("release_readiness")
+    if not result.get("available"):
+        return result
+    result["manual_gates"] = release_manual_gates_payload()
+    result["manual_complete"] = all(
+        item.get("complete") for item in result["manual_gates"] if item.get("can_confirm")
+    )
+    result["stable_ready"] = bool(result.get("host_ready")) and bool(result.get("manual_complete")) and all(
+        item.get("complete") for item in result["manual_gates"] if item.get("id") == "license"
+    )
+    return result
+
+
 def notifications_payload():
     sync_system_notifications()
     with db_connect() as conn:
@@ -3038,7 +3147,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/release/readiness":
             if not self.require_auth():
                 return
-            result = vm_agent("release_readiness")
+            result = release_readiness_response()
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
@@ -3406,6 +3515,28 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(result, 503)
                     return
                 audit_event(session["username"], "scheduler_run", job_id, self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/release/readiness/gate":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                gate_id = str(data.get("gate_id", "")).strip()
+                complete = bool(data.get("complete"))
+                gates = release_gate_update(gate_id, complete, session["username"])
+                audit_event(
+                    session["username"],
+                    "release_gate_update",
+                    f"{gate_id}:{'complete' if complete else 'open'}",
+                    self.client_ip(),
+                )
+                result = release_readiness_response()
+                result["manual_gates"] = gates
                 self.send_json(result)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
