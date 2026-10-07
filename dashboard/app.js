@@ -1263,8 +1263,36 @@ async function shareWorkspaceItem(name) {
 }
 
 function openSearchResult(result) {
+  if (result.kind === "command") {
+    switchView(result.target);
+    return;
+  }
+  if (result.kind === "service") {
+    window.open(result.url, "n2k-media-streaming", "noopener,noreferrer");
+    return;
+  }
+  if (result.kind === "radio") {
+    switchView("media-center-panel");
+    mediaActiveSection = "radio";
+    applyMediaSection("radio");
+    let index = mediaStations.findIndex(item => String(item.id) === String(result.station.id));
+    if (index < 0) {
+      mediaStations = [...mediaStations, result.station];
+      index = mediaStations.length - 1;
+    }
+    playMediaStation(index);
+    return;
+  }
+  if (result.kind === "local-audio") {
+    switchView("media-center-panel");
+    mediaActiveSection = "library";
+    applyMediaSection("library");
+    const index = mediaLocalTracks.findIndex(item => String(item.id) === String(result.track.id));
+    if (index >= 0) playLocalTrack(index);
+    return;
+  }
   if (result.kind === "calendar") {
-    document.getElementById("calendar-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+    switchView("calendar-panel");
     return;
   }
   workspaceArea = result.area;
@@ -1272,13 +1300,62 @@ function openSearchResult(result) {
   document.querySelectorAll(".drive-area").forEach(item => {
     item.classList.toggle("active", item.dataset.area === workspaceArea);
   });
-  document.getElementById("workspace-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+  switchView("workspace-panel");
   loadWorkspace().then(() => {
     const rows = Array.from(document.querySelectorAll(".workspace-row"));
     const row = rows.find(item => item.querySelector("strong")?.textContent === result.name);
     row?.classList.add("search-hit");
     setTimeout(() => row?.classList.remove("search-hit"), 2500);
   });
+}
+
+function localGlobalSearchResults(query) {
+  const q = query.toLowerCase();
+  const results = [];
+  const matches = value => String(value || "").toLowerCase().includes(q);
+
+  for (const entry of N2K_SEARCH_COMMANDS) {
+    if (matches(entry.name) || matches(entry.detail) || matches(entry.keywords)) results.push(entry);
+  }
+
+  const services = [
+    ...N2K_PRIMARY_MEDIA_SERVICES,
+    ...N2K_GERMANY_MEDIA_SERVICES.map(item => ({
+      kind:"service", name:item.name, detail:`${item.category} · ${item.detail}`, url:item.url
+    }))
+  ];
+  for (const entry of services) {
+    if (matches(entry.name) || matches(entry.detail)) results.push(entry);
+  }
+
+  for (const track of mediaLocalTracks) {
+    if (matches(track.title) || matches(track.name) || matches(track.artist) || matches(track.album) || matches(track.genre) || matches(track.path)) {
+      results.push({
+        kind:"local-audio",
+        name: track.title || track.name,
+        detail: [track.artist, track.album, "Eigene Musik"].filter(Boolean).join(" · "),
+        track
+      });
+    }
+    if (results.length > 60) break;
+  }
+
+  const radioPool = [...getMediaFavoriteStations(), ...mediaStations];
+  const seen = new Set();
+  for (const station of radioPool) {
+    if (station?.source === "local" || seen.has(String(station.id))) continue;
+    seen.add(String(station.id));
+    if (matches(station.name) || matches(station.genre) || matches(station.country)) {
+      results.push({
+        kind:"radio",
+        name: station.name,
+        detail: `Radio · ${station.country || "Internet"} · ${station.genre || ""}`,
+        station
+      });
+    }
+    if (results.length > 80) break;
+  }
+  return results;
 }
 
 let searchTimer = null;
@@ -1293,30 +1370,35 @@ async function performGlobalSearch() {
     return;
   }
   try {
-    const data = await request(`/api/search?q=${encodeURIComponent(q)}`, {headers: {}});
-    const results = Array.isArray(data.results) ? data.results : [];
+    const [data] = await Promise.all([
+      request(`/api/search?q=${encodeURIComponent(q)}`, {headers: {}})
+    ]);
+    const remote = Array.isArray(data.results) ? data.results : [];
+    const local = localGlobalSearchResults(q);
+    const results = [...local, ...remote].slice(0, 18);
+
     box.innerHTML = "";
-    for (const result of results.slice(0, 12)) {
+    for (const result of results) {
       const button = document.createElement("button");
-      button.className = "search-result";
+      button.className = `search-result search-${result.kind || "file"}`;
+      button.innerHTML = "<strong></strong><small></small>";
+      button.querySelector("strong").textContent = result.title || result.name || "Treffer";
       if (result.kind === "calendar") {
-        button.innerHTML = "<strong></strong><small>Kalender</small>";
-        button.querySelector("strong").textContent = result.title;
+        button.querySelector("small").textContent = "Kalender";
+      } else if (["command","service","radio","local-audio"].includes(result.kind)) {
+        button.querySelector("small").textContent = result.detail || "";
       } else {
-        button.innerHTML = "<strong></strong><small></small>";
-        button.querySelector("strong").textContent = result.name;
         button.querySelector("small").textContent =
           `${workspaceAreaNames[result.area] || result.area}${result.path ? " / " + result.path : ""}`;
       }
       button.addEventListener("click", () => {
         box.classList.add("hidden");
+        input.blur();
         openSearchResult(result);
       });
       box.appendChild(button);
     }
-    if (!results.length) {
-      box.innerHTML = '<div class="search-empty">Keine Treffer.</div>';
-    }
+    if (!results.length) box.innerHTML = '<div class="search-empty">Keine Treffer.</div>';
     box.classList.remove("hidden");
   } catch (error) {
     console.error(error);
