@@ -29,7 +29,7 @@ ALLOWED = {
     "audio_multiroom_set", "audio_multiroom_clear",
     "audio_airplay_enable", "audio_airplay_disable",
     "network_inventory", "network_scan", "network_device_analyze", "network_device_update", "network_device_wake",
-    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "event_logs", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
+    "health_status", "hardware_status", "host_power_action", "service_logs", "service_action", "event_logs", "recovery_status", "recovery_action", "scheduler_status", "scheduler_run", "security_status", "remote_access_status", "remote_connectivity_status", "remote_access_configure", "remote_access_renew"
 }
 CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 BACKUP_ID_RE = re.compile(r"^n2k-[0-9]{8}-[0-9]{6}$")
@@ -2241,6 +2241,109 @@ def health_status_payload():
 
 
 
+def recovery_status_payload():
+    health = health_status_payload()
+    backups = backup_list_payload()
+    backup_items = backups.get("backups") or []
+    update_backups = [item for item in backup_items if item.get("reason") == "update"]
+    latest_update_backup = update_backups[0] if update_backups else None
+    latest_backup = backup_items[0] if backup_items else None
+
+    services = []
+    for unit in MANAGED_SERVICES:
+        services.append(system_service_state(unit))
+
+    checks = []
+    checks.append({
+        "id": "host_health",
+        "label": "Systemzustand",
+        "ok": health.get("overall") != "critical",
+        "detail": f"Health Score {health.get('score', '–')} · {health.get('overall', 'unknown')}",
+    })
+    checks.append({
+        "id": "storage",
+        "label": "Systemspeicher",
+        "ok": not isinstance((health.get("storage") or {}).get("used_percent"), (int, float)) or (health.get("storage") or {}).get("used_percent") < 95,
+        "detail": f"{(health.get('storage') or {}).get('used_percent', '–')}% belegt",
+    })
+    checks.append({
+        "id": "core_services",
+        "label": "Kerndienste",
+        "ok": all(item.get("ok") for item in services if item.get("unit") != "netfreak2k-vm-agent.service"),
+        "detail": f"{sum(1 for item in services if item.get('ok'))} von {len(services)} aktiv",
+    })
+    checks.append({
+        "id": "backup",
+        "label": "Recovery-Punkt",
+        "ok": bool(latest_backup),
+        "detail": latest_backup.get("id") if latest_backup else "Kein Backup vorhanden",
+    })
+
+    return {
+        "sampled_at": int(time.time()),
+        "health": {
+            "overall": health.get("overall"),
+            "score": health.get("score"),
+            "warnings": health.get("warnings") or [],
+        },
+        "services": services,
+        "latest_backup": latest_backup,
+        "latest_update_backup": latest_update_backup,
+        "checks": checks,
+        "ready": all(item.get("ok") for item in checks),
+        "safe_actions": [
+            {"id": "restart-nginx", "label": "HTTPS Gateway neu starten"},
+            {"id": "restart-docker", "label": "Docker Engine neu starten"},
+            {"id": "restart-libvirt", "label": "KVM / libvirt neu starten"},
+            {"id": "restart-ha-proxy", "label": "Home Assistant Proxy neu starten"},
+            {"id": "verify-latest-backup", "label": "Letztes Backup verifizieren"},
+            {"id": "verify-update-backup", "label": "Update-Recovery verifizieren"},
+        ],
+    }
+
+
+def recovery_action(action):
+    action = str(action or "").strip()
+    service_map = {
+        "restart-nginx": "nginx.service",
+        "restart-docker": "docker.service",
+        "restart-libvirt": "libvirtd.service",
+        "restart-ha-proxy": "netfreak2k-ha-proxy.service",
+    }
+    if action in service_map:
+        return {
+            "action": action,
+            "result": managed_service_action(service_map[action], "restart"),
+            "status": recovery_status_payload(),
+        }
+
+    backups = backup_list_payload().get("backups") or []
+    if action == "verify-latest-backup":
+        if not backups:
+            raise RuntimeError("backup_not_found")
+        backup_id = str(backups[0].get("id") or "")
+        return {
+            "action": action,
+            "backup_id": backup_id,
+            "verification": backup_verify(backup_id),
+            "status": recovery_status_payload(),
+        }
+
+    if action == "verify-update-backup":
+        update_backups = [item for item in backups if item.get("reason") == "update"]
+        if not update_backups:
+            raise RuntimeError("update_backup_not_found")
+        backup_id = str(update_backups[0].get("id") or "")
+        return {
+            "action": action,
+            "backup_id": backup_id,
+            "verification": backup_verify(backup_id),
+            "status": recovery_status_payload(),
+        }
+
+    raise RuntimeError("invalid_recovery_action")
+
+
 def remote_access_status_payload():
     state = {
         "mode": "local",
@@ -3401,6 +3504,12 @@ def execute(action, request):
 
     if action == "event_logs":
         return event_logs_payload(request.get("lines", 240))
+
+    if action == "recovery_status":
+        return recovery_status_payload()
+
+    if action == "recovery_action":
+        return recovery_action(request.get("operation"))
 
     if action == "scheduler_status":
         return scheduler_status_payload()
