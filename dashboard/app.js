@@ -974,6 +974,26 @@ function workspaceQuery(extra = {}) {
   return params.toString();
 }
 
+async function playWorkspaceAudio(name, relPath = "") {
+  try {
+    await loadMediaLibrary();
+    const index = mediaLocalTracks.findIndex(track =>
+      track.name === name && String(track.path || "") === String(relPath || "")
+    );
+    if (index < 0) {
+      showN2KToast("Titel wurde im Audio-Ordner nicht gefunden.", "error");
+      return;
+    }
+    switchView("media-center-panel");
+    applyMediaSection("library");
+    await playLocalTrack(index);
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Titel konnte nicht aus dem Arbeitsplatz gestartet werden.", "error");
+  }
+}
+
+
 async function loadWorkspace() {
   const list = document.getElementById("workspace-list");
   const crumbs = document.getElementById("workspace-breadcrumbs");
@@ -1030,6 +1050,14 @@ async function loadWorkspace() {
         });
         row.querySelector(".file-actions").appendChild(open);
       } else {
+        const isAudioFile = workspaceArea === "audio" && /\.(mp3|m4a|aac|flac|wav|ogg|opus|weba)$/i.test(item.name);
+        if (isAudioFile) {
+          const play = document.createElement("button");
+          play.className = "mini-action primary-mini";
+          play.textContent = "▶ Abspielen";
+          play.addEventListener("click", () => playWorkspaceAudio(item.name, workspacePath));
+          row.querySelector(".file-actions").appendChild(play);
+        }
         const open = document.createElement("button");
         open.className = "mini-action";
         open.textContent = "Öffnen";
