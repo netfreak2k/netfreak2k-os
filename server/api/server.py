@@ -2088,6 +2088,27 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, 400)
             return
 
+        if path == "/media/airplay":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                mapping = {"enable": "audio_airplay_enable", "disable": "audio_airplay_disable"}
+                if action not in mapping:
+                    raise ValueError("invalid_airplay_action")
+                result = vm_agent(mapping[action])
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
         if path == "/media/multiroom":
             session = self.require_auth()
             if not session:
