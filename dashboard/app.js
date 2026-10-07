@@ -430,6 +430,103 @@ async function revokeSecuritySession(id) {
   } catch (error) { console.error(error); showN2KToast("Sitzung konnte nicht beendet werden.", "error"); }
 }
 
+
+async function loadRemoteAccess() {
+  const card = document.getElementById("remote-access-card");
+  if (!card || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/remote-access", {headers:{}});
+    const badge = document.getElementById("remote-access-badge");
+    const cert = data.certificate || {};
+    const nginxOk = Boolean(data.nginx?.ok);
+    const remoteReady = Boolean(data.remote_ready);
+    if (badge) {
+      badge.textContent = remoteReady ? "REMOTE HTTPS" : nginxOk ? "LOKAL HTTPS" : "PRÜFEN";
+      badge.className = "security-badge " + (remoteReady || nginxOk ? "ok" : "warn");
+    }
+
+    const primaryUrl = Array.isArray(data.urls) && data.urls.length ? data.urls[0] : null;
+    const localEntry = Array.isArray(data.urls) ? data.urls.find(item => item.https && /\d+\.\d+\.\d+\.\d+/.test(item.https)) : null;
+    const localUrl = localEntry?.https || primaryUrl?.https || "–";
+    document.getElementById("remote-local-url").textContent = localUrl;
+    document.getElementById("remote-local-note").textContent =
+      cert.type === "local" ? "Lokales Zertifikat · Browser kann beim ersten Aufruf warnen" : "TLS über Nginx";
+
+    document.getElementById("remote-cert-state").textContent =
+      cert.valid ? (cert.type === "letsencrypt" ? "Let's Encrypt" : "Lokales TLS") : "Nicht verfügbar";
+    document.getElementById("remote-cert-expiry").textContent =
+      cert.expires_at ? "Gültig bis " + formatDateTime(cert.expires_at) : "Zertifikatsstatus wird lokal geprüft";
+
+    document.getElementById("remote-mode-state").textContent = data.mode === "domain" ? "Domain aktiv" : "Nur lokal";
+    document.getElementById("remote-domain-state").textContent =
+      data.mode === "domain" && data.domain ? data.domain : "Kein öffentlicher Domain-Zugriff";
+
+    document.querySelectorAll('input[name="remote-mode"]').forEach(input => {
+      input.checked = input.value === (data.mode === "domain" ? "domain" : "local");
+    });
+    const domainInput = document.getElementById("remote-domain");
+    const emailInput = document.getElementById("remote-email");
+    if (domainInput) domainInput.value = data.domain || "";
+    if (emailInput) emailInput.value = data.email || "";
+    document.getElementById("remote-domain-config")?.classList.toggle("hidden", data.mode !== "domain");
+    document.getElementById("remote-admin-config")?.classList.toggle("hidden", currentRole !== "admin");
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("remote-access-badge");
+    if (badge) {
+      badge.textContent = "NICHT ERREICHBAR";
+      badge.className = "security-badge warn";
+    }
+  }
+}
+
+async function saveRemoteAccess() {
+  const mode = document.querySelector('input[name="remote-mode"]:checked')?.value || "local";
+  const domain = document.getElementById("remote-domain")?.value.trim() || "";
+  const email = document.getElementById("remote-email")?.value.trim() || "";
+  const button = document.getElementById("remote-save");
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = mode === "domain" ? "Zertifikat wird eingerichtet …" : "Gateway wird konfiguriert …"; }
+  try {
+    await request("/api/remote-access/configure", {
+      method:"POST",
+      body:JSON.stringify({mode,domain,email}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast(mode === "domain" ? "Remote HTTPS wurde eingerichtet." : "Lokaler HTTPS-Zugriff ist aktiv.", "success");
+    await loadRemoteAccess();
+    await loadSecurity();
+  } catch (error) {
+    console.error(error);
+    const message = error.code === "domain_requires_ports_80_443"
+      ? "Für Domain-HTTPS müssen Port 80 und 443 verfügbar sein."
+      : error.code === "certificate_issue_failed"
+        ? "Let's Encrypt konnte kein Zertifikat ausstellen. DNS und Router-Portfreigaben prüfen."
+        : "HTTPS-Konfiguration fehlgeschlagen. Domain, DNS und Ports prüfen.";
+    showN2KToast(message, "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
+async function renewRemoteCertificate() {
+  const button = document.getElementById("remote-renew");
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = "Prüfe …"; }
+  try {
+    await request("/api/remote-access/renew", {
+      method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast("Zertifikat wurde geprüft und bei Bedarf erneuert.", "success");
+    await loadRemoteAccess();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Zertifikatsprüfung konnte nicht abgeschlossen werden.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 function enterApp(username, role = "viewer") {
   currentRole = role || "viewer";
   show(document.getElementById("auth-shell"), false);
@@ -449,6 +546,7 @@ function enterApp(username, role = "viewer") {
   loadBackups();
   loadSystemHealth();
   loadSecurity();
+  loadRemoteAccess();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -3289,6 +3387,13 @@ if (notificationDesktopToggle) {
     typeof Notification !== "undefined" && Notification.permission === "granted";
 }
 
+document.getElementById("remote-save")?.addEventListener("click", saveRemoteAccess);
+document.getElementById("remote-renew")?.addEventListener("click", renewRemoteCertificate);
+document.querySelectorAll('input[name="remote-mode"]').forEach(input => input.addEventListener("change", () => {
+  const domainMode = document.querySelector('input[name="remote-mode"]:checked')?.value === "domain";
+  document.getElementById("remote-domain-config")?.classList.toggle("hidden", !domainMode);
+}));
+
 document.getElementById("security-totp-begin")?.addEventListener("click", beginTotpSetup);
 document.getElementById("security-totp-confirm")?.addEventListener("click", confirmTotpSetup);
 document.getElementById("security-totp-disable")?.addEventListener("click", disableTotpSetup);
@@ -4246,6 +4351,7 @@ setInterval(loadBackups, 60000);
 setInterval(loadSystemHealth, 60000);
 setInterval(loadNotifications, 60000);
 setInterval(loadSecurity, 120000);
+setInterval(loadRemoteAccess, 120000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
