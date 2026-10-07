@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
+HOST_SYS = Path(os.environ.get("N2K_SYS_ROOT", "/host/sys"))
 DATA_DIR = Path(os.environ.get("N2K_DATA_DIR", "/data"))
 DB_PATH = DATA_DIR / "netfreak2k.db"
 APPS_FILE = Path(os.environ.get("N2K_APPS_FILE", "/inventory/apps.json"))
@@ -1489,6 +1490,80 @@ def overview_payload(username):
     }
 
 
+def audio_devices_payload():
+    cards = []
+    raw_cards = read_text(HOST_PROC / "asound/cards")
+    current = None
+    for line in raw_cards.splitlines():
+        match = re.match(r"\s*(\d+)\s+\[(.+?)\s*\]:\s*(.+)$", line)
+        if match:
+            current = {
+                "index": int(match.group(1)),
+                "id": match.group(2).strip(),
+                "name": match.group(3).strip(),
+                "detail": "",
+            }
+            cards.append(current)
+            continue
+        if current and line.strip():
+            current["detail"] = line.strip()
+
+    devices = []
+    for card in cards:
+        text = f'{card["id"]} {card["name"]} {card["detail"]}'.lower()
+        kind = "audio"
+        if "hdmi" in text:
+            kind = "hdmi"
+        elif any(token in text for token in ("usb", "dac", "focusrite", "fiio", "scarlett")):
+            kind = "usb"
+        elif any(token in text for token in ("bluetooth", "bluez")):
+            kind = "bluetooth"
+        elif any(token in text for token in ("analog", "pch", "ac97", "built-in", "builtin")):
+            kind = "local"
+        devices.append({
+            "id": f'alsa-{card["index"]}',
+            "kind": kind,
+            "name": card["name"] or card["id"],
+            "detail": card["detail"] or card["id"],
+            "backend": "ALSA",
+            "available": True,
+        })
+
+    bluetooth_adapters = []
+    bluetooth_root = HOST_SYS / "class" / "bluetooth"
+    try:
+        if bluetooth_root.exists():
+            for item in sorted(bluetooth_root.iterdir()):
+                if item.name.startswith("hci"):
+                    bluetooth_adapters.append(item.name)
+    except OSError:
+        pass
+
+    return {
+        "devices": devices,
+        "bluetooth": {
+            "available": bool(bluetooth_adapters),
+            "adapters": bluetooth_adapters,
+            "note": "Bluetooth routing is handled by the host audio stack.",
+        },
+        "airplay": {
+            "available": False,
+            "planned": True,
+            "note": "AirPlay receiver/output service not enabled yet.",
+        },
+        "dlna": {
+            "available": False,
+            "planned": True,
+            "note": "DLNA/UPnP discovery service not enabled yet.",
+        },
+        "multiroom": {
+            "available": False,
+            "planned": True,
+            "note": "Multiroom grouping will use discovered network outputs.",
+        },
+    }
+
+
 def status_payload():
     hostname = read_text(HOST_ETC / "hostname") or platform.node() or "unknown"
     return {
@@ -1812,6 +1887,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if path == "/media/devices":
+            if not self.require_auth():
+                return
+            self.send_json(audio_devices_payload())
             return
 
         if path == "/media/radio":
