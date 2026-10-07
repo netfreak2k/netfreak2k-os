@@ -159,6 +159,12 @@ jobs:
           grep -q 'media-spectrum' dashboard/index.html
           grep -q 'top-media-mute' dashboard/index.html
           grep -q 'Accept-Ranges' server/api/server.py
+          grep -q 'MutagenFile' server/api/server.py
+          grep -q 'mutagen==1.47.0' server/api/Dockerfile
+          grep -q 'media-section-tabs' dashboard/index.html
+          grep -q 'N2K_SEARCH_COMMANDS' dashboard/app.js
+          grep -q 'renderMediaQueue' dashboard/app.js
+          grep -q 'n2k-toast-stack' dashboard/index.html
           grep -q 'pipewire-pulse' install.sh
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py

@@ -646,7 +646,7 @@ async function appAction(name, action) {
     setTimeout(loadApps, 800);
   } catch (error) {
     console.error(error);
-    alert("App-Aktion konnte nicht ausgeführt werden.");
+    showN2KToast("App-Aktion konnte nicht ausgeführt werden.");
   }
 }
 
@@ -723,9 +723,9 @@ async function installCatalogApp(appId, name, options = {}) {
   } catch (error) {
     console.error(error);
     if (error.code === "app_port_in_use") {
-      alert("Installation nicht möglich: Der benötigte Port ist bereits belegt.");
+      showN2KToast("Installation nicht möglich: Der benötigte Port ist bereits belegt.");
     } else {
-      alert("App konnte nicht installiert werden.");
+      showN2KToast("App konnte nicht installiert werden.");
     }
   }
 }
@@ -775,7 +775,7 @@ document.querySelectorAll("[data-office-kind]").forEach(button => {
         openOffice();
       } else {
         switchView("office-panel");
-        alert("Installiere zuerst die optionale Office-Engine.");
+        showN2KToast("Installiere zuerst die optionale Office-Engine.");
       }
     } catch (error) {
       console.error(error);
@@ -925,7 +925,7 @@ async function createBackup() {
     await loadBackups();
   } catch (error) {
     console.error(error);
-    alert("Backup konnte nicht erstellt werden.");
+    showN2KToast("Backup konnte nicht erstellt werden.");
   } finally {
     button.disabled = false;
     button.textContent = original;
@@ -947,11 +947,11 @@ async function restoreBackup(backupId) {
       body: JSON.stringify({backup_id: backupId}),
       headers: {"X-CSRF-Token": csrfToken}
     });
-    alert("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
+    showN2KToast("Wiederherstellung wurde gestartet. Die Oberfläche lädt gleich neu.");
     setTimeout(() => window.location.reload(), 12000);
   } catch (error) {
     console.error(error);
-    alert("Wiederherstellung konnte nicht gestartet werden.");
+    showN2KToast("Wiederherstellung konnte nicht gestartet werden.");
   }
 }
 
@@ -973,6 +973,26 @@ function workspaceQuery(extra = {}) {
   });
   return params.toString();
 }
+
+async function playWorkspaceAudio(name, relPath = "") {
+  try {
+    await loadMediaLibrary();
+    const index = mediaLocalTracks.findIndex(track =>
+      track.name === name && String(track.path || "") === String(relPath || "")
+    );
+    if (index < 0) {
+      showN2KToast("Titel wurde im Audio-Ordner nicht gefunden.", "error");
+      return;
+    }
+    switchView("media-center-panel");
+    applyMediaSection("library");
+    await playLocalTrack(index);
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Titel konnte nicht aus dem Arbeitsplatz gestartet werden.", "error");
+  }
+}
+
 
 async function loadWorkspace() {
   const list = document.getElementById("workspace-list");
@@ -1030,6 +1050,14 @@ async function loadWorkspace() {
         });
         row.querySelector(".file-actions").appendChild(open);
       } else {
+        const isAudioFile = workspaceArea === "audio" && /\.(mp3|m4a|aac|flac|wav|ogg|opus|weba)$/i.test(item.name);
+        if (isAudioFile) {
+          const play = document.createElement("button");
+          play.className = "mini-action primary-mini";
+          play.textContent = "▶ Abspielen";
+          play.addEventListener("click", () => playWorkspaceAudio(item.name, workspacePath));
+          row.querySelector(".file-actions").appendChild(play);
+        }
         const open = document.createElement("button");
         open.className = "mini-action";
         open.textContent = "Öffnen";
@@ -1145,12 +1173,12 @@ async function uploadWorkspaceFiles(files) {
           await uploadWorkspaceFile(file, true);
         } catch (replaceError) {
           console.error(replaceError);
-          alert(`${file.name} konnte nicht ersetzt werden.`);
+          showN2KToast(`${file.name} konnte nicht ersetzt werden.`);
           break;
         }
       } else {
         console.error(error);
-        alert(`${file.name} konnte nicht hochgeladen werden.`);
+        showN2KToast(`${file.name} konnte nicht hochgeladen werden.`);
         break;
       }
     }
@@ -1170,7 +1198,7 @@ async function createWorkspaceFolder() {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Ordner konnte nicht erstellt werden.");
+    showN2KToast("Ordner konnte nicht erstellt werden.");
   }
 }
 
@@ -1189,7 +1217,7 @@ async function deleteWorkspaceItem(name) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Aktion konnte nicht ausgeführt werden.");
+    showN2KToast("Aktion konnte nicht ausgeführt werden.");
   }
 }
 
@@ -1210,7 +1238,7 @@ async function renameWorkspaceItem(oldName) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Umbenennen nicht möglich.");
+    showN2KToast("Umbenennen nicht möglich.");
   }
 }
 
@@ -1225,7 +1253,7 @@ async function restoreWorkspaceItem(name) {
     await loadWorkspace();
   } catch (error) {
     console.error(error);
-    alert("Wiederherstellung nicht möglich.");
+    showN2KToast("Wiederherstellung nicht möglich.");
   }
 }
 
@@ -1234,7 +1262,7 @@ async function shareWorkspaceItem(name) {
   if (!raw) return;
   const hours = Number.parseInt(raw, 10);
   if (!Number.isFinite(hours) || hours < 1) {
-    alert("Bitte eine gültige Stundenanzahl eingeben.");
+    showN2KToast("Bitte eine gültige Stundenanzahl eingeben.");
     return;
   }
   try {
@@ -1251,20 +1279,48 @@ async function shareWorkspaceItem(name) {
     const url = `${window.location.origin}/api/share?token=${encodeURIComponent(data.token)}`;
     try {
       await navigator.clipboard.writeText(url);
-      alert("Freigabelink wurde kopiert.");
+      showN2KToast("Freigabelink wurde kopiert.");
     } catch (_) {
       prompt("Freigabelink:", url);
     }
     await loadShares();
   } catch (error) {
     console.error(error);
-    alert("Freigabelink konnte nicht erstellt werden.");
+    showN2KToast("Freigabelink konnte nicht erstellt werden.");
   }
 }
 
 function openSearchResult(result) {
+  if (result.kind === "command") {
+    switchView(result.target);
+    return;
+  }
+  if (result.kind === "service") {
+    window.open(result.url, "n2k-media-streaming", "noopener,noreferrer");
+    return;
+  }
+  if (result.kind === "radio") {
+    switchView("media-center-panel");
+    mediaActiveSection = "radio";
+    applyMediaSection("radio");
+    let index = mediaStations.findIndex(item => String(item.id) === String(result.station.id));
+    if (index < 0) {
+      mediaStations = [...mediaStations, result.station];
+      index = mediaStations.length - 1;
+    }
+    playMediaStation(index);
+    return;
+  }
+  if (result.kind === "local-audio") {
+    switchView("media-center-panel");
+    mediaActiveSection = "library";
+    applyMediaSection("library");
+    const index = mediaLocalTracks.findIndex(item => String(item.id) === String(result.track.id));
+    if (index >= 0) playLocalTrack(index);
+    return;
+  }
   if (result.kind === "calendar") {
-    document.getElementById("calendar-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+    switchView("calendar-panel");
     return;
   }
   workspaceArea = result.area;
@@ -1272,13 +1328,71 @@ function openSearchResult(result) {
   document.querySelectorAll(".drive-area").forEach(item => {
     item.classList.toggle("active", item.dataset.area === workspaceArea);
   });
-  document.getElementById("workspace-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+  switchView("workspace-panel");
   loadWorkspace().then(() => {
     const rows = Array.from(document.querySelectorAll(".workspace-row"));
     const row = rows.find(item => item.querySelector("strong")?.textContent === result.name);
     row?.classList.add("search-hit");
     setTimeout(() => row?.classList.remove("search-hit"), 2500);
   });
+}
+
+function localGlobalSearchResults(query) {
+  const q = query.toLowerCase();
+  const results = [];
+  const matches = value => String(value || "").toLowerCase().includes(q);
+
+  for (const entry of N2K_SEARCH_COMMANDS) {
+    if (matches(entry.name) || matches(entry.detail) || matches(entry.keywords)) results.push(entry);
+  }
+
+  const services = [
+    ...N2K_PRIMARY_MEDIA_SERVICES,
+    ...N2K_GERMANY_MEDIA_SERVICES.map(item => ({
+      kind:"service", name:item.name, detail:`${item.category} · ${item.detail}`, url:item.url
+    }))
+  ];
+  for (const entry of services) {
+    if (matches(entry.name) || matches(entry.detail)) results.push(entry);
+  }
+
+  for (const track of mediaLocalTracks) {
+    if (matches(track.title) || matches(track.name) || matches(track.artist) || matches(track.album) || matches(track.genre) || matches(track.path)) {
+      results.push({
+        kind:"local-audio",
+        name: track.title || track.name,
+        detail: [track.artist, track.album, "Eigene Musik"].filter(Boolean).join(" · "),
+        track
+      });
+    }
+    if (results.length > 60) break;
+  }
+
+  document.querySelectorAll("#apps-list .app-row strong").forEach(node => {
+    const name = node.textContent?.trim();
+    if (name && matches(name)) results.push({kind:"command", name, detail:"Installierte App", target:"apps-panel", keywords:"app"});
+  });
+  document.querySelectorAll("#vm-list .vm-row strong").forEach(node => {
+    const name = node.textContent?.trim();
+    if (name && matches(name)) results.push({kind:"command", name, detail:"Virtuelle Maschine", target:"vms-panel", keywords:"vm"});
+  });
+
+  const radioPool = [...getMediaFavoriteStations(), ...mediaStations];
+  const seen = new Set();
+  for (const station of radioPool) {
+    if (station?.source === "local" || seen.has(String(station.id))) continue;
+    seen.add(String(station.id));
+    if (matches(station.name) || matches(station.genre) || matches(station.country)) {
+      results.push({
+        kind:"radio",
+        name: station.name,
+        detail: `Radio · ${station.country || "Internet"} · ${station.genre || ""}`,
+        station
+      });
+    }
+    if (results.length > 80) break;
+  }
+  return results;
 }
 
 let searchTimer = null;
@@ -1293,30 +1407,35 @@ async function performGlobalSearch() {
     return;
   }
   try {
-    const data = await request(`/api/search?q=${encodeURIComponent(q)}`, {headers: {}});
-    const results = Array.isArray(data.results) ? data.results : [];
+    const [data] = await Promise.all([
+      request(`/api/search?q=${encodeURIComponent(q)}`, {headers: {}})
+    ]);
+    const remote = Array.isArray(data.results) ? data.results : [];
+    const local = localGlobalSearchResults(q);
+    const results = [...local, ...remote].slice(0, 18);
+
     box.innerHTML = "";
-    for (const result of results.slice(0, 12)) {
+    for (const result of results) {
       const button = document.createElement("button");
-      button.className = "search-result";
+      button.className = `search-result search-${result.kind || "file"}`;
+      button.innerHTML = "<strong></strong><small></small>";
+      button.querySelector("strong").textContent = result.title || result.name || "Treffer";
       if (result.kind === "calendar") {
-        button.innerHTML = "<strong></strong><small>Kalender</small>";
-        button.querySelector("strong").textContent = result.title;
+        button.querySelector("small").textContent = "Kalender";
+      } else if (["command","service","radio","local-audio"].includes(result.kind)) {
+        button.querySelector("small").textContent = result.detail || "";
       } else {
-        button.innerHTML = "<strong></strong><small></small>";
-        button.querySelector("strong").textContent = result.name;
         button.querySelector("small").textContent =
           `${workspaceAreaNames[result.area] || result.area}${result.path ? " / " + result.path : ""}`;
       }
       button.addEventListener("click", () => {
         box.classList.add("hidden");
+        input.blur();
         openSearchResult(result);
       });
       box.appendChild(button);
     }
-    if (!results.length) {
-      box.innerHTML = '<div class="search-empty">Keine Treffer.</div>';
-    }
+    if (!results.length) box.innerHTML = '<div class="search-empty">Keine Treffer.</div>';
     box.classList.remove("hidden");
   } catch (error) {
     console.error(error);
@@ -1334,7 +1453,7 @@ async function toggleFavorite(area, path, name) {
     await loadFavorites();
   } catch (error) {
     console.error(error);
-    alert("Favorit konnte nicht geändert werden.");
+    showN2KToast("Favorit konnte nicht geändert werden.");
   }
 }
 
@@ -1428,7 +1547,7 @@ async function revokeShare(token) {
     await loadShares();
   } catch (error) {
     console.error(error);
-    alert("Freigabe konnte nicht widerrufen werden.");
+    showN2KToast("Freigabe konnte nicht widerrufen werden.");
   }
 }
 
@@ -1440,7 +1559,7 @@ async function transferWorkspaceItem(mode, name) {
   if (!area) return;
   const allowed = ["documents","media","audio","downloads","personal","shared"];
   if (!allowed.includes(area)) {
-    alert("Ungültiger Zielbereich.");
+    showN2KToast("Ungültiger Zielbereich.");
     return;
   }
   const path = prompt("Zielordner innerhalb des Bereichs (leer = Hauptordner):", "");
@@ -1462,7 +1581,7 @@ async function transferWorkspaceItem(mode, name) {
     await loadFavorites();
   } catch (error) {
     console.error(error);
-    alert(`${mode === "copy" ? "Kopieren" : "Verschieben"} nicht möglich.`);
+    showN2KToast(`${mode === "copy" ? "Kopieren" : "Verschieben"} nicht möglich.`);
   }
 }
 
@@ -1505,7 +1624,7 @@ async function restoreFileVersion(id, name) {
     await showFileVersions(name);
   } catch (error) {
     console.error(error);
-    alert("Version konnte nicht wiederhergestellt werden.");
+    showN2KToast("Version konnte nicht wiederhergestellt werden.");
   }
 }
 
@@ -1599,7 +1718,7 @@ async function createCalendarEvent() {
   const endValue = document.getElementById("event-end").value;
   const notes = document.getElementById("event-notes").value;
   if (!title || !startValue) {
-    alert("Titel und Beginn sind erforderlich.");
+    showN2KToast("Titel und Beginn sind erforderlich.");
     return;
   }
   try {
@@ -1618,7 +1737,7 @@ async function createCalendarEvent() {
     await loadCalendar();
   } catch (error) {
     console.error(error);
-    alert("Termin konnte nicht gespeichert werden.");
+    showN2KToast("Termin konnte nicht gespeichert werden.");
   }
 }
 
@@ -1633,7 +1752,7 @@ async function deleteCalendarEvent(id, title) {
     await loadCalendar();
   } catch (error) {
     console.error(error);
-    alert("Termin konnte nicht gelöscht werden.");
+    showN2KToast("Termin konnte nicht gelöscht werden.");
   }
 }
 
@@ -1696,7 +1815,7 @@ async function saveWallpaper(id) {
   } catch (error) {
     console.error(error);
     applyWallpaper(previous);
-    alert("Wallpaper konnte nicht gespeichert werden.");
+    showN2KToast("Wallpaper konnte nicht gespeichert werden.");
   }
 }
 
@@ -1747,7 +1866,7 @@ async function createSyncCredential() {
     await loadSyncCredentials();
   } catch (error) {
     console.error(error);
-    alert("Sync-Zugang konnte nicht erstellt werden.");
+    showN2KToast("Sync-Zugang konnte nicht erstellt werden.");
   }
 }
 
@@ -1762,7 +1881,7 @@ async function revokeSyncCredential(id, label) {
     await loadSyncCredentials();
   } catch (error) {
     console.error(error);
-    alert("Sync-Zugang konnte nicht widerrufen werden.");
+    showN2KToast("Sync-Zugang konnte nicht widerrufen werden.");
   }
 }
 
@@ -1830,7 +1949,7 @@ async function homeAssistantAction(action) {
     await loadOverview();
   } catch (error) {
     console.error(error);
-    alert(`Home Assistant konnte nicht gestartet werden:\n${homeAssistantErrorMessage(error.code)}`);
+    showN2KToast(`Home Assistant konnte nicht gestartet werden:\n${homeAssistantErrorMessage(error.code)}`);
   }
 }
 
@@ -2076,7 +2195,7 @@ document.getElementById("install-update")?.addEventListener("click", async () =>
     console.error(error);
     button.disabled = false;
     button.textContent = original;
-    alert("Update konnte nicht gestartet werden.");
+    showN2KToast("Update konnte nicht gestartet werden.");
   }
 });
 const globalSearch = document.getElementById("global-search");
@@ -2093,9 +2212,40 @@ document.addEventListener("click", event => {
   if (!event.target.closest(".command-search-wrap")) box.classList.add("hidden");
 });
 document.addEventListener("keydown", event => {
+  const target = event.target;
+  const editable = target instanceof HTMLElement &&
+    (target.matches("input,textarea,select") || target.isContentEditable);
+
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     globalSearch?.focus();
+    globalSearch?.select();
+    return;
+  }
+  if (!editable && event.key === "/") {
+    event.preventDefault();
+    globalSearch?.focus();
+    return;
+  }
+  if (event.key === "Escape") {
+    document.getElementById("global-search-results")?.classList.add("hidden");
+    toggleMediaServiceDirectory(false);
+    return;
+  }
+  if (editable || event.ctrlKey || event.metaKey || event.altKey) return;
+  const hasMedia = Boolean(mediaAudio?.src);
+  if (event.code === "Space" && (hasMedia || activeView === "media-center-panel")) {
+    event.preventDefault();
+    toggleMediaPlayback();
+  } else if (event.key.toLowerCase() === "m" && hasMedia) {
+    event.preventDefault();
+    toggleMediaMute();
+  } else if (event.key === "ArrowRight" && hasMedia) {
+    event.preventDefault();
+    stepMediaStation(1);
+  } else if (event.key === "ArrowLeft" && hasMedia) {
+    event.preventDefault();
+    stepMediaStation(-1);
   }
 });
 
@@ -2107,6 +2257,7 @@ const viewGroups = {
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
   "network-panel": ["network-panel"],
+  "media-center-panel": ["media-center-panel"],
   "office-panel": ["office-panel"],
   "terminal-panel": ["terminal-panel"],
   "privacy-panel": ["privacy-panel"],
@@ -2375,7 +2526,7 @@ startMatrixSimulation();
 async function openOnionInTorWorkspace(value) {
   const normalized = normalizeOnionUrl(value);
   if (!normalized) {
-    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
     return;
   }
 
@@ -2394,7 +2545,7 @@ async function openOnionInTorWorkspace(value) {
 
   const stateText = document.getElementById("tor-browser-state")?.textContent || "";
   if (!stateText.startsWith("Bereit")) {
-    alert("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
+    showN2KToast("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
     document.getElementById("tor-browser-install")?.focus();
     return;
   }
@@ -2404,7 +2555,7 @@ async function openOnionInTorWorkspace(value) {
   } catch (_) {}
 
   document.querySelector(".tor-browser-shell")?.scrollIntoView({behavior:"smooth", block:"start"});
-  alert("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
+  showN2KToast("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
 }
 
 document.getElementById("open-onion")?.addEventListener("click", () => {
@@ -2515,7 +2666,7 @@ async function torBrowserAction(action) {
     loadCatalog();
   } catch (error) {
     console.error(error);
-    alert("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
+    showN2KToast("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
     await loadTorBrowserStatus();
   }
 }
@@ -2524,7 +2675,7 @@ document.getElementById("tor-browser-install")?.addEventListener("click", async 
   const password = prompt("Lege ein Passwort für den isolierten Tor-Browser fest (mindestens 10 Zeichen):");
   if (!password) return;
   if (password.length < 10 || password.length > 64) {
-    alert("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
+    showN2KToast("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
     return;
   }
   await installCatalogApp("tor-browser", "Tor Browser", {password});
@@ -2625,7 +2776,7 @@ document.getElementById("onion-explorer-save")?.addEventListener("click", () => 
   const input = document.getElementById("onion-explorer-url");
   const value = normalizeOnionUrl(input?.value);
   if (!value) {
-    alert("Bitte eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
     return;
   }
   const items = onionLoad("favorites").filter(item => item.url !== value);
@@ -2637,7 +2788,7 @@ document.getElementById("onion-explorer-save")?.addEventListener("click", () => 
 document.getElementById("onion-copy")?.addEventListener("click", async () => {
   const value = normalizeOnionUrl(document.getElementById("onion-explorer-url")?.value);
   if (!value) {
-    alert("Bitte zuerst eine gültige .onion-Adresse eingeben.");
+    showN2KToast("Bitte zuerst eine gültige .onion-Adresse eingeben.");
     return;
   }
   try { await navigator.clipboard.writeText(value); } catch (_) {}
@@ -2788,6 +2939,31 @@ const N2K_GERMANY_MEDIA_SERVICES = [
   {rank:24, category:"Video", name:"Crunchyroll", detail:"Anime · Serien · Filme", url:"https://www.crunchyroll.com/de/"}
 ];
 
+const N2K_SEARCH_COMMANDS = [
+  {kind:"command", name:"Übersicht", detail:"N2K Desktop", target:"dashboard-top", keywords:"home start dashboard"},
+  {kind:"command", name:"Arbeitsplatz", detail:"Dateien & N2K Drive", target:"workspace-panel", keywords:"drive dateien cloud"},
+  {kind:"command", name:"Kalender", detail:"Termine", target:"calendar-panel", keywords:"termine kalender"},
+  {kind:"command", name:"Apps", detail:"Apps & App Store", target:"apps-panel", keywords:"docker apps store"},
+  {kind:"command", name:"Virtuelle Maschinen", detail:"VMs & Home Assistant", target:"vms-panel", keywords:"vm haos home assistant"},
+  {kind:"command", name:"Speicher", detail:"Datenträger & Kapazität", target:"storage-panel", keywords:"storage disk"},
+  {kind:"command", name:"Backups", detail:"Sichern & Wiederherstellen", target:"backups-panel", keywords:"backup restore"},
+  {kind:"command", name:"Netzwerk", detail:"Provider · Ping · Interfaces", target:"network-panel", keywords:"network internet ping provider"},
+  {kind:"command", name:"Media Center", detail:"Radio · Musik · Streaming", target:"media-center-panel", keywords:"audio radio musik streaming player"},
+  {kind:"command", name:"Office", detail:"Dokumente · Tabellen · Präsentationen", target:"office-panel", keywords:"onlyoffice writer calc"},
+  {kind:"command", name:"Terminal", detail:"N2K Terminal", target:"terminal-panel", keywords:"shell konsole cli"},
+  {kind:"command", name:"Underground", detail:"Privacy & Tor", target:"privacy-panel", keywords:"tor darknet privacy"},
+  {kind:"command", name:"KI", detail:"KI Arbeitsbereich", target:"ai-panel", keywords:"ai ki chatgpt"},
+  {kind:"command", name:"Einstellungen & Updates", detail:"Systemeinstellungen", target:"updates-panel", keywords:"settings update wallpaper sync"}
+];
+
+const N2K_PRIMARY_MEDIA_SERVICES = [
+  {kind:"service", name:"Apple Music", detail:"Streaming · Musik", url:"https://music.apple.com/de/"},
+  {kind:"service", name:"Spotify", detail:"Streaming · Musik & Podcasts", url:"https://open.spotify.com/"},
+  {kind:"service", name:"Amazon Music", detail:"Streaming · Musik", url:"https://music.amazon.de/"},
+  {kind:"service", name:"Netflix", detail:"Streaming · Filme & Serien", url:"https://www.netflix.com/de/"},
+  {kind:"service", name:"YouTube", detail:"Streaming · Video & Live", url:"https://www.youtube.com/"}
+];
+
 const N2K_MEDIA_FAVORITES_KEY = "n2k-media-favorite-stations";
 const N2K_MEDIA_FAVORITE_IDS_KEY = "n2k-media-favorites";
 
@@ -2808,6 +2984,12 @@ let mediaCountry = "DE";
 let mediaStationIndex = -1;
 let mediaLocalTracks = [];
 let mediaLocalIndex = -1;
+let mediaQueue = [];
+let mediaShuffle = false;
+let mediaRepeat = "off";
+let mediaActiveSection = "all";
+let mediaSessionRestored = false;
+let mediaSessionRestoring = false;
 let mediaInitialized = false;
 let mediaAudioContext = null;
 let mediaEqFilters = [];
@@ -2816,6 +2998,165 @@ let mediaAnalyser = null;
 let mediaSpectrumFrame = null;
 let mediaSpectrumData = null;
 let mediaTimeData = null;
+
+function showN2KToast(message, tone = "info", timeout = 3200) {
+  const stack = document.getElementById("n2k-toast-stack");
+  if (!stack || !message) return;
+  const toast = document.createElement("div");
+  toast.className = `n2k-toast ${tone}`;
+  toast.innerHTML = "<span></span><strong></strong>";
+  toast.querySelector("span").textContent = tone === "success" ? "✓" : tone === "error" ? "!" : "•";
+  toast.querySelector("strong").textContent = message;
+  stack.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 220);
+  }, timeout);
+}
+
+function formatMediaDuration(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return "–:––";
+  const minutes = Math.floor(value / 60);
+  const secs = Math.floor(value % 60);
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+function mediaSessionSnapshot() {
+  const current = mediaCurrentStation();
+  return {
+    volume: Math.round((mediaAudio?.volume ?? 0.72) * 100),
+    muted: Boolean(mediaAudio?.muted),
+    eq: Array.from(document.querySelectorAll("#media-equalizer input[data-eq]")).map(input => Number(input.value) || 0),
+    country: mediaCountry,
+    section: mediaActiveSection,
+    shuffle: mediaShuffle,
+    repeat: mediaRepeat,
+    queue: [...mediaQueue],
+    current: current ? {
+      id: current.id,
+      source: current.source || "radio",
+      name: current.name,
+      title: current.title,
+      artist: current.artist,
+      album: current.album,
+      genre: current.genre,
+      bitrate: current.bitrate,
+      country: current.country,
+      url: current.url,
+      favicon: current.favicon,
+      artwork_url: current.artwork_url,
+      path: current.path
+    } : null
+  };
+}
+
+function saveMediaSession() {
+  if (mediaSessionRestoring) return;
+  try {
+    localStorage.setItem("n2k-media-session", JSON.stringify(mediaSessionSnapshot()));
+  } catch (_) {}
+}
+
+function loadMediaSession() {
+  try {
+    const data = JSON.parse(localStorage.getItem("n2k-media-session") || "{}");
+    return data && typeof data === "object" ? data : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function applyMediaSection(section = "all") {
+  mediaActiveSection = section || "all";
+  document.querySelectorAll(".media-section-tabs button").forEach(button => {
+    button.classList.toggle("active", button.dataset.mediaSection === mediaActiveSection);
+  });
+  document.querySelectorAll("[data-media-group]").forEach(card => {
+    card.classList.toggle("media-section-hidden", mediaActiveSection !== "all" && card.dataset.mediaGroup !== mediaActiveSection);
+  });
+  document.querySelector(".media-center-grid")?.classList.toggle("media-filtered", mediaActiveSection !== "all");
+  saveMediaSession();
+}
+
+function restoreMediaPreferences() {
+  mediaSessionRestoring = true;
+  const state = loadMediaSession();
+  const audio = ensureMediaAudio();
+  const volume = Number(state.volume);
+  if (Number.isFinite(volume)) audio.volume = Math.max(0, Math.min(1, volume / 100));
+  audio.muted = Boolean(state.muted);
+  if (typeof state.country === "string" && /^[A-Z]{2}$/.test(state.country)) mediaCountry = state.country;
+  if (typeof state.section === "string") mediaActiveSection = state.section;
+  mediaShuffle = Boolean(state.shuffle);
+  if (["off","all","one"].includes(state.repeat)) mediaRepeat = state.repeat;
+  if (Array.isArray(state.queue)) mediaQueue = state.queue.map(String).slice(0, 200);
+
+  const eqValues = Array.isArray(state.eq) ? state.eq : [];
+  document.querySelectorAll("#media-equalizer input[data-eq]").forEach((input,index) => {
+    if (Number.isFinite(Number(eqValues[index]))) input.value = String(eqValues[index]);
+  });
+  const volumeInput = document.getElementById("media-volume");
+  const volumeCopy = document.getElementById("media-volume-value");
+  if (volumeInput) volumeInput.value = String(Math.round(audio.volume * 100));
+  if (volumeCopy) volumeCopy.textContent = `${Math.round(audio.volume * 100)}%`;
+  document.querySelectorAll("#media-country-tabs button").forEach(button => {
+    button.classList.toggle("active", button.dataset.country === mediaCountry);
+  });
+  applyMediaSection(mediaActiveSection);
+  updateMediaPlayModes();
+  applyMediaEq();
+  mediaSessionRestoring = false;
+}
+
+function restoreMediaCurrentItem() {
+  if (mediaSessionRestored) return;
+  const state = loadMediaSession();
+  const current = state.current;
+  if (!current?.id || !current?.url) return;
+
+  const audio = ensureMediaAudio();
+  if (current.source === "local") {
+    const index = mediaLocalTracks.findIndex(track => String(track.id) === String(current.id));
+    if (index < 0) return;
+    mediaStationIndex = -1;
+    mediaLocalIndex = index;
+    const track = mediaLocalTracks[index];
+    audio.src = track.url;
+    updateMediaArtwork(track);
+  } else {
+    let index = mediaStations.findIndex(station => String(station.id) === String(current.id));
+    if (index < 0) {
+      mediaStations = [...mediaStations, current];
+      index = mediaStations.length - 1;
+    }
+    mediaLocalIndex = -1;
+    mediaStationIndex = index;
+    audio.src = current.url;
+    updateMediaArtwork(current);
+  }
+  mediaSessionRestored = true;
+  updateMediaPlaybackUi();
+  updateMediaFavoriteButton();
+  renderMediaLibrary();
+  renderMediaStations();
+}
+
+function clearSpectrumUi() {
+  const canvas = document.getElementById("media-spectrum");
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  const peak = document.getElementById("media-spectrum-peak");
+  const rms = document.getElementById("media-spectrum-rms");
+  const state = document.getElementById("media-spectrum-state");
+  if (peak) peak.textContent = "– dBFS";
+  if (rms) rms.textContent = "– dBFS";
+  if (state) state.textContent = "Kein Signal";
+  document.querySelectorAll("[data-eq-level]").forEach(node => { node.textContent = "Signal – dB"; });
+}
 
 function ensureMediaAudio() {
   if (mediaAudio) return mediaAudio;
@@ -2827,7 +3168,13 @@ function ensureMediaAudio() {
   mediaAudio.addEventListener("pause", updateMediaPlaybackUi);
   mediaAudio.addEventListener("waiting", () => setMediaStatus("Puffert …"));
   mediaAudio.addEventListener("playing", updateMediaPlaybackUi);
-  mediaAudio.addEventListener("error", () => setMediaStatus("Stream nicht erreichbar"));
+  mediaAudio.addEventListener("error", () => {
+    setMediaStatus("Wiedergabe nicht erreichbar");
+    showN2KToast("Die aktuelle Audioquelle konnte nicht wiedergegeben werden.", "error");
+  });
+  mediaAudio.addEventListener("ended", handleMediaEnded);
+  mediaAudio.addEventListener("timeupdate", updateMediaProgress);
+  mediaAudio.addEventListener("durationchange", updateMediaProgress);
   return mediaAudio;
 }
 
@@ -2846,12 +3193,11 @@ function updateMediaSessionMetadata() {
   if (!("mediaSession" in navigator) || !station) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: station.name,
-      artist: station.genre || "Internet Radio",
-      album: station.source === "local" ? "N2K Audio" : "N2K Media Center",
-      artwork: station.favicon ? [
-        {src: station.favicon, sizes: "96x96"},
-        {src: station.favicon, sizes: "256x256"}
+      title: station.title || station.name,
+      artist: station.source === "local" ? (station.artist || "Eigene Musik") : (station.genre || "Internet Radio"),
+      album: station.source === "local" ? (station.album || "N2K Audio") : "N2K Media Center",
+      artwork: (station.artwork_url || station.favicon) ? [
+        {src: station.artwork_url || station.favicon, sizes: "256x256"}
       ] : []
     });
     navigator.mediaSession.playbackState = ensureMediaAudio().paused ? "paused" : "playing";
@@ -2863,16 +3209,8 @@ function updateMediaSessionMetadata() {
 function setupMediaSessionControls() {
   if (!("mediaSession" in navigator)) return;
   const actions = {
-    play: async () => {
-      const audio = ensureMediaAudio();
-      if (!audio.src) {
-        const first = filteredMediaStations()[0];
-        if (first) await playMediaStation(first.index);
-      } else {
-        await audio.play();
-      }
-    },
-    pause: () => ensureMediaAudio().pause(),
+    play: () => playMediaPlayback(),
+    pause: () => pauseMediaPlayback(),
     previoustrack: () => stepMediaStation(-1),
     nexttrack: () => stepMediaStation(1)
   };
@@ -2894,7 +3232,7 @@ function updateMediaPlaybackUi() {
   const visualizer = document.querySelector(".media-visualizer");
 
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
-  if (topTitle) topTitle.textContent = station ? station.name : "Bereit";
+  if (topTitle) topTitle.textContent = station ? (station.title || station.name) : "Bereit";
   if (topPlay) topPlay.classList.toggle("active", playing);
   if (topPause) topPause.classList.toggle("active", Boolean(mediaAudio?.paused && mediaAudio?.src));
   if (topMute) {
@@ -2904,9 +3242,11 @@ function updateMediaPlaybackUi() {
   const overviewTitle = document.getElementById("overview-media-title");
   const overviewSubtitle = document.getElementById("overview-media-subtitle");
   const overviewPlay = document.getElementById("overview-media-play");
-  if (overviewTitle) overviewTitle.textContent = station ? station.name : "Bereit";
+  if (overviewTitle) overviewTitle.textContent = station ? (station.title || station.name) : "Bereit";
   if (overviewSubtitle) overviewSubtitle.textContent = station
-    ? `${station.genre || "Radio"} · ${station.country || "Internet"}`
+    ? (station.source === "local"
+      ? [station.artist || "Eigene Musik", station.album].filter(Boolean).join(" · ")
+      : `${station.genre || "Radio"} · ${station.country || "Internet"}`)
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
   if (liveDot) liveDot.classList.toggle("active", playing);
@@ -2916,10 +3256,39 @@ function updateMediaPlaybackUi() {
     updateMediaSessionMetadata();
     const title = document.getElementById("media-title");
     const subtitle = document.getElementById("media-subtitle");
-    if (title) title.textContent = station.name;
+    if (title) title.textContent = station.title || station.name;
     if (subtitle) subtitle.textContent = station.source === "local"
-      ? `${station.genre} · ${station.path || "Audio"} · ${station.bitrate}`
+      ? [station.artist || "Eigene Musik", station.album, station.genre, station.bitrate].filter(Boolean).join(" · ")
       : `${station.genre} · ${station.bitrate} · ${station.country}`;
+    updateMediaArtwork(station);
+  }
+}
+
+function updateMediaArtwork(item) {
+  const cover = document.getElementById("media-cover");
+  if (!cover) return;
+  const artwork = item?.artwork_url || item?.favicon || "";
+  cover.classList.toggle("has-artwork", Boolean(artwork));
+  cover.style.backgroundImage = artwork ? `url("${artwork.replace(/"/g, "%22")}")` : "";
+  const label = cover.querySelector("span");
+  const sub = cover.querySelector("strong");
+  if (label) label.textContent = artwork ? "" : "N2K";
+  if (sub) sub.textContent = artwork ? "" : "MEDIA";
+}
+
+function updateMediaProgress() {
+  const audio = mediaAudio;
+  const fill = document.getElementById("media-progress-fill");
+  const time = document.getElementById("media-time");
+  const current = mediaCurrentStation();
+  if (!audio || !fill || !time) return;
+  if (current?.source === "local" && Number.isFinite(audio.duration) && audio.duration > 0) {
+    const percent = Math.max(0, Math.min(100, (audio.currentTime / audio.duration) * 100));
+    fill.style.width = `${percent}%`;
+    time.textContent = `${formatMediaDuration(audio.currentTime)} / ${formatMediaDuration(audio.duration)}`;
+  } else {
+    fill.style.width = "100%";
+    time.textContent = audio.src ? "LIVE" : "–";
   }
 }
 
@@ -2970,14 +3339,22 @@ function renderMediaStations() {
 
 function normalizeFavoriteStation(station) {
   if (!station || !station.id || !station.url) return null;
+  const source = station.source === "local" ? "local" : "radio";
   return {
     id: String(station.id),
-    country: String(station.country || ""),
-    name: String(station.name || "Radiosender"),
-    genre: String(station.genre || "Radio"),
+    source,
+    country: String(station.country || (source === "local" ? "N2K AUDIO" : "")),
+    name: String(station.name || station.title || (source === "local" ? "Lokaler Titel" : "Radiosender")),
+    title: String(station.title || station.name || ""),
+    artist: String(station.artist || ""),
+    album: String(station.album || ""),
+    genre: String(station.genre || (source === "local" ? "Lokale Musik" : "Radio")),
     bitrate: String(station.bitrate || ""),
     url: String(station.url),
-    favicon: String(station.favicon || "")
+    favicon: String(station.favicon || ""),
+    artwork_url: String(station.artwork_url || ""),
+    path: String(station.path || ""),
+    duration_seconds: Number.isFinite(Number(station.duration_seconds)) ? Number(station.duration_seconds) : null
   };
 }
 
@@ -2995,7 +3372,7 @@ function getMediaFavoriteStations() {
   } catch (_) {}
 
   if (legacyIds.length) {
-    const known = [...mediaStations, ...N2K_RADIO_STATIONS];
+    const known = [...mediaStations, ...N2K_RADIO_STATIONS, ...mediaLocalTracks];
     for (const id of legacyIds) {
       if (saved.some(item => item.id === id)) continue;
       const station = known.find(item => String(item.id) === id);
@@ -3020,28 +3397,26 @@ function saveMediaFavoriteStations(stations) {
 function toggleMediaFavorite(stationOrId) {
   const station = typeof stationOrId === "object"
     ? stationOrId
-    : mediaStations.find(item => String(item.id) === String(stationOrId)) ||
-      N2K_RADIO_STATIONS.find(item => String(item.id) === String(stationOrId));
+    : [...mediaStations, ...N2K_RADIO_STATIONS, ...mediaLocalTracks]
+      .find(item => String(item.id) === String(stationOrId));
   if (!station) return;
   const favorites = getMediaFavoriteStations();
   const existing = favorites.findIndex(item => item.id === String(station.id));
-  if (existing >= 0) favorites.splice(existing, 1);
-  else favorites.push(station);
+  const adding = existing < 0;
+  if (adding) favorites.push(station);
+  else favorites.splice(existing, 1);
   saveMediaFavoriteStations(favorites);
   updateMediaFavoriteButton();
   renderMediaFavorites();
+  renderMediaLibrary();
+  showN2KToast(adding ? "Zu Meine Medien hinzugefügt." : "Aus Meine Medien entfernt.", adding ? "success" : "info");
 }
 
 function updateMediaFavoriteButton() {
   const button = document.getElementById("media-favorite");
   const station = mediaCurrentStation();
   if (!button) return;
-  if (station?.source === "local") {
-    button.textContent = "–";
-    button.disabled = true;
-    return;
-  }
-  button.disabled = false;
+  button.disabled = !station;
   if (!station) {
     button.textContent = "♡";
     return;
@@ -3051,12 +3426,25 @@ function updateMediaFavoriteButton() {
 }
 
 function playFavoriteStation(station) {
+  if (station.source === "local") {
+    const index = mediaLocalTracks.findIndex(item => String(item.id) === String(station.id));
+    if (index >= 0) {
+      playLocalTrack(index);
+      return;
+    }
+    showN2KToast("Die lokale Datei ist nicht mehr im Audio-Ordner vorhanden.", "error");
+    return;
+  }
   let index = mediaStations.findIndex(item => String(item.id) === String(station.id));
   if (index < 0) {
     mediaStations = [...mediaStations, station];
     index = mediaStations.length - 1;
   }
   playMediaStation(index);
+}
+
+function favoriteArtwork(station) {
+  return station.source === "local" ? station.artwork_url : station.favicon;
 }
 
 function renderMediaFavorites() {
@@ -3072,13 +3460,16 @@ function renderMediaFavorites() {
       const row = document.createElement("div");
       row.className = "media-favorite-row";
       row.innerHTML = '<span class="media-station-logo">♪</span><div><strong></strong><small></small></div><button class="media-favorite-remove" title="Favorit entfernen">♥</button><button class="media-station-play" title="Abspielen">▶</button>';
-      row.querySelector("strong").textContent = station.name;
-      row.querySelector("small").textContent = [station.country, station.genre].filter(Boolean).join(" · ");
+      row.querySelector("strong").textContent = station.title || station.name;
+      row.querySelector("small").textContent = station.source === "local"
+        ? [station.artist, station.album, "Eigene Musik"].filter(Boolean).join(" · ")
+        : [station.country, station.genre].filter(Boolean).join(" · ");
       const logo = row.querySelector(".media-station-logo");
-      if (station.favicon) {
+      const artwork = favoriteArtwork(station);
+      if (artwork) {
         logo.textContent = "";
         const image = document.createElement("img");
-        image.src = station.favicon;
+        image.src = artwork;
         image.alt = "";
         image.loading = "lazy";
         image.referrerPolicy = "no-referrer";
@@ -3090,7 +3481,7 @@ function renderMediaFavorites() {
       row.addEventListener("dblclick", () => playFavoriteStation(station));
       list.appendChild(row);
     }
-    if (!favorites.length) list.innerHTML = '<div class="media-empty">Noch keine Favoriten gespeichert.</div>';
+    if (!favorites.length) list.innerHTML = '<div class="media-empty">Noch keine Medien-Favoriten gespeichert.</div>';
   }
 
   if (overview) {
@@ -3099,12 +3490,12 @@ function renderMediaFavorites() {
       const button = document.createElement("button");
       button.className = "overview-media-favorite";
       button.innerHTML = "<span>♪</span><strong></strong>";
-      button.querySelector("strong").textContent = station.name;
-      button.title = `${station.name} abspielen`;
+      button.querySelector("strong").textContent = station.title || station.name;
+      button.title = `${station.title || station.name} abspielen`;
       button.addEventListener("click", () => playFavoriteStation(station));
       overview.appendChild(button);
     }
-    if (!favorites.length) overview.innerHTML = '<span class="widget-empty">Noch keine Radio-Favoriten.</span>';
+    if (!favorites.length) overview.innerHTML = '<span class="widget-empty">Noch keine Medien-Favoriten.</span>';
   }
 }
 
@@ -3133,12 +3524,123 @@ async function playMediaStation(index) {
     setMediaStatus("Wiedergabe wurde vom Browser blockiert oder der Stream ist nicht erreichbar.");
   }
   updateMediaPlaybackUi();
+  saveMediaSession();
+}
+
+function localTrackIndexById(id) {
+  return mediaLocalTracks.findIndex(track => String(track.id) === String(id));
+}
+
+function enqueueLocalTrack(index) {
+  const track = mediaLocalTracks[index];
+  if (!track) return;
+  mediaQueue.push(track.id);
+  renderMediaQueue();
+  showN2KToast(`${track.title || track.name} zur Warteschlange hinzugefügt.`, "success");
+  saveMediaSession();
+}
+
+function renderMediaQueue() {
+  const list = document.getElementById("media-queue-list");
+  const count = document.getElementById("media-queue-count");
+  if (count) count.textContent = String(mediaQueue.length);
+  if (!list) return;
+  list.innerHTML = "";
+  mediaQueue.forEach((id,queueIndex) => {
+    const trackIndex = localTrackIndexById(id);
+    const track = mediaLocalTracks[trackIndex];
+    if (!track) return;
+    const row = document.createElement("div");
+    row.className = "media-queue-row";
+    row.innerHTML = '<span></span><div><strong></strong><small></small></div><button title="Entfernen">×</button>';
+    row.querySelector("span").textContent = String(queueIndex + 1).padStart(2, "0");
+    row.querySelector("strong").textContent = track.title || track.name;
+    row.querySelector("small").textContent = [track.artist, track.album].filter(Boolean).join(" · ") || "Eigene Musik";
+    row.querySelector("button").addEventListener("click", () => {
+      mediaQueue.splice(queueIndex, 1);
+      renderMediaQueue();
+      saveMediaSession();
+    });
+    row.addEventListener("dblclick", () => {
+      mediaQueue.splice(queueIndex, 1);
+      playLocalTrack(trackIndex);
+      renderMediaQueue();
+    });
+    list.appendChild(row);
+  });
+  if (!list.children.length) list.innerHTML = '<div class="media-empty compact-empty">Queue ist leer.</div>';
+}
+
+function clearMediaQueue() {
+  mediaQueue = [];
+  renderMediaQueue();
+  saveMediaSession();
+  showN2KToast("Warteschlange geleert.", "info");
+}
+
+function updateMediaPlayModes() {
+  const shuffle = document.getElementById("media-shuffle");
+  const repeat = document.getElementById("media-repeat");
+  if (shuffle) {
+    shuffle.textContent = mediaShuffle ? "Zufall an" : "Zufall aus";
+    shuffle.classList.toggle("active", mediaShuffle);
+  }
+  if (repeat) {
+    const labels = {off:"Repeat aus", all:"Repeat alle", one:"Repeat Titel"};
+    repeat.textContent = labels[mediaRepeat] || labels.off;
+    repeat.classList.toggle("active", mediaRepeat !== "off");
+  }
+}
+
+function nextLocalTrack(direction = 1, fromEnded = false) {
+  if (!mediaLocalTracks.length) return false;
+  if (direction > 0 && mediaQueue.length) {
+    const id = mediaQueue.shift();
+    const index = localTrackIndexById(id);
+    renderMediaQueue();
+    if (index >= 0) {
+      playLocalTrack(index);
+      return true;
+    }
+  }
+  if (mediaRepeat === "one" && fromEnded && mediaLocalIndex >= 0) {
+    playLocalTrack(mediaLocalIndex);
+    return true;
+  }
+  if (mediaShuffle && mediaLocalTracks.length > 1) {
+    let next = mediaLocalIndex;
+    while (next === mediaLocalIndex) next = Math.floor(Math.random() * mediaLocalTracks.length);
+    playLocalTrack(next);
+    return true;
+  }
+  if (mediaLocalIndex < 0) {
+    playLocalTrack(direction > 0 ? 0 : mediaLocalTracks.length - 1);
+    return true;
+  }
+  const candidate = mediaLocalIndex + direction;
+  if (candidate >= 0 && candidate < mediaLocalTracks.length) {
+    playLocalTrack(candidate);
+    return true;
+  }
+  if (mediaRepeat === "all") {
+    playLocalTrack(direction > 0 ? 0 : mediaLocalTracks.length - 1);
+    return true;
+  }
+  if (fromEnded) stopMediaPlayback();
+  return false;
+}
+
+function handleMediaEnded() {
+  if (mediaLocalIndex >= 0) {
+    nextLocalTrack(1, true);
+  } else if (mediaStationIndex >= 0) {
+    stepMediaStation(1);
+  }
 }
 
 function stepMediaStation(direction) {
   if (mediaLocalIndex >= 0 && mediaLocalTracks.length) {
-    const next = (mediaLocalIndex + direction + mediaLocalTracks.length) % mediaLocalTracks.length;
-    playLocalTrack(next);
+    nextLocalTrack(direction, false);
     return;
   }
   const candidates = mediaStations
@@ -3155,6 +3657,8 @@ async function loadMediaRadioDirectory() {
   const status = document.getElementById("media-radio-status");
   const search = (document.getElementById("media-radio-search")?.value || "").trim();
   if (status) status.textContent = `Lade ${mediaCountry}-Sender …`;
+  const list = document.getElementById("media-station-list");
+  if (list) list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   try {
     const params = new URLSearchParams({country: mediaCountry, search, limit: "80"});
     const data = await request(`/api/media/radio?${params.toString()}`, {headers: {}});
@@ -3162,7 +3666,7 @@ async function loadMediaRadioDirectory() {
     const stations = Array.isArray(data.stations) ? data.stations : [];
     if (stations.length) {
       mediaStations = stations;
-      mediaStationIndex = -1;
+      if (mediaLocalIndex < 0) mediaStationIndex = -1;
       if (status) status.textContent = `${stations.length} Sender · Radio Browser Verzeichnis`;
     } else {
       mediaStations = N2K_RADIO_STATIONS.filter(station => station.country === mediaCountry);
@@ -3176,6 +3680,7 @@ async function loadMediaRadioDirectory() {
   }
   renderMediaStations();
   renderMediaFavorites();
+  restoreMediaCurrentItem();
 }
 
 function renderMediaLibrary() {
@@ -3183,20 +3688,47 @@ function renderMediaLibrary() {
   const count = document.getElementById("media-library-count");
   if (!list) return;
   const query = (document.getElementById("media-library-search")?.value || "").trim().toLowerCase();
+  const favorites = new Set(getMediaFavoriteStations().map(item => String(item.id)));
   const visible = mediaLocalTracks
     .map((track,index) => ({track,index}))
-    .filter(({track}) => !query || `${track.title} ${track.name} ${track.path}`.toLowerCase().includes(query));
+    .filter(({track}) => !query || `${track.title} ${track.name} ${track.artist} ${track.album} ${track.genre} ${track.path}`.toLowerCase().includes(query));
   if (count) count.textContent = `${mediaLocalTracks.length} Titel`;
   list.innerHTML = "";
+
   for (const {track,index} of visible) {
-    const row = document.createElement("button");
+    const row = document.createElement("div");
     row.className = "media-library-row";
     if (index === mediaLocalIndex) row.classList.add("active");
-    row.innerHTML = '<span class="media-library-icon">♪</span><div><strong></strong><small></small></div><em></em><span class="media-library-play">▶</span>';
+    row.innerHTML = '<span class="media-library-icon">♪</span><div class="media-library-copy"><strong></strong><small></small></div><em class="media-library-duration"></em><div class="media-library-row-actions"><button class="fav" title="Meine Medien">♡</button><button class="queue" title="Zur Warteschlange">＋</button><button class="play" title="Abspielen">▶</button></div>';
+    const icon = row.querySelector(".media-library-icon");
+    if (track.artwork_url) {
+      icon.textContent = "";
+      const image = document.createElement("img");
+      image.src = track.artwork_url;
+      image.alt = "";
+      image.loading = "lazy";
+      image.addEventListener("error", () => { icon.textContent = "♪"; image.remove(); });
+      icon.appendChild(image);
+    }
     row.querySelector("strong").textContent = track.title || track.name;
-    row.querySelector("small").textContent = [track.path || "Audio", track.extension?.toUpperCase()].filter(Boolean).join(" · ");
-    row.querySelector("em").textContent = formatBytes(track.size_bytes || 0);
-    row.addEventListener("click", () => playLocalTrack(index));
+    row.querySelector("small").textContent =
+      [track.artist || "Unbekannter Interpret", track.album, track.genre, track.extension?.toUpperCase()].filter(Boolean).join(" · ");
+    row.querySelector(".media-library-duration").textContent = formatMediaDuration(track.duration_seconds);
+    const fav = row.querySelector(".fav");
+    fav.textContent = favorites.has(String(track.id)) ? "♥" : "♡";
+    fav.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleMediaFavorite(track);
+    });
+    row.querySelector(".queue").addEventListener("click", event => {
+      event.stopPropagation();
+      enqueueLocalTrack(index);
+    });
+    row.querySelector(".play").addEventListener("click", event => {
+      event.stopPropagation();
+      playLocalTrack(index);
+    });
+    row.addEventListener("dblclick", () => playLocalTrack(index));
     list.appendChild(row);
   }
   if (!visible.length) {
@@ -3206,20 +3738,25 @@ function renderMediaLibrary() {
 
 async function loadMediaLibrary() {
   const list = document.getElementById("media-library-list");
-  if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner wird geladen …</div>';
+  if (list) list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   try {
     const data = await request("/api/media/library", {headers:{}});
     mediaLocalTracks = (Array.isArray(data.tracks) ? data.tracks : []).map(track => ({
       ...track,
       source: "local",
-      genre: "Lokale Musik",
+      genre: track.genre || "Lokale Musik",
       country: "N2K AUDIO",
       bitrate: track.extension ? track.extension.toUpperCase() : "Audio"
     }));
+    mediaQueue = mediaQueue.filter(id => localTrackIndexById(id) >= 0);
     renderMediaLibrary();
+    renderMediaQueue();
+    renderMediaFavorites();
+    restoreMediaCurrentItem();
   } catch (error) {
     console.error("Local media library unavailable", error);
     if (list) list.innerHTML = '<div class="media-empty">Audio-Ordner konnte nicht geladen werden.</div>';
+    showN2KToast("Lokale Musikbibliothek konnte nicht geladen werden.", "error");
   }
 }
 
@@ -3233,24 +3770,25 @@ async function playLocalTrack(index) {
   }
   mediaStationIndex = -1;
   mediaLocalIndex = index;
-  if (audio.src !== new URL(track.url, window.location.href).href) {
+  const targetUrl = new URL(track.url, window.location.href).href;
+  if (audio.src !== targetUrl) {
     audio.src = track.url;
     audio.load();
   }
-  const title = document.getElementById("media-title");
-  const subtitle = document.getElementById("media-subtitle");
-  if (title) title.textContent = track.title || track.name;
-  if (subtitle) subtitle.textContent = `Lokale Musik · ${track.path || "Audio"} · ${track.bitrate}`;
   updateMediaFavoriteButton();
   renderMediaLibrary();
+  updateMediaArtwork(track);
   try {
     await audio.play();
   } catch (error) {
     console.error(error);
     setMediaStatus("Lokale Audiodatei konnte nicht abgespielt werden.");
+    showN2KToast("Lokale Audiodatei konnte nicht abgespielt werden.", "error");
   }
   updateMediaPlaybackUi();
+  saveMediaSession();
 }
+
 
 function renderMediaServiceDirectory() {
   const list = document.getElementById("media-service-directory-list");
@@ -3285,7 +3823,7 @@ async function setHostAudioOutput(nodeId) {
     await refreshMediaDevices();
   } catch (error) {
     console.error(error);
-    alert("Audio-Ausgang konnte nicht umgeschaltet werden.");
+    showN2KToast("Audio-Ausgang konnte nicht umgeschaltet werden.", "error");
   }
 }
 
@@ -3297,9 +3835,10 @@ async function setBluetoothConnection(mac, connect) {
       headers: {"X-CSRF-Token": csrfToken}
     });
     await refreshMediaDevices();
+    showN2KToast(connect ? "Bluetooth-Gerät verbunden." : "Bluetooth-Gerät getrennt.", "success");
   } catch (error) {
     console.error(error);
-    alert(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.");
+    showN2KToast(connect ? "Bluetooth-Gerät konnte nicht verbunden werden." : "Bluetooth-Gerät konnte nicht getrennt werden.", "error");
   }
 }
 
@@ -3313,9 +3852,10 @@ async function setAirPlayDiscovery(enabled) {
       headers: {"X-CSRF-Token": csrfToken}
     });
     await refreshMediaDevices();
+    showN2KToast(enabled ? "AirPlay-Suche aktiviert." : "AirPlay-Suche deaktiviert.", "success");
   } catch (error) {
     console.error(error);
-    alert(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.");
+    showN2KToast(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.", "error");
   } finally {
     if (button) button.disabled = false;
   }
@@ -3327,7 +3867,7 @@ async function applyMediaMultiroom(clear = false) {
       ? {action: "clear"}
       : {action: "set", sinks: Array.from(mediaMultiroomSelection)};
     if (!clear && body.sinks.length < 2) {
-      alert("Bitte mindestens zwei Ausgänge für Multiroom auswählen.");
+      showN2KToast("Bitte mindestens zwei Ausgänge für Multiroom auswählen.", "info");
       return;
     }
     await request("/api/media/multiroom", {
@@ -3337,9 +3877,10 @@ async function applyMediaMultiroom(clear = false) {
     });
     if (clear) mediaMultiroomSelection.clear();
     await refreshMediaDevices();
+    showN2KToast(clear ? "Multiroom-Gruppe gelöst." : "Multiroom-Gruppe aktiviert.", "success");
   } catch (error) {
     console.error(error);
-    alert(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.");
+    showN2KToast(clear ? "Multiroom-Gruppe konnte nicht gelöst werden." : "Multiroom-Gruppe konnte nicht gestartet werden.", "error");
   }
 }
 
@@ -3395,24 +3936,42 @@ function renderMediaRooms(routing = {}) {
   if (clear) clear.disabled = !state.active;
 }
 
+async function friendlyAudioKind(kind) {
+  return ({
+    hdmi:"HDMI",
+    usb:"USB DAC",
+    bluetooth:"Bluetooth",
+    airplay:"AirPlay",
+    dlna:"DLNA / UPnP",
+    local:"Interne Audioausgabe",
+    audio:"Audioausgang"
+  })[kind] || "Audioausgang";
+}
+
 async function refreshMediaDevices() {
   const list = document.getElementById("media-device-list");
   if (!list) return;
-  list.innerHTML = "";
+  list.innerHTML = '<div class="media-loading"><i></i><i></i><i></i></div>';
   const audio = ensureMediaAudio();
-  const addRow = (icon,name,detail,status,action,extraClass = "") => {
+  const rows = [];
+  const addRow = (icon,name,detail,status,action,extraClass = "",technical = "") => {
     const row = document.createElement("div");
     row.className = `media-device-row ${extraClass}`.trim();
     row.innerHTML = '<span></span><div><strong></strong><small></small></div><em></em>';
     row.querySelector("span").textContent = icon;
     row.querySelector("strong").textContent = name;
-    row.querySelector("small").textContent = detail;
+    const detailNode = row.querySelector("small");
+    detailNode.textContent = detail;
+    if (technical) {
+      detailNode.title = technical;
+      row.title = technical;
+    }
     row.querySelector("em").textContent = status;
     if (action) {
       row.classList.add("clickable");
       row.addEventListener("click", action);
     }
-    list.appendChild(row);
+    rows.push(row);
   };
   const setProtocol = (name, state, title = "") => {
     const badge = document.querySelector(`[data-media-protocol="${name}"]`);
@@ -3422,7 +3981,7 @@ async function refreshMediaDevices() {
     if (title) badge.title = title;
   };
 
-  addRow("◉","System Audio","Browser-Standardausgang","Browser");
+  addRow("◉","Browser-Audio","Standardausgang dieses Browsers","bereit");
 
   try {
     const host = await request("/api/media/devices", {headers:{}});
@@ -3436,21 +3995,29 @@ async function refreshMediaDevices() {
       const icons = {hdmi:"▣",usb:"USB",bluetooth:"BT",local:"◉",audio:"♪"};
       addRow(
         icons[device.kind] || "♪",
-        device.name || "Audio-Gerät",
-        `${device.backend || "Host"} · ${device.detail || "bereit"}`,
-        device.available === false ? "offline" : "erkannt"
+        device.name || friendlyAudioKind(device.kind),
+        friendlyAudioKind(device.kind),
+        device.available === false ? "offline" : "erkannt",
+        null,
+        "",
+        `${device.backend || "Host"} · ${device.detail || ""}`
       );
     });
 
     const sinks = Array.isArray(pipewire.sinks) ? pipewire.sinks : [];
     sinks.forEach(sink => {
+      const kind = sink.kind || "audio";
       addRow(
         sink.default ? "●" : "○",
-        sink.name || `PipeWire ${sink.id}`,
-        `PipeWire · Node ${sink.id}`,
-        sink.default ? "Standard" : "wählen",
-        sink.default ? null : () => setHostAudioOutput(sink.id),
-        sink.default ? "active-route" : ""
+        sink.name || friendlyAudioKind(kind),
+        `${friendlyAudioKind(kind)} · Systemausgang`,
+        sink.default ? "aktiv" : "wählen",
+        sink.default ? null : async () => {
+          await setHostAudioOutput(sink.id);
+          showN2KToast("Audioausgang wurde gewechselt.", "success");
+        },
+        sink.default ? "active-route" : "",
+        `PipeWire Node ${sink.id}`
       );
     });
 
@@ -3458,20 +4025,23 @@ async function refreshMediaDevices() {
     btDevices.forEach(device => {
       addRow(
         "BT",
-        device.name || device.mac,
-        `${device.paired ? "gekoppelt" : "bekannt"} · ${device.mac}`,
+        device.name || "Bluetooth-Gerät",
+        device.connected ? "Bluetooth · verbunden" : (device.paired ? "Bluetooth · gekoppelt" : "Bluetooth · bekannt"),
         device.connected ? "trennen" : "verbinden",
         () => setBluetoothConnection(device.mac, !device.connected),
-        device.connected ? "active-route" : ""
+        device.connected ? "active-route" : "",
+        device.mac
       );
     });
 
     const hasHdmi = hostDevices.some(device => device.kind === "hdmi") || sinks.some(sink => /hdmi/i.test(sink.name || ""));
     const hasUsb = hostDevices.some(device => device.kind === "usb") || sinks.some(sink => /(usb|dac|fiio|scarlett|focusrite)/i.test(sink.name || ""));
-    setProtocol("hdmi", hasHdmi, hasHdmi ? "HDMI-Audio am Host erkannt" : "Kein HDMI-Audio erkannt");
-    setProtocol("usb", hasUsb, hasUsb ? "USB-Audio am Host erkannt" : "Kein USB-DAC erkannt");
-    setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth-Steuerung aktiv" : (host.bluetooth?.note || "Bluetooth"));
-    setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || host.airplay?.note || "AirPlay vorbereitet");
+    setProtocol("hdmi", hasHdmi, hasHdmi ? "HDMI-Audio erkannt" : "Kein HDMI-Audio erkannt");
+    setProtocol("usb", hasUsb, hasUsb ? "USB-Audio erkannt" : "Kein USB-DAC erkannt");
+    setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth verfügbar" : "Bluetooth nicht verfügbar");
+    setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || "AirPlay vorbereitet");
+    setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || "DLNA vorbereitet");
+
     const airplayToggle = document.getElementById("media-airplay-toggle");
     const airplayStatus = document.getElementById("media-airplay-status");
     const airplayDiscovery = Boolean(routing.airplay?.discovery_active);
@@ -3482,55 +4052,55 @@ async function refreshMediaDevices() {
     if (airplayStatus) {
       const count = Array.isArray(routing.airplay?.sinks) ? routing.airplay.sinks.length : 0;
       airplayStatus.textContent = airplayDiscovery
-        ? `RAOP-Suche aktiv · ${count} AirPlay-Ausgang${count === 1 ? "" : "e"}`
-        : "RAOP-Suche ist aus";
+        ? `AirPlay-Suche aktiv · ${count} Gerät${count === 1 ? "" : "e"}`
+        : "AirPlay-Suche ist aus";
     }
-    setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || host.dlna?.note || "DLNA vorbereitet");
 
     if (!routing.available) {
-      addRow("•","PipeWire Routing","Host-Agent noch nicht aktualisiert oder keine Desktop-Audiositzung aktiv","wartet");
+      addRow("•","System-Audio","Audio-Routing ist momentan nicht verfügbar","prüfen",null,"",routing.error || "Host-Agent");
     } else if (pipewire.error) {
-      addRow("•","PipeWire Routing",pipewire.error,"prüfen");
-    } else if (!sinks.length) {
-      addRow("•","PipeWire Routing","Keine aktiven Audio-Sinks gefunden","leer");
+      addRow("•","System-Audio","PipeWire-Audiositzung benötigt Aufmerksamkeit","prüfen",null,"",pipewire.error);
     }
   } catch (error) {
     console.warn("Host audio inventory unavailable", error);
-    addRow("•","Host-Audiogeräte","Inventar momentan nicht erreichbar","–");
-    setProtocol("airplay", null, "AirPlay-Systemdienst folgt");
-    setProtocol("dlna", null, "DLNA-Systemdienst folgt");
+    addRow("•","Server-Audio","Geräte konnten momentan nicht gelesen werden","offline");
+    setProtocol("airplay", null, "AirPlay vorbereitet");
+    setProtocol("dlna", null, "DLNA vorbereitet");
   }
 
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    addRow("•","Browser-Ausgänge","Geräteauswahl wird von diesem Browser nicht unterstützt","–");
-    return;
+  if (navigator.mediaDevices?.enumerateDevices) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter(device => device.kind === "audiooutput");
+      const savedSink = localStorage.getItem("n2k-media-browser-sink") || "";
+      outputs.forEach((device,index) => {
+        const label = device.label || `Browser-Ausgang ${index + 1}`;
+        const canRoute = typeof audio.setSinkId === "function";
+        addRow("◌",label,"Direkter Browser-Ausgang",canRoute ? "wählen" : "System",
+          canRoute ? async () => {
+            try {
+              await audio.setSinkId(device.deviceId);
+              localStorage.setItem("n2k-media-browser-sink", device.deviceId);
+              showN2KToast(`${label} ist jetzt Browser-Ausgang.`, "success");
+              await refreshMediaDevices();
+            } catch (error) {
+              console.error(error);
+              showN2KToast("Browser-Ausgang konnte nicht gewechselt werden.", "error");
+            }
+          } : null
+        );
+        if (savedSink && canRoute && device.deviceId === savedSink && audio.sinkId !== savedSink) {
+          audio.setSinkId(savedSink).catch(() => localStorage.removeItem("n2k-media-browser-sink"));
+        }
+      });
+    } catch (error) {
+      console.error(error);
+    }
   }
 
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const outputs = devices.filter(device => device.kind === "audiooutput");
-    outputs.forEach((device,index) => {
-      const label = device.label || `Browser-Ausgang ${index + 1}`;
-      const canRoute = typeof audio.setSinkId === "function";
-      addRow("◌",label,canRoute ? "Direkt aus N2K auswählbar" : "Vom System verwaltet",canRoute ? "wählen" : "bereit",
-        canRoute ? async event => {
-          try {
-            await audio.setSinkId(device.deviceId);
-            Array.from(list.querySelectorAll("em")).forEach(node => {
-              if (node.textContent === "Browser aktiv") node.textContent = "bereit";
-            });
-            const badge = event.currentTarget.querySelector("em");
-            if (badge) badge.textContent = "Browser aktiv";
-          } catch (error) {
-            console.error(error);
-          }
-        } : null);
-    });
-    if (!outputs.length) addRow("•","Keine zusätzlichen Browser-Ausgänge","Host-Audio bleibt verfügbar","–");
-  } catch (error) {
-    console.error(error);
-    addRow("•","Browser-Geräte konnten nicht gelesen werden","Berechtigungen prüfen","–");
-  }
+  list.innerHTML = "";
+  rows.forEach(row => list.appendChild(row));
+  if (!rows.length) list.innerHTML = '<div class="media-empty">Keine Audioausgänge erkannt.</div>';
 }
 
 function applyEqPreset(name) {
@@ -3667,7 +4237,8 @@ function drawMediaSpectrum() {
   if (stateNode) {
     if (!ensureMediaAudio().src) stateNode.textContent = "Kein Stream";
     else if (ensureMediaAudio().paused) stateNode.textContent = "Pausiert";
-    else if (maxValue <= 1) stateNode.textContent = "Kein messbares Signal";
+    else if (maxValue <= 1) stateNode.textContent =
+      mediaCurrentStation()?.source === "local" ? "Kein messbares Signal" : "Stream blockiert Analyse / CORS";
     else stateNode.textContent = "Live Audiodaten";
   }
   updateEqBandMeters();
@@ -3687,10 +4258,14 @@ function applyMediaEq() {
   if (mediaAudioContext?.state === "suspended") mediaAudioContext.resume().catch(() => {});
   const inputs = Array.from(document.querySelectorAll("#media-equalizer input[data-eq]"));
   inputs.forEach((input,index) => {
-    if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = Number(input.value) || 0;
+    const gain = Number(input.value) || 0;
+    if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = gain;
+    const label = document.querySelector(`[data-eq-gain="${index}"]`);
+    if (label) label.textContent = `EQ ${gain > 0 ? "+" : ""}${gain} dB`;
   });
   const mode = document.getElementById("media-eq-mode");
-  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv · Echtzeitmessung" : "DSP nicht verfügbar";
+  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv · Signal ≠ EQ-Verstärkung" : "DSP nicht verfügbar";
+  saveMediaSession();
 }
 
 async function playMediaPlayback() {
@@ -3731,15 +4306,19 @@ function stopMediaPlayback() {
   const title = document.getElementById("media-title");
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Wiedergabe gestoppt";
-  if (subtitle) subtitle.textContent = "Wähle einen Sender oder Streaming-Dienst.";
+  if (subtitle) subtitle.textContent = "Wähle Radio, eigene Musik oder einen Streaming-Dienst.";
+  updateMediaArtwork(null);
+  clearSpectrumUi();
   updateMediaPlaybackUi();
   updateMediaFavoriteButton();
+  saveMediaSession();
 }
 
 function toggleMediaMute() {
   const audio = ensureMediaAudio();
   audio.muted = !audio.muted;
   updateMediaPlaybackUi();
+  saveMediaSession();
 }
 
 async function toggleMediaPlayback() {
@@ -3753,6 +4332,7 @@ function initMediaCenter() {
   mediaInitialized = true;
   ensureMediaAudio();
   setupMediaSessionControls();
+  restoreMediaPreferences();
   renderMediaStations();
   renderMediaFavorites();
   loadMediaRadioDirectory();
@@ -3760,6 +4340,9 @@ function initMediaCenter() {
   refreshMediaDevices();
   updateMediaPlaybackUi();
 
+  document.querySelectorAll(".media-section-tabs button").forEach(button => button.addEventListener("click", () => {
+    applyMediaSection(button.dataset.mediaSection || "all");
+  }));
   document.querySelectorAll("#media-country-tabs button").forEach(button => button.addEventListener("click", () => {
     mediaCountry = button.dataset.country || "DE";
     document.querySelectorAll("#media-country-tabs button").forEach(item => item.classList.toggle("active", item === button));
@@ -3796,10 +4379,22 @@ function initMediaCenter() {
     const copy = document.getElementById("media-volume-value");
     if (copy) copy.textContent = `${value}%`;
     updateMediaPlaybackUi();
+    saveMediaSession();
   });
   document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
   document.getElementById("media-library-refresh")?.addEventListener("click", loadMediaLibrary);
   document.getElementById("media-library-search")?.addEventListener("input", renderMediaLibrary);
+  document.getElementById("media-queue-clear")?.addEventListener("click", clearMediaQueue);
+  document.getElementById("media-shuffle")?.addEventListener("click", () => {
+    mediaShuffle = !mediaShuffle;
+    updateMediaPlayModes();
+    saveMediaSession();
+  });
+  document.getElementById("media-repeat")?.addEventListener("click", () => {
+    mediaRepeat = mediaRepeat === "off" ? "all" : mediaRepeat === "all" ? "one" : "off";
+    updateMediaPlayModes();
+    saveMediaSession();
+  });
   document.getElementById("media-more-services")?.addEventListener("click", () => toggleMediaServiceDirectory(true));
   document.getElementById("media-service-directory-close")?.addEventListener("click", () => toggleMediaServiceDirectory(false));
   document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
