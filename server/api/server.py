@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 15 if action in {"app_diagnostics","vm_list"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs"} else 8)
+        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 15 if action in {"app_diagnostics","vm_list"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2819,6 +2819,16 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.send_json(update_payload())
+            return
+
+        if path == "/updates/preflight":
+            if not self.require_auth():
+                return
+            result = vm_agent("update_preflight")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
             return
 
         if path == "/catalog":
@@ -3958,14 +3968,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/updates/install":
             session = self.require_auth()
-            if not session:
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
                 return
-            if not self.require_csrf(session):
-                return
-            result = vm_agent("update_netfreak2k")
+            result = vm_agent("update_safe_netfreak2k")
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
+            backup_id = str((result.get("backup") or {}).get("id") or "")
+            audit_event(session["username"], "system_update_start", backup_id[:300], self.client_ip())
             self.send_json(result, 202)
             return
 
