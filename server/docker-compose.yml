@@ -35,6 +35,8 @@ services:
       N2K_AGENT_TOKEN_FILE: "/host/netfreak2k/agent.token"
       N2K_UPDATE_FILE: "/host/netfreak2k/update-status.json"
       N2K_WORKSPACE_ROOT: "/workspace"
+      N2K_HTTP_PORT: "${N2K_HTTP_PORT:-80}"
+      N2K_HTTPS_PORT: "${N2K_HTTPS_PORT:-8443}"
     volumes:
       - /proc:/host/proc:ro
       - /etc/os-release:/host/etc/os-release:ro
