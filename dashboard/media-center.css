@@ -37,3 +37,6 @@
 @media(max-width:1160px){.media-now-playing{grid-template-columns:110px 1fr}.media-visualizer{grid-column:1/-1;height:76px}.media-center-grid{grid-template-columns:1fr 1fr}.media-devices-card{grid-column:auto}.media-eq-card{grid-column:1/-1}.media-room-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.top-media-player{min-width:42px;width:42px;padding:5px}.top-media-copy,.top-media-state{display:none}.media-center-hero{align-items:flex-start;flex-direction:column}.media-center-hero h2{font-size:19px}.media-now-playing{grid-template-columns:82px 1fr;margin:0 10px 10px;padding:12px}.media-visualizer{display:none}.media-volume{width:100%;margin-left:0}.media-volume input{flex:1}.media-transport{flex-wrap:wrap}.media-center-grid{grid-template-columns:1fr;padding:0 10px 10px}.media-radio-card,.media-devices-card,.media-eq-card,.media-multiroom-card{grid-column:1;grid-row:auto}.media-service-grid,.media-room-grid{grid-template-columns:1fr 1fr}.media-equalizer{gap:2px}.media-equalizer input{width:18px}}
 @media(max-width:500px){.media-service-grid,.media-room-grid{grid-template-columns:1fr}}
+
+.media-radio-status{margin-top:8px;font-size:7px;color:#73808d;min-height:12px}
+.media-station-logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;background:#111}
