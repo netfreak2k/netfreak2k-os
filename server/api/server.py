@@ -1828,7 +1828,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount"} else 12 if action in {"service_logs","hardware_status","storage_status"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount"} else 30 if action == "app_update_check" else 15 if action == "app_diagnostics" else 12 if action in {"service_logs","hardware_status","storage_status","app_logs"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -2787,7 +2787,26 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/apps":
             if not self.require_auth():
                 return
-            self.send_json(apps_payload())
+            live = vm_agent("app_diagnostics")
+            if live.get("available"):
+                self.send_json(live)
+            else:
+                self.send_json(apps_payload())
+            return
+
+        if path == "/apps/logs":
+            if not self.require_auth():
+                return
+            name = str((query.get("name") or [""])[0]).strip()
+            try:
+                lines = int((query.get("lines") or ["120"])[0])
+            except (TypeError, ValueError):
+                lines = 120
+            result = vm_agent("app_logs", {"name": name, "lines": lines})
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            self.send_json(result)
             return
 
         if path == "/homeassistant":
@@ -3822,6 +3841,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 201)
             return
 
+        if path == "/apps/update-check":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                name = str(data.get("name", "")).strip()
+                result = vm_agent("app_update_check", {"name": name})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "app_update_check", name[:300], self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
         if path == "/apps/action":
             session = self.require_auth()
             if not session:
@@ -3847,6 +3883,7 @@ class Handler(BaseHTTPRequestHandler):
             if not result.get("available"):
                 self.send_json(result, 503)
                 return
+            audit_event(session["username"], "app_action", f"{action}:{name}"[:500], self.client_ip())
             self.send_json(result)
             return
 
