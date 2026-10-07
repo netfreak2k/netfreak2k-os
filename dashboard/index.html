@@ -104,6 +104,7 @@
             <button class="nav-item nav-subitem" data-target="security-panel"><span>◆</span>Benutzer & Sicherheit</button>
             <button class="nav-item nav-subitem" data-target="scheduler-panel"><span>◷</span>Jobs & Scheduler</button>
             <button class="nav-item nav-subitem" data-target="events-panel"><span>≡</span>Logs & Ereignisse</button>
+            <button class="nav-item nav-subitem" data-target="recovery-panel"><span>⚕</span>Recovery</button>
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
@@ -837,6 +838,56 @@
             <section class="health-alerts-card">
               <div class="health-card-head"><div><small>WARNUNGEN</small><strong>Was braucht Aufmerksamkeit?</strong></div><span id="health-alert-count" class="health-badge">0</span></div>
               <div id="health-alert-list" class="health-alert-list"><div class="health-empty">Keine Warnungen geladen.</div></div>
+            </section>
+          </article>
+
+          <article id="recovery-panel" class="panel recovery-panel section-anchor">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">N2K RECOVERY CENTER</p>
+                <h2>Recovery & Notfallmodus</h2>
+                <p>Sichere Diagnose, Recovery-Punkte und begrenzte Reparaturaktionen für kritische Situationen.</p>
+              </div>
+              <button id="recovery-refresh" class="secondary compact">↻ Prüfen</button>
+            </div>
+
+            <div class="recovery-kpi-grid">
+              <section><small>HEALTH</small><strong id="recovery-health-score">–</strong><span id="recovery-health-state">–</span></section>
+              <section><small>CHECKS</small><strong id="recovery-check-count">–</strong><span>Recovery-Prüfungen</span></section>
+              <section><small>LETZTES BACKUP</small><strong id="recovery-latest-backup">–</strong><span id="recovery-latest-backup-meta">–</span></section>
+              <section><small>UPDATE-RECOVERY</small><strong id="recovery-update-backup">–</strong><span id="recovery-update-backup-meta">–</span></section>
+            </div>
+
+            <section class="recovery-card">
+              <div class="recovery-section-head">
+                <div><small>DIAGNOSE</small><strong>Recovery-Checks</strong></div>
+                <span id="recovery-ready-badge" class="health-badge">LÄDT</span>
+              </div>
+              <div id="recovery-check-list" class="recovery-check-list">
+                <div class="app-empty">Recovery-Checks werden geladen …</div>
+              </div>
+            </section>
+
+            <section class="recovery-card">
+              <div class="recovery-section-head">
+                <div><small>SICHERE AKTIONEN</small><strong>Begrenzte Reparaturwerkzeuge</strong></div>
+                <span>Admin-only</span>
+              </div>
+              <div id="recovery-action-list" class="recovery-action-grid">
+                <div class="app-empty">Recovery-Aktionen werden geladen …</div>
+              </div>
+              <div class="recovery-warning">
+                Kein automatischer Komplett-Rollback: Wiederherstellungen erfolgen weiterhin bewusst im Backup-Bereich mit Integritätsprüfung und Doppelbestätigung.
+              </div>
+            </section>
+
+            <section class="recovery-card">
+              <div class="recovery-section-head">
+                <div><small>AKTUELLE WARNUNGEN</small><strong>Was blockiert das System?</strong></div>
+              </div>
+              <div id="recovery-warning-list" class="recovery-warning-list">
+                <div class="app-empty">Warnungen werden geladen …</div>
+              </div>
             </section>
           </article>
 
