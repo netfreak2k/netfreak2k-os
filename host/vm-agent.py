@@ -23,7 +23,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "check_updates",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "storage_status",
+    "app_catalog", "app_install", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -1521,12 +1521,97 @@ def remote_access_renew():
     return remote_access_status_payload()
 
 
+def storage_device_inventory():
+    result = run(
+        "lsblk", "-J", "-b", "-o",
+        "NAME,PATH,PKNAME,TYPE,SIZE,MODEL,VENDOR,SERIAL,TRAN,ROTA,MOUNTPOINTS,FSTYPE,LABEL,UUID,FSAVAIL,FSUSE%",
+        timeout=12,
+    )
+    if result.returncode != 0:
+        return []
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+
+    devices = []
+
+    def walk(item, parent=None):
+        entry = {
+            "name": item.get("name") or "",
+            "path": item.get("path") or "",
+            "parent": item.get("pkname") or parent or "",
+            "type": item.get("type") or "",
+            "size_bytes": item.get("size"),
+            "model": str(item.get("model") or "").strip(),
+            "vendor": str(item.get("vendor") or "").strip(),
+            "serial": str(item.get("serial") or "").strip(),
+            "transport": item.get("tran") or "",
+            "rotational": bool(item.get("rota")),
+            "mountpoints": [m for m in (item.get("mountpoints") or []) if m],
+            "filesystem": item.get("fstype") or "",
+            "label": item.get("label") or "",
+            "uuid": item.get("uuid") or "",
+            "fs_available_bytes": item.get("fsavail"),
+            "fs_used_percent": item.get("fsuse%"),
+        }
+        entry["managed_mount"] = next((m for m in entry["mountpoints"] if str(m).startswith("/mnt/netfreak2k/")), "")
+        entry["mounted"] = bool(entry["mountpoints"])
+        entry["mountable"] = (
+            entry["type"] in {"part", "disk"} and
+            bool(entry["filesystem"]) and
+            not entry["mounted"] and
+            entry["filesystem"] not in {"swap", "crypto_LUKS", "LVM2_member"}
+        )
+        devices.append(entry)
+        for child in item.get("children") or []:
+            walk(child, item.get("name") or parent)
+
+    for root in payload.get("blockdevices") or []:
+        walk(root)
+    return devices
+
+
+def storage_raid_payload():
+    mdstat = read_text_value("/proc/mdstat")
+    arrays = []
+    for line in mdstat.splitlines():
+        match = re.match(r"^(md\d+)\s*:\s*(\w+)\s+(\w+)\s+(.+)$", line.strip())
+        if match:
+            members = re.findall(r"([A-Za-z0-9._-]+)\[\d+\]", match.group(4))
+            arrays.append({
+                "name": match.group(1),
+                "state": match.group(2),
+                "level": match.group(3),
+                "members": members,
+            })
+
+    zpools = []
+    if shutil.which("zpool"):
+        result = run("zpool", "list", "-H", "-o", "name,size,alloc,free,health", timeout=10)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                parts = line.split("\t")
+                if len(parts) >= 5:
+                    zpools.append({
+                        "name": parts[0],
+                        "size": parts[1],
+                        "allocated": parts[2],
+                        "free": parts[3],
+                        "health": parts[4],
+                    })
+    return {"mdraid": arrays, "zpools": zpools}
+
+
 def storage_payload():
     usage = shutil.disk_usage("/")
     used = usage.total - usage.free
     percent = round((used / usage.total) * 100, 1) if usage.total else None
     haos_disk = Path("/var/lib/netfreak2k/haos/haos.qcow2")
     haos_size = haos_disk.stat().st_size if haos_disk.exists() else None
+    devices = storage_device_inventory()
+    smart = smart_health_payload()
     return {
         "host": {
             "total_bytes": usage.total,
@@ -1535,7 +1620,68 @@ def storage_payload():
             "used_percent": percent,
         },
         "haos_disk_bytes": haos_size,
+        "devices": devices,
+        "smart": smart,
+        "raid": storage_raid_payload(),
+        "summary": {
+            "disks": sum(1 for item in devices if item.get("type") == "disk"),
+            "partitions": sum(1 for item in devices if item.get("type") == "part"),
+            "mounted": sum(1 for item in devices if item.get("mounted")),
+            "mountable": sum(1 for item in devices if item.get("mountable")),
+        },
     }
+
+
+def storage_mount(device_path):
+    device_path = str(device_path or "").strip()
+    if not re.fullmatch(r"/dev/[A-Za-z0-9._/+:-]+", device_path):
+        raise RuntimeError("invalid_storage_device")
+    inventory = storage_device_inventory()
+    item = next((row for row in inventory if row.get("path") == device_path), None)
+    if not item:
+        raise RuntimeError("storage_device_not_found")
+    if not item.get("mountable"):
+        raise RuntimeError("storage_device_not_mountable")
+    if item.get("mounted"):
+        raise RuntimeError("storage_device_already_mounted")
+
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", item.get("label") or item.get("name") or "disk").strip("-")[:64] or "disk"
+    mountpoint = Path("/mnt/netfreak2k") / slug
+    if mountpoint.exists() and any(mountpoint.iterdir()):
+        slug = f"{slug}-{hashlib.sha256(device_path.encode()).hexdigest()[:6]}"
+        mountpoint = Path("/mnt/netfreak2k") / slug
+    mountpoint.mkdir(parents=True, exist_ok=True)
+
+    result = run("mount", device_path, str(mountpoint), timeout=30)
+    if result.returncode != 0:
+        try:
+            mountpoint.rmdir()
+        except OSError:
+            pass
+        raise RuntimeError((result.stderr or result.stdout or "storage_mount_failed").strip()[:500])
+    return {"mounted": True, "device": device_path, "mountpoint": str(mountpoint), "storage": storage_payload()}
+
+
+def storage_unmount(device_path):
+    device_path = str(device_path or "").strip()
+    if not re.fullmatch(r"/dev/[A-Za-z0-9._/+:-]+", device_path):
+        raise RuntimeError("invalid_storage_device")
+    inventory = storage_device_inventory()
+    item = next((row for row in inventory if row.get("path") == device_path), None)
+    if not item:
+        raise RuntimeError("storage_device_not_found")
+    mountpoint = str(item.get("managed_mount") or "")
+    if not mountpoint.startswith("/mnt/netfreak2k/"):
+        raise RuntimeError("storage_mount_not_managed")
+    result = run("umount", device_path, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "storage_unmount_failed").strip()[:500])
+    try:
+        Path(mountpoint).rmdir()
+    except OSError:
+        pass
+    return {"unmounted": True, "device": device_path, "mountpoint": mountpoint, "storage": storage_payload()}
+
 
 
 def vm_list_payload():
@@ -2079,6 +2225,12 @@ def execute(action, request):
 
     if action == "storage_status":
         return storage_payload()
+
+    if action == "storage_mount":
+        return storage_mount(request.get("device"))
+
+    if action == "storage_unmount":
+        return storage_unmount(request.get("device"))
 
     if action == "health_status":
         return health_status_payload()
