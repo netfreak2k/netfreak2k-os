@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-security1">
+  <link rel="stylesheet" href="styles.css?v=20261007-remote1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -597,6 +597,39 @@
               <div id="security-user-list" class="security-list"><div class="app-empty">Benutzer werden geladen …</div></div>
               <div class="security-role-note">
                 <strong>Admin</strong> verwaltet System und Benutzer · <strong>Operator</strong> darf das System bedienen · <strong>Viewer</strong> hat nur Lesezugriff.
+              </div>
+            </section>
+
+            <section id="remote-access-card" class="security-card remote-access-card">
+              <div class="security-card-head">
+                <div><small>HTTPS & REMOTE</small><strong>Sicherer Zugriff</strong></div>
+                <span id="remote-access-badge" class="security-badge">LÄDT</span>
+              </div>
+              <div class="remote-access-summary">
+                <div><small>LOKALES HTTPS</small><strong id="remote-local-url">–</strong><span id="remote-local-note">Gateway wird geprüft</span></div>
+                <div><small>ZERTIFIKAT</small><strong id="remote-cert-state">–</strong><span id="remote-cert-expiry">–</span></div>
+                <div><small>REMOTE</small><strong id="remote-mode-state">Lokal</strong><span id="remote-domain-state">Kein öffentlicher Domain-Zugriff</span></div>
+              </div>
+              <div id="remote-admin-config" class="remote-admin-config">
+                <div class="remote-mode-switch">
+                  <label><input type="radio" name="remote-mode" value="local" checked><span><strong>Nur lokal</strong><small>HTTP + HTTPS im Heimnetz, kein öffentlicher Domain-Zugriff.</small></span></label>
+                  <label><input type="radio" name="remote-mode" value="domain"><span><strong>Eigene Domain + Let's Encrypt</strong><small>Automatisches öffentliches TLS-Zertifikat über DNS und Portfreigaben.</small></span></label>
+                </div>
+                <div id="remote-domain-config" class="remote-domain-config hidden">
+                  <label>Domain<input id="remote-domain" type="text" maxlength="190" placeholder="server.example.de"></label>
+                  <label>E-Mail für Let's Encrypt<input id="remote-email" type="email" maxlength="190" placeholder="admin@example.de"></label>
+                  <div class="remote-requirements">
+                    <strong>Vorher erforderlich</strong>
+                    <span>DNS zeigt auf deine öffentliche IP · TCP 80/443 sind im Router auf den Server weitergeleitet · für Admin-Konten ist 2FA empfohlen.</span>
+                  </div>
+                </div>
+                <div class="security-card-actions">
+                  <button id="remote-save" class="primary compact">Zugriff konfigurieren</button>
+                  <button id="remote-renew" class="secondary compact">Zertifikat prüfen / erneuern</button>
+                </div>
+              </div>
+              <div class="remote-security-note">
+                Der eigentliche N2K-Webcontainer ist nur noch an <strong>127.0.0.1</strong> gebunden. Externe Zugriffe laufen ausschließlich über den gehärteten Nginx-Gateway.
               </div>
             </section>
 
@@ -1334,6 +1367,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-security1"></script>
+  <script src="app.js?v=20261007-remote1"></script>
 </body>
 </html>
