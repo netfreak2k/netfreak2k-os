@@ -1702,11 +1702,109 @@ function renderHealthStatus(data) {
   renderHealthHistoryChart();
 }
 
+function renderMonitoringPolicy(policy = {}) {
+  const setValue = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.value = value;
+  };
+  const setChecked = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.checked = Boolean(value);
+  };
+
+  setValue("monitor-temp-warning", policy.temp_warning ?? 75);
+  setValue("monitor-temp-critical", policy.temp_critical ?? 85);
+  setValue("monitor-storage-warning", policy.storage_warning ?? 80);
+  setValue("monitor-storage-critical", policy.storage_critical ?? 90);
+  setValue("monitor-backup-age", String(policy.backup_max_age_hours ?? 72));
+  setValue("monitor-quiet-start", policy.quiet_start || "22:00");
+  setValue("monitor-quiet-end", policy.quiet_end || "07:00");
+  setChecked("monitor-service-alerts", policy.service_alerts !== false);
+  setChecked("monitor-network-alerts", policy.network_alerts !== false);
+  setChecked("monitor-update-alerts", policy.update_alerts !== false);
+  setChecked("monitor-maintenance-mode", policy.maintenance_mode);
+  setChecked("monitor-quiet-enabled", policy.quiet_enabled);
+
+  const badge = document.getElementById("monitoring-policy-badge");
+  if (badge) {
+    badge.textContent = policy.maintenance_mode ? "WARTUNG" : policy.quiet_active ? "RUHEZEIT" : "AKTIV";
+    badge.className = "health-badge " + (policy.maintenance_mode ? "warn" : "ok");
+  }
+  const quiet = document.getElementById("monitor-quiet-state");
+  if (quiet) {
+    quiet.textContent = policy.quiet_active ? "AKTIV" : policy.quiet_enabled ? "GEPLANT" : "AUS";
+    quiet.className = "status-chip" + (policy.quiet_active ? " good" : "");
+  }
+  setHealthText("monitoring-policy-meta",
+    policy.updated_at ? `Zuletzt geändert ${formatDateTime(Number(policy.updated_at))}` : "Standardregeln aktiv");
+
+  const editable = currentRole === "admin";
+  document.querySelectorAll(".monitoring-automation-card input, .monitoring-automation-card select, #monitoring-policy-save")
+    .forEach(node => { node.disabled = !editable; });
+}
+
+async function loadMonitoringPolicy() {
+  if (!document.getElementById("monitoring-automation-card") && !document.querySelector(".monitoring-automation-card")) return;
+  try {
+    const policy = await request("/api/monitoring/policy", {headers:{}});
+    renderMonitoringPolicy(policy);
+  } catch (error) {
+    console.error(error);
+    const badge = document.getElementById("monitoring-policy-badge");
+    if (badge) {
+      badge.textContent = "FEHLER";
+      badge.className = "health-badge bad";
+    }
+  }
+}
+
+async function saveMonitoringPolicy() {
+  if (currentRole !== "admin") return;
+  const payload = {
+    temp_warning: Number(document.getElementById("monitor-temp-warning")?.value),
+    temp_critical: Number(document.getElementById("monitor-temp-critical")?.value),
+    storage_warning: Number(document.getElementById("monitor-storage-warning")?.value),
+    storage_critical: Number(document.getElementById("monitor-storage-critical")?.value),
+    backup_max_age_hours: Number(document.getElementById("monitor-backup-age")?.value),
+    service_alerts: Boolean(document.getElementById("monitor-service-alerts")?.checked),
+    network_alerts: Boolean(document.getElementById("monitor-network-alerts")?.checked),
+    update_alerts: Boolean(document.getElementById("monitor-update-alerts")?.checked),
+    maintenance_mode: Boolean(document.getElementById("monitor-maintenance-mode")?.checked),
+    quiet_enabled: Boolean(document.getElementById("monitor-quiet-enabled")?.checked),
+    quiet_start: document.getElementById("monitor-quiet-start")?.value || "22:00",
+    quiet_end: document.getElementById("monitor-quiet-end")?.value || "07:00"
+  };
+  const button = document.getElementById("monitoring-policy-save");
+  const original = button?.textContent || "Regeln speichern";
+  if (button) { button.disabled = true; button.textContent = "Speichere …"; }
+  try {
+    const policy = await request("/api/monitoring/policy", {
+      method:"POST",
+      body:JSON.stringify(payload),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    renderMonitoringPolicy(policy);
+    await loadNotifications();
+    showN2KToast("Monitoring-Regeln wurden aktualisiert.", "success");
+  } catch (error) {
+    console.error(error);
+    showN2KToast(
+      error.code === "invalid_monitoring_threshold_order"
+        ? "Warnschwelle muss unter der kritischen Schwelle liegen."
+        : "Monitoring-Regeln konnten nicht gespeichert werden.",
+      "error"
+    );
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function loadSystemHealth() {
   if (!document.getElementById("health-panel") || document.getElementById("app-shell")?.classList.contains("hidden")) return;
   try {
     const data = await request(`/api/health?range=${encodeURIComponent(healthRange)}`, {headers:{}});
     renderHealthStatus(data);
+    await loadMonitoringPolicy();
   } catch (error) {
     console.error(error);
     setHealthText("health-overall", "Monitoring nicht erreichbar");
@@ -4216,6 +4314,7 @@ document.getElementById("network-device-analyze")?.addEventListener("click", ana
 document.getElementById("network-device-wake")?.addEventListener("click", wakeNetworkDevice);
 
 document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
+document.getElementById("monitoring-policy-save")?.addEventListener("click", saveMonitoringPolicy);
 document.querySelectorAll("[data-health-range]").forEach(button => button.addEventListener("click", () => {
   healthRange = button.dataset.healthRange || "24h";
   document.querySelectorAll("[data-health-range]").forEach(item => item.classList.toggle("active", item === button));
