@@ -1634,14 +1634,14 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 360 if action == "backup_create" else 90 if action in {"network_scan","network_device_analyze"} else 8)
+        client.settimeout(900 if action == "app_install" else 360 if action == "backup_create" else 150 if action in {"network_scan","network_device_analyze"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
             request.update(extra)
         client.sendall((json.dumps(request) + "\n").encode("utf-8"))
         raw = b""
-        while b"\n" not in raw and len(raw) < 65536:
+        while b"\n" not in raw and len(raw) < 1024 * 1024:
             chunk = client.recv(65536)
             if not chunk:
                 break
