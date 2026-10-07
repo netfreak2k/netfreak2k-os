@@ -40,3 +40,6 @@
 
 .media-radio-status{margin-top:8px;font-size:7px;color:#73808d;min-height:12px}
 .media-station-logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;background:#111}
+
+.media-protocols span.available{color:#79efb8;border-color:rgba(83,224,164,.22);background:rgba(49,166,118,.08)}
+.media-protocols span.planned{color:#d8bd79;border-color:rgba(226,191,101,.18);background:rgba(180,142,57,.06)}
