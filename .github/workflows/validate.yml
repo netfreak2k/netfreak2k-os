@@ -197,6 +197,17 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Storage 2.0 sanity
+        run: |
+          grep -q 'storage-inventory-card' dashboard/index.html
+          grep -q 'renderStorageInventory' dashboard/app.js
+          grep -q '/storage/mount' server/api/server.py
+          grep -q '/storage/unmount' server/api/server.py
+          grep -q 'storage_device_inventory' host/vm-agent.py
+          grep -q 'storage_mount_not_managed' host/vm-agent.py
+          grep -q 'storage_raid_payload' host/vm-agent.py
+          grep -q 'storage-device-row' dashboard/styles.css
+
       - name: Hardware Maintenance sanity
         run: |
           grep -q 'hardware-maintenance-card' dashboard/index.html
