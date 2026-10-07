@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-network1">
-  <link rel="stylesheet" href="media-center.css?v=20261007-rds1">
+  <link rel="stylesheet" href="styles.css?v=20261007-polish1">
+  <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -136,7 +136,7 @@
 
         <div id="top-media-player" class="top-media-player" aria-label="N2K Media Steuerung">
           <button class="top-media-open" data-target-view="media-center-panel" title="N2K Media Center öffnen">
-            <span class="top-media-art">♪</span>
+            <span id="top-media-art" class="top-media-art"><span>♪</span></span>
             <span class="top-media-copy"><small id="top-media-status">MEDIA · BEREIT</small><strong id="top-media-title">Noch kein Titel</strong><em id="top-media-subtitle">Radio · Eigene Musik · Streaming</em></span>
           </button>
           <label class="top-media-volume" title="Lautstärke">
@@ -691,11 +691,8 @@
                 <span id="network-last-scan">Noch kein Scan</span>
               </div>
 
-              <div class="network-device-table-wrap">
-                <table class="network-device-table">
-                  <thead><tr><th>Status</th><th>Gerät</th><th>IP / MAC</th><th>Hersteller</th><th>Typ</th><th>Ping</th><th>Zuletzt gesehen</th><th></th></tr></thead>
-                  <tbody id="network-device-list"><tr><td colspan="8" class="network-device-empty">Starte den ersten Netzwerkscan.</td></tr></tbody>
-                </table>
+              <div id="network-device-list" class="network-device-card-grid">
+                <div class="network-device-empty">Starte den ersten Netzwerkscan.</div>
               </div>
             </section>
 
@@ -1099,6 +1096,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-network1"></script>
+  <script src="app.js?v=20261007-polish1"></script>
 </body>
 </html>

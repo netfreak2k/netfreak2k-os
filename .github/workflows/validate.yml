@@ -170,6 +170,7 @@ jobs:
           grep -q '/media/radio/metadata' server/api/server.py
           grep -q 'media-rds-badge' dashboard/index.html
           grep -q 'top-media-volume' dashboard/index.html
+          grep -q 'top-media-art' dashboard/index.html
           grep -q 'system-nav-group' dashboard/index.html
           grep -q 'overview-cpu-cores' dashboard/index.html
           grep -q 'cpu_topology' server/api/server.py
@@ -185,6 +186,8 @@ jobs:
       - name: Network inventory sanity
         run: |
           grep -q 'network-device-inventory' dashboard/index.html
+          grep -q 'network-device-card-grid' dashboard/index.html
+          grep -q 'network-device-card' dashboard/styles.css
           grep -q 'scanNetworkInventory' dashboard/app.js
           grep -q 'network_device_analyze' host/vm-agent.py
           grep -q 'network_scan_payload' host/vm-agent.py
