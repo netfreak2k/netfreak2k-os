@@ -4990,11 +4990,26 @@ function renderReleaseReadiness(data = {}) {
     manual.forEach(item => {
       const row = document.createElement("div");
       row.className = "release-manual-row";
-      row.innerHTML = "<span></span><div><strong></strong><small></small></div>";
+      row.innerHTML = "<span></span><div class='release-manual-copy'><strong></strong><small></small><em></em></div><button class='secondary compact release-gate-toggle'></button>";
       row.querySelector("span").textContent = item.complete ? "✓" : "!";
       row.querySelector("span").className = item.complete ? "done" : "open";
       row.querySelector("strong").textContent = item.label || item.id || "Freigabe";
       row.querySelector("small").textContent = item.detail || "–";
+      const meta = row.querySelector("em");
+      meta.textContent = item.complete
+        ? `Bestätigt${item.confirmed_by ? " von " + item.confirmed_by : ""}${item.confirmed_at ? " · " + formatDateTime(Number(item.confirmed_at)) : ""}`
+        : "Noch offen";
+      const button = row.querySelector(".release-gate-toggle");
+      if (item.can_confirm === false) {
+        button.textContent = "Nur per LICENSE";
+        button.disabled = true;
+        button.title = "Dieser Gate wird erst durch eine tatsächlich committe Projektlizenz freigegeben.";
+      } else {
+        button.textContent = item.complete ? "Wieder öffnen" : "Bestätigen";
+        button.disabled = currentRole !== "admin";
+        button.title = currentRole !== "admin" ? "Nur Administratoren können Release-Gates bestätigen." : "";
+        button.addEventListener("click", () => updateReleaseGate(item.id, !item.complete, button));
+      }
       manualList.appendChild(row);
     });
     if (!manual.length) manualList.innerHTML = '<div class="app-empty">Keine manuellen Release-Gates hinterlegt.</div>';
@@ -5012,6 +5027,35 @@ async function loadReleaseReadiness() {
     if (badge) {
       badge.textContent = "FEHLER";
       badge.className = "health-badge bad";
+    }
+  }
+}
+
+async function updateReleaseGate(gateId, complete, button) {
+  if (currentRole !== "admin" || !gateId) return;
+  const action = complete ? "als erfolgreich bestätigen" : "wieder öffnen";
+  if (!confirm(`Release-Gate wirklich ${action}?`)) return;
+  const original = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = complete ? "Bestätige …" : "Öffne …";
+  }
+  try {
+    const result = await request("/api/release/readiness/gate", {
+      method:"POST",
+      body:JSON.stringify({gate_id:gateId, complete}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    renderReleaseReadiness(result);
+    showN2KToast(complete ? "Release-Gate wurde bestätigt." : "Release-Gate wurde wieder geöffnet.", "success");
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Release-Gate konnte nicht aktualisiert werden.", "error");
+    await loadReleaseReadiness();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
     }
   }
 }
