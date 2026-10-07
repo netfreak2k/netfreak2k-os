@@ -2783,6 +2783,10 @@ let mediaInitialized = false;
 let mediaAudioContext = null;
 let mediaEqFilters = [];
 let mediaSourceNode = null;
+let mediaAnalyser = null;
+let mediaSpectrumFrame = null;
+let mediaSpectrumData = null;
+let mediaTimeData = null;
 
 function ensureMediaAudio() {
   if (mediaAudio) return mediaAudio;
@@ -2852,14 +2856,21 @@ function updateMediaPlaybackUi() {
   const playing = !audio.paused && Boolean(audio.src);
   const station = mediaCurrentStation();
   const play = document.getElementById("media-play");
-  const topState = document.getElementById("top-media-state");
   const topTitle = document.getElementById("top-media-title");
+  const topPlay = document.getElementById("top-media-play");
+  const topPause = document.getElementById("top-media-pause");
+  const topMute = document.getElementById("top-media-mute");
   const liveDot = document.getElementById("media-live-dot");
   const visualizer = document.querySelector(".media-visualizer");
 
   if (play) play.textContent = playing ? "Ⅱ" : "▶";
-  if (topState) topState.textContent = playing ? "Ⅱ" : "▶";
   if (topTitle) topTitle.textContent = station ? station.name : "Bereit";
+  if (topPlay) topPlay.classList.toggle("active", playing);
+  if (topPause) topPause.classList.toggle("active", Boolean(mediaAudio?.paused && mediaAudio?.src));
+  if (topMute) {
+    topMute.textContent = mediaAudio?.muted ? "🔇" : "🔊";
+    topMute.classList.toggle("active", Boolean(mediaAudio?.muted));
+  }
   const overviewTitle = document.getElementById("overview-media-title");
   const overviewSubtitle = document.getElementById("overview-media-subtitle");
   const overviewPlay = document.getElementById("overview-media-play");
@@ -2869,7 +2880,7 @@ function updateMediaPlaybackUi() {
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
   if (liveDot) liveDot.classList.toggle("active", playing);
-  if (visualizer) visualizer.classList.toggle("is-playing", playing);
+  if (visualizer) visualizer.classList.toggle("has-signal", playing);
 
   if (station) {
     updateMediaSessionMetadata();
@@ -3063,6 +3074,10 @@ async function playMediaStation(index) {
   const station = mediaStations[index];
   if (!station) return;
   const audio = ensureMediaAudio();
+  ensureMediaEqGraph();
+  if (mediaAudioContext?.state === "suspended") {
+    try { await mediaAudioContext.resume(); } catch (_) {}
+  }
   mediaStationIndex = index;
   if (audio.src !== station.url) {
     audio.src = station.url;
@@ -3401,32 +3416,148 @@ function ensureMediaEqGraph() {
       filter.gain.value = 0;
       return filter;
     });
+    mediaAnalyser = mediaAudioContext.createAnalyser();
+    mediaAnalyser.fftSize = 2048;
+    mediaAnalyser.smoothingTimeConstant = 0.72;
+    mediaAnalyser.minDecibels = -100;
+    mediaAnalyser.maxDecibels = -20;
+    mediaSpectrumData = new Uint8Array(mediaAnalyser.frequencyBinCount);
+    mediaTimeData = new Float32Array(mediaAnalyser.fftSize);
+
     let previous = mediaSourceNode;
     for (const filter of mediaEqFilters) {
       previous.connect(filter);
       previous = filter;
     }
-    previous.connect(mediaAudioContext.destination);
+    previous.connect(mediaAnalyser);
+    mediaAnalyser.connect(mediaAudioContext.destination);
+    startMediaSpectrum();
   } catch (error) {
     console.warn("N2K DSP unavailable", error);
     mediaAudioContext = null;
     mediaEqFilters = [];
     mediaSourceNode = null;
+    mediaAnalyser = null;
   }
+}
+
+function spectrumDbFromByte(value) {
+  if (!mediaAnalyser) return -100;
+  const span = mediaAnalyser.maxDecibels - mediaAnalyser.minDecibels;
+  return mediaAnalyser.minDecibels + (Number(value) / 255) * span;
+}
+
+function updateEqBandMeters() {
+  if (!mediaAnalyser || !mediaSpectrumData || !mediaAudioContext) return;
+  const centers = [32,64,125,250,500,1000,2000,4000,8000,16000];
+  const nyquist = mediaAudioContext.sampleRate / 2;
+  centers.forEach((frequency,index) => {
+    const bin = Math.max(0, Math.min(mediaSpectrumData.length - 1, Math.round((frequency / nyquist) * mediaSpectrumData.length)));
+    const level = spectrumDbFromByte(mediaSpectrumData[bin]);
+    const node = document.querySelector(`[data-eq-level="${index}"]`);
+    if (node) node.textContent = Number.isFinite(level) ? `${Math.round(level)} dB` : "– dB";
+  });
+}
+
+function drawMediaSpectrum() {
+  const canvas = document.getElementById("media-spectrum");
+  if (!canvas || !mediaAnalyser || !mediaSpectrumData || !mediaTimeData) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  mediaAnalyser.getByteFrequencyData(mediaSpectrumData);
+  mediaAnalyser.getFloatTimeDomainData(mediaTimeData);
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(5,10,18,.62)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(255,255,255,.055)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i += 1) {
+    const y = (height * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  const bars = 56;
+  const minFreq = 28;
+  const maxFreq = Math.min(18000, mediaAudioContext.sampleRate / 2);
+  const nyquist = mediaAudioContext.sampleRate / 2;
+  let maxValue = 0;
+  for (let i = 0; i < bars; i += 1) {
+    const t0 = i / bars;
+    const t1 = (i + 1) / bars;
+    const f0 = minFreq * Math.pow(maxFreq / minFreq, t0);
+    const f1 = minFreq * Math.pow(maxFreq / minFreq, t1);
+    const b0 = Math.max(0, Math.floor((f0 / nyquist) * mediaSpectrumData.length));
+    const b1 = Math.max(b0 + 1, Math.min(mediaSpectrumData.length, Math.ceil((f1 / nyquist) * mediaSpectrumData.length)));
+    let value = 0;
+    for (let b = b0; b < b1; b += 1) value = Math.max(value, mediaSpectrumData[b]);
+    maxValue = Math.max(maxValue, value);
+    const normalized = value / 255;
+    const barHeight = Math.max(1, normalized * (height - 18));
+    const x = (i / bars) * width;
+    const barWidth = Math.max(2, width / bars - 3);
+    const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+    gradient.addColorStop(0, "rgba(218,88,255,.92)");
+    gradient.addColorStop(1, "rgba(85,186,255,.82)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+  }
+
+  let sum = 0;
+  let peak = 0;
+  for (const sample of mediaTimeData) {
+    const abs = Math.abs(sample);
+    peak = Math.max(peak, abs);
+    sum += sample * sample;
+  }
+  const rms = Math.sqrt(sum / Math.max(1, mediaTimeData.length));
+  const peakDb = peak > 0 ? 20 * Math.log10(peak) : -100;
+  const rmsDb = rms > 0 ? 20 * Math.log10(rms) : -100;
+  const peakNode = document.getElementById("media-spectrum-peak");
+  const rmsNode = document.getElementById("media-spectrum-rms");
+  const stateNode = document.getElementById("media-spectrum-state");
+  if (peakNode) peakNode.textContent = `${Math.max(-100, peakDb).toFixed(1)} dBFS`;
+  if (rmsNode) rmsNode.textContent = `${Math.max(-100, rmsDb).toFixed(1)} dBFS`;
+  if (stateNode) {
+    if (!ensureMediaAudio().src) stateNode.textContent = "Kein Stream";
+    else if (ensureMediaAudio().paused) stateNode.textContent = "Pausiert";
+    else if (maxValue <= 1) stateNode.textContent = "Kein messbares Signal";
+    else stateNode.textContent = "Live Audiodaten";
+  }
+  updateEqBandMeters();
+}
+
+function startMediaSpectrum() {
+  if (mediaSpectrumFrame) return;
+  const tick = () => {
+    mediaSpectrumFrame = requestAnimationFrame(tick);
+    drawMediaSpectrum();
+  };
+  mediaSpectrumFrame = requestAnimationFrame(tick);
 }
 
 function applyMediaEq() {
   ensureMediaEqGraph();
+  if (mediaAudioContext?.state === "suspended") mediaAudioContext.resume().catch(() => {});
   const inputs = Array.from(document.querySelectorAll("#media-equalizer input[data-eq]"));
   inputs.forEach((input,index) => {
     if (mediaEqFilters[index]) mediaEqFilters[index].gain.value = Number(input.value) || 0;
   });
   const mode = document.getElementById("media-eq-mode");
-  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv" : "EQ Oberfläche · System-DSP folgt";
+  if (mode) mode.textContent = mediaEqFilters.length ? "DSP aktiv · Echtzeitmessung" : "DSP nicht verfügbar";
 }
 
-async function toggleMediaPlayback() {
+async function playMediaPlayback() {
   const audio = ensureMediaAudio();
+  ensureMediaEqGraph();
+  if (mediaAudioContext?.state === "suspended") {
+    try { await mediaAudioContext.resume(); } catch (_) {}
+  }
   if (!audio.src) {
     const first = filteredMediaStations()[0];
     if (first) {
@@ -3439,12 +3570,40 @@ async function toggleMediaPlayback() {
       return;
     }
   }
-  if (audio.paused) {
-    try { await audio.play(); } catch (error) { console.error(error); }
-  } else {
-    audio.pause();
-  }
+  try { await audio.play(); } catch (error) { console.error(error); }
   updateMediaPlaybackUi();
+}
+
+function pauseMediaPlayback() {
+  const audio = ensureMediaAudio();
+  if (audio.src) audio.pause();
+  updateMediaPlaybackUi();
+}
+
+function stopMediaPlayback() {
+  const audio = ensureMediaAudio();
+  audio.pause();
+  audio.removeAttribute("src");
+  audio.load();
+  mediaStationIndex = -1;
+  const title = document.getElementById("media-title");
+  const subtitle = document.getElementById("media-subtitle");
+  if (title) title.textContent = "Wiedergabe gestoppt";
+  if (subtitle) subtitle.textContent = "Wähle einen Sender oder Streaming-Dienst.";
+  updateMediaPlaybackUi();
+  updateMediaFavoriteButton();
+}
+
+function toggleMediaMute() {
+  const audio = ensureMediaAudio();
+  audio.muted = !audio.muted;
+  updateMediaPlaybackUi();
+}
+
+async function toggleMediaPlayback() {
+  const audio = ensureMediaAudio();
+  if (audio.src && !audio.paused) pauseMediaPlayback();
+  else await playMediaPlayback();
 }
 
 function initMediaCenter() {
@@ -3471,6 +3630,12 @@ function initMediaCenter() {
   document.getElementById("overview-media-play")?.addEventListener("click", toggleMediaPlayback);
   document.getElementById("overview-media-prev")?.addEventListener("click", () => stepMediaStation(-1));
   document.getElementById("overview-media-next")?.addEventListener("click", () => stepMediaStation(1));
+  document.getElementById("top-media-prev")?.addEventListener("click", () => stepMediaStation(-1));
+  document.getElementById("top-media-play")?.addEventListener("click", playMediaPlayback);
+  document.getElementById("top-media-pause")?.addEventListener("click", pauseMediaPlayback);
+  document.getElementById("top-media-stop")?.addEventListener("click", stopMediaPlayback);
+  document.getElementById("top-media-next")?.addEventListener("click", () => stepMediaStation(1));
+  document.getElementById("top-media-mute")?.addEventListener("click", toggleMediaMute);
   document.getElementById("media-prev")?.addEventListener("click", () => stepMediaStation(-1));
   document.getElementById("media-next")?.addEventListener("click", () => stepMediaStation(1));
   document.getElementById("media-favorite")?.addEventListener("click", () => {
@@ -3482,9 +3647,12 @@ function initMediaCenter() {
   });
   document.getElementById("media-volume")?.addEventListener("input", event => {
     const value = Number(event.target.value) || 0;
-    ensureMediaAudio().volume = value / 100;
+    const audio = ensureMediaAudio();
+    audio.volume = value / 100;
+    if (value > 0 && audio.muted) audio.muted = false;
     const copy = document.getElementById("media-volume-value");
     if (copy) copy.textContent = `${value}%`;
+    updateMediaPlaybackUi();
   });
   document.getElementById("media-refresh-devices")?.addEventListener("click", refreshMediaDevices);
   document.querySelectorAll("[data-media-service]").forEach(button => button.addEventListener("click", () => {
