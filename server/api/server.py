@@ -1892,7 +1892,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/media/devices":
             if not self.require_auth():
                 return
-            self.send_json(audio_devices_payload())
+            payload = audio_devices_payload()
+            live = vm_agent("audio_status")
+            payload["routing"] = live if live.get("available") else {
+                "available": False,
+                "error": live.get("error", "audio_agent_unavailable"),
+            }
+            self.send_json(payload)
             return
 
         if path == "/media/radio":
@@ -2036,6 +2042,50 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             self.set_session_response(username)
+            return
+
+        if path == "/media/output":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                node_id = str(data.get("node_id", "")).strip()
+                if not re.fullmatch(r"[0-9]{1,6}", node_id):
+                    raise ValueError("invalid_audio_node")
+                result = vm_agent("audio_set_default", {"node_id": node_id})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/media/bluetooth":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                mac = str(data.get("mac", "")).strip().upper()
+                if action not in {"connect", "disconnect"}:
+                    raise ValueError("invalid_bluetooth_action")
+                if not re.fullmatch(r"(?:[0-9A-F]{2}:){5}[0-9A-F]{2}", mac):
+                    raise ValueError("invalid_bluetooth_mac")
+                mapped = "bluetooth_connect" if action == "connect" else "bluetooth_disconnect"
+                result = vm_agent(mapped, {"mac": mac})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/workspace/upload":
