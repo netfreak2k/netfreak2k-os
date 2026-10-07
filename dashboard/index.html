@@ -634,6 +634,19 @@
                 <div><small>ZERTIFIKAT</small><strong id="remote-cert-state">–</strong><span id="remote-cert-expiry">–</span></div>
                 <div><small>REMOTE</small><strong id="remote-mode-state">Lokal</strong><span id="remote-domain-state">Kein öffentlicher Domain-Zugriff</span></div>
               </div>
+              <div class="remote-connectivity-grid">
+                <section><small>WAN IPv4</small><strong id="remote-public-ip">–</strong><span id="remote-public-ip-note">wird geprüft</span></section>
+                <section><small>DNS → WAN</small><strong id="remote-dns-match">–</strong><span id="remote-dns-values">–</span></section>
+                <section><small>PORTS</small><strong id="remote-port-state">–</strong><span id="remote-port-detail">TCP 80 / 443</span></section>
+                <section><small>HTTPS TEST</small><strong id="remote-selftest-state">–</strong><span id="remote-selftest-detail">–</span></section>
+              </div>
+              <div id="remote-connectivity-checks" class="remote-connectivity-checks">
+                <div class="app-empty">Erreichbarkeit wird geprüft …</div>
+              </div>
+              <div id="remote-outside-note" class="remote-outside-note">
+                Outside-In-Status wird geprüft …
+              </div>
+
               <div id="remote-admin-config" class="remote-admin-config">
                 <div class="remote-mode-switch">
                   <label><input type="radio" name="remote-mode" value="local" checked><span><strong>Nur lokal</strong><small>HTTP + HTTPS im Heimnetz, kein öffentlicher Domain-Zugriff.</small></span></label>
