@@ -22,6 +22,11 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
 
+try:
+    from mutagen import File as MutagenFile
+except Exception:
+    MutagenFile = None
+
 VERSION = os.environ.get("N2K_VERSION", "0.1.0-dev")
 HOST_PROC = Path("/host/proc")
 HOST_ETC = Path("/host/etc")
@@ -58,6 +63,8 @@ _network_enrichment = {"at": 0.0, "data": {}}
 _ping_cache = {"at": 0.0, "value": None}
 _radio_cache = {}
 _radio_cache_lock = threading.Lock()
+_media_meta_cache = {}
+_media_meta_cache_lock = threading.Lock()
 
 
 def db_connect():
@@ -872,6 +879,100 @@ def workspace_list(username, area, rel=""):
     return {"area": area, "path": str(safe_relative(rel)), "items": items}
 
 
+def audio_metadata_for_file(path):
+    path = Path(path)
+    try:
+        stat = path.stat()
+    except OSError:
+        return {}
+    cache_key = (str(path), int(stat.st_mtime), int(stat.st_size))
+    with _media_meta_cache_lock:
+        cached = _media_meta_cache.get(cache_key)
+        if cached is not None:
+            return dict(cached)
+
+    metadata = {
+        "title": path.stem,
+        "artist": "",
+        "album": "",
+        "genre": "",
+        "track_number": "",
+        "duration_seconds": None,
+        "has_artwork": False,
+    }
+    if MutagenFile is not None:
+        try:
+            easy = MutagenFile(path, easy=True)
+            if easy is not None:
+                tags = easy.tags or {}
+                def first(name):
+                    value = tags.get(name)
+                    if isinstance(value, (list, tuple)) and value:
+                        return str(value[0])
+                    return str(value or "")
+                metadata["title"] = first("title") or path.stem
+                metadata["artist"] = first("artist")
+                metadata["album"] = first("album")
+                metadata["genre"] = first("genre")
+                metadata["track_number"] = first("tracknumber")
+                info = getattr(easy, "info", None)
+                length = getattr(info, "length", None)
+                if isinstance(length, (int, float)) and length >= 0:
+                    metadata["duration_seconds"] = round(float(length), 2)
+
+            full = MutagenFile(path, easy=False)
+            if full is not None:
+                pictures = getattr(full, "pictures", None)
+                if pictures:
+                    metadata["has_artwork"] = True
+                tags = getattr(full, "tags", None)
+                if tags:
+                    for value in tags.values():
+                        cls = value.__class__.__name__.lower()
+                        if "apic" in cls or cls == "cover":
+                            metadata["has_artwork"] = True
+                            break
+                    if not metadata["has_artwork"] and hasattr(tags, "get"):
+                        covr = tags.get("covr")
+                        if covr:
+                            metadata["has_artwork"] = True
+        except Exception:
+            pass
+
+    with _media_meta_cache_lock:
+        if len(_media_meta_cache) > 4000:
+            _media_meta_cache.clear()
+        _media_meta_cache[cache_key] = dict(metadata)
+    return metadata
+
+
+def audio_artwork_for_file(path):
+    if MutagenFile is None:
+        return None, None
+    try:
+        full = MutagenFile(path, easy=False)
+        if full is None:
+            return None, None
+        pictures = getattr(full, "pictures", None)
+        if pictures:
+            picture = pictures[0]
+            return bytes(picture.data), str(getattr(picture, "mime", "") or "image/jpeg")
+        tags = getattr(full, "tags", None)
+        if tags:
+            for value in tags.values():
+                if "apic" in value.__class__.__name__.lower() and getattr(value, "data", None):
+                    return bytes(value.data), str(getattr(value, "mime", "") or "image/jpeg")
+            if hasattr(tags, "get"):
+                covr = tags.get("covr")
+                if covr:
+                    raw = bytes(covr[0])
+                    mime = "image/png" if raw.startswith(b"\x89PNG") else "image/jpeg"
+                    return raw, mime
+    except Exception:
+        pass
+    return None, None
+
+
 def media_audio_library(username):
     base = workspace_base(username, "audio").resolve()
     tracks = []
@@ -894,10 +995,18 @@ def media_audio_library(username):
             rel_path = "" if str(rel_parent) == "." else rel_parent.as_posix()
             track_id = hashlib.sha256(f"{rel_path}/{name}".encode("utf-8")).hexdigest()[:24]
             params = f"area=audio&path={quote(rel_path)}&name={quote(name)}"
+            meta = audio_metadata_for_file(target)
             tracks.append({
                 "id": f"local-{track_id}",
                 "name": name,
-                "title": target.stem,
+                "title": meta.get("title") or target.stem,
+                "artist": meta.get("artist") or "",
+                "album": meta.get("album") or "",
+                "genre": meta.get("genre") or "",
+                "track_number": meta.get("track_number") or "",
+                "duration_seconds": meta.get("duration_seconds"),
+                "has_artwork": bool(meta.get("has_artwork")),
+                "artwork_url": f"/api/media/artwork?path={quote(rel_path)}&name={quote(name)}" if meta.get("has_artwork") else "",
                 "path": rel_path,
                 "size_bytes": stat.st_size,
                 "modified_at": int(stat.st_mtime),
@@ -908,9 +1017,13 @@ def media_audio_library(username):
                 break
         if len(tracks) >= 1000:
             break
-    tracks.sort(key=lambda item: (item["path"].lower(), item["name"].lower()))
+    tracks.sort(key=lambda item: (
+        (item.get("artist") or "").lower(),
+        (item.get("album") or "").lower(),
+        (item.get("track_number") or ""),
+        (item.get("title") or item["name"]).lower(),
+    ))
     return {"tracks": tracks, "count": len(tracks), "area": "audio"}
-
 
 def workspace_mkdir(username, area, rel, name):
     if not name or name in {".", ".."} or "/" in name or "\\" in name:
@@ -1974,6 +2087,36 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if path == "/media/artwork":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                rel = (query.get("path") or [""])[0]
+                name = (query.get("name") or [""])[0]
+                if not name or "/" in name or "\\" in name:
+                    raise ValueError("invalid_name")
+                _, parent = workspace_target(session["username"], "audio", rel)
+                target = (parent / name).resolve()
+                base = workspace_base(session["username"], "audio").resolve()
+                if base not in target.parents or not target.is_file():
+                    raise ValueError("not_found")
+                data, mime = audio_artwork_for_file(target)
+                if not data:
+                    self.send_json({"error": "artwork_not_found"}, 404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", mime or "image/jpeg")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "private, max-age=3600")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                if self.command != "HEAD":
+                    self.wfile.write(data)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/media/library":
