@@ -197,6 +197,17 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Monitoring Automation 2.0 sanity
+        run: |
+          grep -q 'monitoring-automation-card' dashboard/index.html
+          grep -q 'loadMonitoringPolicy' dashboard/app.js
+          grep -q '/monitoring/policy' server/api/server.py
+          grep -q 'monitoring_policy_payload' server/api/server.py
+          grep -q 'monitoring_policy_update' server/api/server.py
+          grep -q 'maintenance_mode' server/api/server.py
+          grep -q 'quiet_active' server/api/server.py
+          grep -q 'monitoring-policy-grid' dashboard/styles.css
+
       - name: Security Hardening 2.0 sanity
         run: |
           grep -q 'security-host-hardening' dashboard/index.html
