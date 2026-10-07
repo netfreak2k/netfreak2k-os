@@ -8,7 +8,9 @@ N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 N2K_PUBLIC_HTTP_PORT="${N2K_PUBLIC_HTTP_PORT:-${N2K_HTTP_PORT:-}}"
 N2K_PUBLIC_HTTPS_PORT="${N2K_PUBLIC_HTTPS_PORT:-}"
 N2K_BACKEND_PORT="${N2K_BACKEND_PORT:-18080}"
-ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
+N2K_REF_KIND="heads"
+[[ "${N2K_REF}" =~ ^v[0-9] ]] && N2K_REF_KIND="tags"
+ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/${N2K_REF_KIND}/${N2K_REF}.tar.gz"
 
 log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
 die(){ printf '\n[Netfreak2k] FEHLER: %s\n' "$*" >&2; exit 1; }
