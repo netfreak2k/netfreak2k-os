@@ -3096,7 +3096,12 @@ function restoreMediaPreferences() {
   if (Number.isFinite(volume)) audio.volume = Math.max(0, Math.min(1, volume / 100));
   audio.muted = Boolean(state.muted);
   if (typeof state.country === "string" && /^[A-Z]{2}$/.test(state.country)) mediaCountry = state.country;
-  if (typeof state.section === "string") mediaActiveSection = state.section === "all" ? "home" : state.section;
+  if (typeof state.section === "string") {
+    const legacySettings = new Set(["devices","audio","multiroom","all"]);
+    mediaActiveSection = legacySettings.has(state.section)
+      ? (state.section === "all" ? "home" : "settings")
+      : state.section;
+  }
   mediaShuffle = Boolean(state.shuffle);
   if (["off","all","one"].includes(state.repeat)) mediaRepeat = state.repeat;
   if (Array.isArray(state.queue)) mediaQueue = state.queue.map(String).slice(0, 200);
