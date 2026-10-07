@@ -1,6 +1,6 @@
 # Netfreak2k Server-OS v1.0 Release Checklist
 
-Target candidate: **1.0.0-rc1**
+Release target: **1.0.0**
 
 ## Code freeze
 
@@ -20,9 +20,9 @@ Target candidate: **1.0.0-rc1**
 - [ ] Home Assistant OS provisioning/startup verified after fresh install
 - [ ] HTTPS local gateway verified on ports selected by installer
 - [ ] Mobile UI pass on phone-sized viewport
-- [ ] Project-wide license for Netfreak2k-owned code selected and committed (decision aid: `docs/LICENSE_DECISION.md`)
+- [x] Project-wide license selected and committed: AGPL-3.0-only
 - [x] THIRD_PARTY_NOTICES.md reviewed against installer, API container dependencies and managed app catalog
-- [ ] Stable VERSION changed from 1.0.0-rc1 to 1.0.0
+- [x] Stable VERSION changed from 1.0.0-rc1 to 1.0.0
 - [ ] Stable release/tag created only after the gates above are complete
 
 ## Real-host verification
@@ -50,6 +50,6 @@ The codebase and current release-readiness UI are validated on GitHub Actions. T
 4. **Home Assistant OS startup verification** on the target host.
 5. **HTTPS gateway verification** on the installer-selected ports.
 6. **Mobile UI pass** on a phone-sized browser.
-7. **Explicit Netfreak2k project license decision** and committed LICENSE file.
+7. **Project license** is complete: AGPL-3.0-only.
 
 The in-product Recovery Center now exposes the technical host-readiness checks so these can be verified without relying on terminal-only workflows.
