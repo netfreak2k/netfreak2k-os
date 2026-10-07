@@ -41,6 +41,11 @@ jobs:
       - name: Validate server compose
         run: docker compose -f server/docker-compose.yml config
 
+      - name: Generate test TLS certificate
+        run: |
+          sudo mkdir -p /var/lib/netfreak2k/tls
+          sudo N2K_TLS_DIR=/var/lib/netfreak2k/tls bash scripts/generate-tls.sh
+
       - name: Build server containers
         run: docker compose -f server/docker-compose.yml build
 
@@ -182,6 +187,18 @@ jobs:
           grep -q 'pipewire-pulse' install.sh
           grep -q 'libspa-0.2-bluetooth' scripts/update-server.sh
           grep -q '/media/multiroom' server/api/server.py
+
+      - name: Remote HTTPS sanity
+        run: |
+          grep -q 'remote-panel' dashboard/index.html
+          grep -q 'loadRemoteAccess' dashboard/app.js
+          grep -q '/remote-access' server/api/server.py
+          grep -q 'listen 443 ssl' server/nginx.conf
+          grep -q 'N2K_HTTPS_PORT' server/docker-compose.yml
+          grep -q 'generate-tls.sh' install.sh
+          grep -q 'generate-tls.sh' scripts/update-server.sh
+          test -f scripts/generate-tls.sh
+          bash -n scripts/generate-tls.sh
 
       - name: Users Security sanity
         run: |
