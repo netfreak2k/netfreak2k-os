@@ -760,7 +760,13 @@
                 <button id="ha-shutdown" class="danger">⏻ Herunterfahren</button>
               </div>
             </section>
-            <div id="vm-list" class="vm-list">
+            <div class="vm-kpi-grid">
+              <section><small>VMs</small><strong id="vm-count-total">–</strong><span>virtuelle Maschinen</span></section>
+              <section><small>AKTIV</small><strong id="vm-count-running">–</strong><span>laufende VMs</span></section>
+              <section><small>AUTOSTART</small><strong id="vm-count-autostart">–</strong><span>beim Hoststart</span></section>
+              <section><small>SNAPSHOTS</small><strong id="vm-count-snapshots">–</strong><span>Wiederherstellungspunkte</span></section>
+            </div>
+            <div id="vm-list" class="vm-list vm-list-v2">
               <div class="app-empty">VM-Liste wird geladen …</div>
             </div>
           </article>
