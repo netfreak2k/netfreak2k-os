@@ -188,6 +188,25 @@ def db_connect():
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_health_samples_time ON health_samples(sampled_at)")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_key TEXT NOT NULL UNIQUE,
+            source TEXT NOT NULL,
+            level TEXT NOT NULL,
+            title TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            target TEXT NOT NULL DEFAULT '',
+            first_seen INTEGER NOT NULL,
+            last_seen INTEGER NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            read_at INTEGER,
+            resolved_at INTEGER
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notifications_active ON notifications(active, last_seen DESC)")
     columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)").fetchall()}
     if "uid" not in columns:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN uid TEXT")
@@ -1852,6 +1871,190 @@ def system_health_payload(period="24h"):
     }
 
 
+
+def notification_target_for_kind(kind):
+    return {
+        "temperature": "health-panel",
+        "storage": "storage-panel",
+        "smart": "health-panel",
+        "service": "health-panel",
+        "docker": "health-panel",
+        "haos": "vms-panel",
+        "backup": "backups-panel",
+        "network_device": "network-panel",
+        "update": "updates-panel",
+    }.get(str(kind or ""), "health-panel")
+
+
+def collect_notification_candidates():
+    candidates = []
+    host = vm_agent("health_status")
+    if host.get("available"):
+        for warning in host.get("warnings") or []:
+            kind = str(warning.get("kind") or "health")[:40]
+            title = str(warning.get("title") or "Systemhinweis")[:180]
+            detail = str(warning.get("detail") or "")[:500]
+            level = str(warning.get("level") or "warning")
+            if level not in {"info", "warning", "critical"}:
+                level = "warning"
+            stable = hashlib.sha256(f"{kind}|{title}".encode("utf-8")).hexdigest()[:24]
+            candidates.append({
+                "event_key": f"health:{stable}",
+                "source": "system",
+                "level": level,
+                "title": title,
+                "detail": detail,
+                "target": notification_target_for_kind(kind),
+            })
+
+    inventory = vm_agent("network_inventory")
+    if inventory.get("available"):
+        for device in inventory.get("devices") or []:
+            if not device.get("online") or not device.get("new"):
+                continue
+            device_id = str(device.get("id") or "")
+            if not re.fullmatch(r"[0-9a-f]{20}", device_id):
+                continue
+            name = str(device.get("name") or device.get("hostname") or device.get("ip") or "Unbekanntes Gerät")[:120]
+            facts = [str(device.get("ip") or "").strip(), str(device.get("vendor") or "").strip()]
+            detail = " · ".join(item for item in facts if item)[:500]
+            candidates.append({
+                "event_key": f"network:new:{device_id}",
+                "source": "network",
+                "level": "info",
+                "title": f"Neues Gerät im Heimnetz: {name}"[:180],
+                "detail": detail,
+                "target": "network-panel",
+            })
+
+    updates = update_payload()
+    if updates.get("available") and updates.get("update_available"):
+        remote = str(updates.get("remote_fingerprint") or "")[:32]
+        candidates.append({
+            "event_key": "update:available",
+            "source": "update",
+            "level": "info",
+            "title": "Netfreak2k-Update verfügbar",
+            "detail": f"Neuer Stand erkannt{f' · {remote}' if remote else ''}.",
+            "target": "updates-panel",
+        })
+    return candidates
+
+
+def sync_system_notifications():
+    now = int(time.time())
+    candidates = collect_notification_candidates()
+    active_keys = {item["event_key"] for item in candidates}
+
+    with db_connect() as conn:
+        current_rows = {
+            row[0]: {"active": bool(row[1]), "read_at": row[2]}
+            for row in conn.execute("SELECT event_key,active,read_at FROM notifications").fetchall()
+        }
+
+        for item in candidates:
+            existing = current_rows.get(item["event_key"])
+            if existing is None:
+                conn.execute(
+                    """INSERT INTO notifications
+                       (event_key,source,level,title,detail,target,first_seen,last_seen,active,read_at,resolved_at)
+                       VALUES (?,?,?,?,?,?,?,?,1,NULL,NULL)""",
+                    (
+                        item["event_key"], item["source"], item["level"], item["title"], item["detail"],
+                        item["target"], now, now,
+                    ),
+                )
+            elif existing["active"]:
+                conn.execute(
+                    """UPDATE notifications
+                       SET source=?,level=?,title=?,detail=?,target=?,last_seen=?,active=1,resolved_at=NULL
+                       WHERE event_key=?""",
+                    (
+                        item["source"], item["level"], item["title"], item["detail"],
+                        item["target"], now, item["event_key"],
+                    ),
+                )
+            else:
+                conn.execute(
+                    """UPDATE notifications
+                       SET source=?,level=?,title=?,detail=?,target=?,first_seen=?,last_seen=?,
+                           active=1,read_at=NULL,resolved_at=NULL
+                       WHERE event_key=?""",
+                    (
+                        item["source"], item["level"], item["title"], item["detail"],
+                        item["target"], now, now, item["event_key"],
+                    ),
+                )
+
+        rows = conn.execute("SELECT event_key FROM notifications WHERE active=1").fetchall()
+        for row in rows:
+            event_key = row[0]
+            if event_key not in active_keys:
+                conn.execute(
+                    "UPDATE notifications SET active=0,resolved_at=? WHERE event_key=?",
+                    (now, event_key),
+                )
+
+        cutoff = now - 30 * 86400
+        conn.execute("DELETE FROM notifications WHERE active=0 AND COALESCE(resolved_at,last_seen)<?", (cutoff,))
+        conn.commit()
+
+
+def notifications_payload():
+    sync_system_notifications()
+    with db_connect() as conn:
+        rows = conn.execute(
+            """SELECT id,event_key,source,level,title,detail,target,first_seen,last_seen,active,read_at,resolved_at
+               FROM notifications
+               ORDER BY active DESC,
+                        CASE level WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
+                        last_seen DESC
+               LIMIT 80"""
+        ).fetchall()
+    items = [
+        {
+            "id": row[0],
+            "event_key": row[1],
+            "source": row[2],
+            "level": row[3],
+            "title": row[4],
+            "detail": row[5],
+            "target": row[6],
+            "first_seen": row[7],
+            "last_seen": row[8],
+            "active": bool(row[9]),
+            "read": row[10] is not None,
+            "read_at": row[10],
+            "resolved_at": row[11],
+        }
+        for row in rows
+    ]
+    return {
+        "notifications": items,
+        "unread": sum(1 for item in items if item["active"] and not item["read"]),
+        "active": sum(1 for item in items if item["active"]),
+        "critical": sum(1 for item in items if item["active"] and item["level"] == "critical"),
+        "generated_at": int(time.time()),
+    }
+
+
+def mark_notification_read(notification_id=None, all_active=False):
+    now = int(time.time())
+    with db_connect() as conn:
+        if all_active:
+            conn.execute("UPDATE notifications SET read_at=? WHERE active=1 AND read_at IS NULL", (now,))
+        else:
+            try:
+                notification_id = int(notification_id)
+            except (TypeError, ValueError):
+                raise ValueError("invalid_notification_id")
+            cur = conn.execute("UPDATE notifications SET read_at=? WHERE id=?", (now, notification_id))
+            if cur.rowcount != 1:
+                raise ValueError("notification_not_found")
+        conn.commit()
+    return {"ok": True}
+
+
 def overview_payload(username):
     memory = parse_meminfo()
     network = network_details()
@@ -2348,6 +2551,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(system_health_payload(period))
             return
 
+        if path == "/notifications":
+            if not self.require_auth():
+                return
+            self.send_json(notifications_payload())
+            return
+
         if path == "/apps":
             if not self.require_auth():
                 return
@@ -2616,6 +2825,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_credentials"}, 401)
                 return
             self.set_session_response(username)
+            return
+
+        if path == "/notifications/read":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                result = mark_notification_read(data.get("id"), bool(data.get("all")))
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/network/scan":

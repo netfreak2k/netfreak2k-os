@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-health1">
+  <link rel="stylesheet" href="styles.css?v=20261007-notify1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
 </head>
 <body>
@@ -155,6 +155,24 @@
 
         <div class="topbar-right">
           <div class="top-actions">
+            <div class="notification-wrap">
+              <button id="notification-toggle" class="icon-button notification-button" title="Benachrichtigungen" aria-expanded="false">
+                ♢<span id="notification-badge" class="notification-count hidden">0</span>
+              </button>
+              <div id="notification-panel" class="notification-panel hidden">
+                <div class="notification-panel-head">
+                  <div><small>N2K ALERTS</small><strong>Benachrichtigungen</strong></div>
+                  <button id="notification-read-all" class="secondary compact">Alle gelesen</button>
+                </div>
+                <div class="notification-panel-tools">
+                  <label><input id="notification-desktop-toggle" type="checkbox"> Desktop-Hinweise</label>
+                  <span id="notification-summary">Keine neuen Hinweise</span>
+                </div>
+                <div id="notification-list" class="notification-list">
+                  <div class="notification-empty">Benachrichtigungen werden geladen …</div>
+                </div>
+              </div>
+            </div>
             <button id="refresh-status" class="icon-button" title="Status aktualisieren">↻</button>
             <div class="online-pill"><span class="dot ok"></span>System läuft</div>
             <div class="user-pill"><span id="session-user">admin</span><button id="logout">Abmelden</button></div>
@@ -1157,6 +1175,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-health1"></script>
+  <script src="app.js?v=20261007-notify1"></script>
 </body>
 </html>
