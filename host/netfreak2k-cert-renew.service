@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew Netfreak2k HTTPS certificates
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"
