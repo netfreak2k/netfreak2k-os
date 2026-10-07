@@ -91,7 +91,7 @@ install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.timer" /etc/systemd/sys
 log "Installiere Media-Center-Audioabhängigkeiten."
 write_progress "running" 62 "audio" "PipeWire, Bluetooth und AirPlay-Basis werden geprüft."
 apt-get update
-apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping
+apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils bluez libspa-0.2-bluetooth avahi-daemon nmap arp-scan iputils-ping smartmontools
 systemctl enable --now bluetooth
 systemctl enable --now avahi-daemon
 
