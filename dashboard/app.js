@@ -419,39 +419,76 @@ function renderNetworkDeviceList() {
 
   body.innerHTML = "";
   for (const device of items) {
-    const row = document.createElement("tr");
-    row.className = "network-device-row";
-    if (device.new && device.online) row.classList.add("new");
-    if (!device.online) row.classList.add("offline");
-    row.innerHTML = `
-      <td><span class="network-device-status"></span></td>
-      <td><div class="network-device-name"><span class="network-device-icon"></span><div><strong></strong><small></small></div></div></td>
-      <td><div class="network-device-address"><strong></strong><small></small></div></td>
-      <td><span class="network-device-vendor"></span></td>
-      <td><span class="network-device-type-chip"></span></td>
-      <td><span class="network-device-latency"></span></td>
-      <td><span class="network-device-seen"></span></td>
-      <td><button class="secondary compact network-device-open">Details</button></td>`;
-    const status = row.querySelector(".network-device-status");
-    status.textContent = device.online ? (device.new ? "NEU" : "ONLINE") : "OFFLINE";
-    status.classList.toggle("online", Boolean(device.online));
-    status.classList.toggle("new", Boolean(device.new && device.online));
-    row.querySelector(".network-device-icon").textContent = networkDeviceTypeIcons[device.device_type] || "?";
-    row.querySelector(".network-device-name strong").textContent = device.name || device.hostname || device.ip || "Unbekannt";
-    row.querySelector(".network-device-name small").textContent =
-      [device.hostname && device.hostname !== device.name ? device.hostname : "", device.trusted ? "bekannt" : ""].filter(Boolean).join(" · ") || "lokales Gerät";
-    row.querySelector(".network-device-address strong").textContent = device.ip || "–";
-    row.querySelector(".network-device-address small").textContent = device.mac || "MAC nicht verfügbar";
-    row.querySelector(".network-device-vendor").textContent = device.vendor || "Hersteller unbekannt";
-    row.querySelector(".network-device-type-chip").textContent = networkDeviceTypeLabels[device.device_type] || "Unbekannt";
-    row.querySelector(".network-device-latency").textContent = Number.isFinite(Number(device.latency_ms)) ? `${device.latency_ms} ms` : "–";
-    row.querySelector(".network-device-seen").textContent = formatNetworkSeen(device.last_seen);
-    row.querySelector(".network-device-open").addEventListener("click", () => openNetworkDevice(device.id));
-    row.addEventListener("dblclick", () => openNetworkDevice(device.id));
-    body.appendChild(row);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "network-device-card";
+    if (device.new && device.online) card.classList.add("new");
+    if (!device.online) card.classList.add("offline");
+
+    const typeLabel = networkDeviceTypeLabels[device.device_type] || "Unbekannt";
+    const latency = Number.isFinite(Number(device.latency_ms)) ? `${device.latency_ms} ms` : "–";
+    const services = Array.isArray(device.services) ? device.services.slice(0, 3) : [];
+    const identity = device.name || device.hostname || device.ip || "Unbekannt";
+    const secondary = [device.vendor, device.hostname && device.hostname !== identity ? device.hostname : ""].filter(Boolean).join(" · ") || "Gerät im Heimnetz";
+
+    card.innerHTML = `
+      <div class="network-card-top">
+        <span class="network-card-icon"></span>
+        <div class="network-card-title"><strong></strong><small></small></div>
+        <span class="network-card-state"></span>
+      </div>
+      <div class="network-card-address">
+        <span><small>IP</small><strong></strong></span>
+        <span><small>MAC</small><strong></strong></span>
+      </div>
+      <div class="network-card-meta">
+        <span class="network-card-type"></span>
+        <span class="network-card-ping"></span>
+        <span class="network-card-seen"></span>
+      </div>
+      <div class="network-card-services"></div>
+      <div class="network-card-footer"><span></span><strong>Details ›</strong></div>`;
+
+    card.querySelector(".network-card-icon").textContent = networkDeviceTypeIcons[device.device_type] || "?";
+    card.querySelector(".network-card-title strong").textContent = identity;
+    card.querySelector(".network-card-title small").textContent = secondary;
+
+    const state = card.querySelector(".network-card-state");
+    state.textContent = device.online ? (device.new ? "NEU" : "ONLINE") : "OFFLINE";
+    state.classList.toggle("online", Boolean(device.online));
+    state.classList.toggle("new", Boolean(device.new && device.online));
+
+    const addressSpans = card.querySelectorAll(".network-card-address span");
+    addressSpans[0].querySelector("strong").textContent = device.ip || "–";
+    addressSpans[1].querySelector("strong").textContent = device.mac || "nicht verfügbar";
+
+    card.querySelector(".network-card-type").textContent = typeLabel;
+    card.querySelector(".network-card-ping").textContent = `Ping ${latency}`;
+    card.querySelector(".network-card-seen").textContent = formatNetworkSeen(device.last_seen);
+
+    const serviceWrap = card.querySelector(".network-card-services");
+    if (services.length) {
+      services.forEach(service => {
+        const chip = document.createElement("span");
+        chip.textContent = service;
+        serviceWrap.appendChild(chip);
+      });
+    } else {
+      const chip = document.createElement("span");
+      chip.className = "muted";
+      chip.textContent = device.trusted ? "Bekanntes Gerät" : "Keine Dienste erkannt";
+      serviceWrap.appendChild(chip);
+    }
+
+    card.querySelector(".network-card-footer span").textContent =
+      device.trusted ? "✓ Vertrauenswürdig" : (device.new && device.online ? "Neu im Netzwerk" : "Lokales Gerät");
+
+    card.addEventListener("click", () => openNetworkDevice(device.id));
+    body.appendChild(card);
   }
+
   if (!body.children.length) {
-    body.innerHTML = '<tr><td colspan="8" class="network-device-empty">Keine Geräte für diesen Filter.</td></tr>';
+    body.innerHTML = '<div class="network-device-empty">Keine Geräte für diesen Filter.</div>';
   }
 }
 
@@ -3834,14 +3871,28 @@ function updateMediaPlaybackUi() {
 
 function updateMediaArtwork(item) {
   const cover = document.getElementById("media-cover");
-  if (!cover) return;
+  const topArt = document.getElementById("top-media-art");
   const artwork = item?.artwork_url || item?.favicon || "";
-  cover.classList.toggle("has-artwork", Boolean(artwork));
-  cover.style.backgroundImage = artwork ? `url("${artwork.replace(/"/g, "%22")}")` : "";
-  const label = cover.querySelector("span");
-  const sub = cover.querySelector("strong");
-  if (label) label.textContent = artwork ? "" : "N2K";
-  if (sub) sub.textContent = artwork ? "" : "MEDIA";
+  const safeArtwork = artwork ? artwork.replace(/"/g, "%22") : "";
+
+  if (cover) {
+    cover.classList.toggle("has-artwork", Boolean(artwork));
+    cover.style.backgroundImage = artwork ? `url("${safeArtwork}")` : "";
+    const label = cover.querySelector("span");
+    const sub = cover.querySelector("strong");
+    if (label) label.textContent = artwork ? "" : "N2K";
+    if (sub) sub.textContent = artwork ? "" : "MEDIA";
+  }
+
+  if (topArt) {
+    topArt.classList.toggle("has-artwork", Boolean(artwork));
+    topArt.style.backgroundImage = artwork ? `url("${safeArtwork}")` : "";
+    const fallback = topArt.querySelector("span");
+    if (fallback) fallback.textContent = artwork ? "" : "♪";
+    topArt.title = item?.source === "local"
+      ? (item?.album || item?.artist || "Lokale Musik")
+      : (item?.name || "Radiosender");
+  }
 }
 
 function updateMediaProgress() {
