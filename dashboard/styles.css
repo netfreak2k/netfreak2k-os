@@ -1739,3 +1739,53 @@ body::after{
   background:linear-gradient(90deg,#7b6229,#b68a2f);
   box-shadow:0 9px 24px rgba(159,119,39,.18);
 }
+
+.update-experience{
+  position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:24px;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(48,137,255,.16),transparent 34%),
+    radial-gradient(circle at 82% 22%,rgba(135,80,220,.14),transparent 30%),
+    rgba(3,8,14,.96);
+  backdrop-filter:blur(22px)
+}
+.update-experience.hidden{display:none!important}
+.update-experience-card{
+  width:min(760px,100%);padding:28px;border-radius:24px;
+  background:linear-gradient(145deg,rgba(15,25,40,.96),rgba(8,14,23,.94));
+  border:1px solid rgba(255,255,255,.08);box-shadow:0 38px 100px rgba(0,0,0,.48)
+}
+.update-experience-brand{display:flex;align-items:center;gap:12px}
+.update-experience-brand>span{
+  width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#a98531,#5a461e);color:#fff;font-weight:900
+}
+.update-experience-brand small,.update-experience-brand strong{display:block}
+.update-experience-brand small{font-size:7px;letter-spacing:.13em;color:#8c98a6}
+.update-experience-brand strong{font-size:14px;margin-top:3px}
+.update-experience-copy{margin-top:34px}
+.update-experience-state{
+  display:inline-flex;padding:6px 9px;border-radius:999px;
+  background:rgba(82,137,238,.10);border:1px solid rgba(102,164,255,.14);
+  color:#a8c8ff;font-size:7px;letter-spacing:.12em
+}
+.update-experience-copy h1{font-size:31px;letter-spacing:-.04em;margin:12px 0 8px}
+.update-experience-copy p{font-size:11px;line-height:1.6;color:#8e9aa7;max-width:620px}
+.update-experience-progress{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin-top:26px}
+.update-experience-progress>div{height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+.update-experience-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4ba8ff,#8e69ff);transition:width .35s ease}
+.update-experience-progress strong{font-size:12px;min-width:42px;text-align:right}
+.update-experience-stages{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:16px}
+.update-experience-stages span{
+  padding:7px 6px;border-radius:8px;text-align:center;font-size:6px;
+  color:#677481;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.035)
+}
+.update-experience-stages span.active{color:#dce9ff;border-color:rgba(100,164,255,.15);background:rgba(77,126,222,.08)}
+.update-experience-stages span.done{color:#8ee0ba;border-color:rgba(89,215,159,.12);background:rgba(55,165,118,.06)}
+.update-experience-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05)}
+.update-experience-footer span{font-size:8px;color:#71808d}
+.update-experience.complete .update-experience-state{color:#8ee0ba;background:rgba(55,165,118,.08);border-color:rgba(89,215,159,.14)}
+.update-experience.failed .update-experience-state{color:#ffb0b0;background:rgba(176,67,67,.08);border-color:rgba(255,103,103,.14)}
+@media(max-width:720px){
+  .update-experience{padding:12px}.update-experience-card{padding:20px;border-radius:18px}
+  .update-experience-copy h1{font-size:24px}.update-experience-stages{grid-template-columns:repeat(3,1fr)}
+}
