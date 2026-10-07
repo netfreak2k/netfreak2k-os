@@ -699,6 +699,7 @@ function enterApp(username, role = "viewer") {
   loadHardwareMaintenance();
   loadSecurity();
   loadRemoteAccess();
+  loadScheduler();
   loadNotifications();
   loadNetworkInventory();
   loadWorkspace();
@@ -4382,6 +4383,7 @@ document.getElementById("network-device-analyze")?.addEventListener("click", ana
 document.getElementById("network-device-wake")?.addEventListener("click", wakeNetworkDevice);
 
 document.getElementById("health-refresh")?.addEventListener("click", loadSystemHealth);
+document.getElementById("scheduler-refresh")?.addEventListener("click", loadScheduler);
 document.getElementById("monitoring-policy-save")?.addEventListener("click", saveMonitoringPolicy);
 document.querySelectorAll("[data-health-range]").forEach(button => button.addEventListener("click", () => {
   healthRange = button.dataset.healthRange || "24h";
@@ -4728,6 +4730,7 @@ const viewGroups = {
   "apps-panel": ["apps-panel", "app-store-panel"],
   "health-panel": ["health-panel"],
   "security-panel": ["security-panel"],
+  "scheduler-panel": ["scheduler-panel"],
   "vms-panel": ["vms-panel"],
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
@@ -4740,7 +4743,7 @@ const viewGroups = {
   "updates-panel": ["wallpaper-panel", "sync-panel", "updates-panel"]
 };
 
-const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel"]);
+const systemNavTargets = new Set(["health-panel","vms-panel","storage-panel","backups-panel","network-panel","security-panel","scheduler-panel"]);
 
 function setSystemNavOpen(open) {
   const group = document.getElementById("system-nav-group");
@@ -4764,6 +4767,118 @@ document.getElementById("system-nav-toggle")?.addEventListener("click", () => {
   const group = document.getElementById("system-nav-group");
   setSystemNavOpen(!group?.classList.contains("open"));
 });
+
+function schedulerDateText(value) {
+  if (!value) return "–";
+  const parsed = Date.parse(value);
+  if (Number.isFinite(parsed)) return new Date(parsed).toLocaleString("de-DE");
+  return value;
+}
+
+function renderSchedulerJobs(jobs = []) {
+  const list = document.getElementById("scheduler-job-list");
+  if (!list) return;
+  list.innerHTML = "";
+  jobs.forEach(job => {
+    const row = document.createElement("article");
+    row.className = "scheduler-job-row";
+    row.innerHTML = `
+      <div class="scheduler-job-main">
+        <span class="scheduler-job-icon">JOB</span>
+        <div><strong></strong><small></small></div>
+      </div>
+      <div class="scheduler-job-meta">
+        <span class="scheduler-job-schedule"></span>
+        <span class="scheduler-job-last"></span>
+      </div>
+      <div class="scheduler-job-state"><span class="status-chip"></span><small></small></div>
+      <button class="secondary compact scheduler-run">Jetzt ausführen</button>`;
+    row.querySelector(".scheduler-job-main strong").textContent = job.label || job.id || "Job";
+    row.querySelector(".scheduler-job-main small").textContent = job.description || "";
+    row.querySelector(".scheduler-job-schedule").textContent = "Plan: " + (job.schedule || "–");
+    row.querySelector(".scheduler-job-last").textContent = job.last_run
+      ? "Letzter Lauf: " + formatDateTime(Number(job.last_run))
+      : "Noch nie manuell ausgeführt";
+    const state = row.querySelector(".scheduler-job-state .status-chip");
+    state.textContent = job.last_ok === false ? "FEHLER" : job.last_ok === true ? "OK" : "BEREIT";
+    state.className = "status-chip " + (job.last_ok === false ? "warn" : job.last_ok === true ? "good" : "");
+    row.querySelector(".scheduler-job-state small").textContent = job.last_detail || "Noch kein Ergebnis gespeichert";
+    const button = row.querySelector(".scheduler-run");
+    const adminOnly = job.role === "admin";
+    button.disabled = currentRole === "viewer" || (adminOnly && currentRole !== "admin");
+    button.title = adminOnly && currentRole !== "admin" ? "Nur Administratoren dürfen diesen Job starten." : "";
+    button.addEventListener("click", () => runSchedulerJob(job.id, button));
+    list.appendChild(row);
+  });
+  if (!jobs.length) list.innerHTML = '<div class="app-empty">Keine verwalteten N2K-Jobs gefunden.</div>';
+}
+
+function renderSchedulerTimers(timers = []) {
+  const list = document.getElementById("scheduler-timer-list");
+  if (!list) return;
+  list.innerHTML = "";
+  timers.forEach(timer => {
+    const row = document.createElement("div");
+    row.className = "scheduler-timer-row";
+    row.innerHTML = `
+      <span class="scheduler-timer-dot"></span>
+      <div class="scheduler-timer-main"><strong></strong><small></small></div>
+      <div class="scheduler-timer-times"><span class="scheduler-next"></span><small class="scheduler-last"></small></div>
+      <em></em>`;
+    row.querySelector(".scheduler-timer-dot").classList.add(timer.active_state === "active" ? "active" : "inactive");
+    row.querySelector(".scheduler-timer-main strong").textContent = timer.description || timer.unit || "Timer";
+    row.querySelector(".scheduler-timer-main small").textContent =
+      [timer.unit, timer.activates].filter(Boolean).join(" → ");
+    row.querySelector(".scheduler-next").textContent = "Nächster: " + schedulerDateText(timer.next);
+    row.querySelector(".scheduler-last").textContent = "Letzter: " + schedulerDateText(timer.last);
+    row.querySelector("em").textContent = timer.enabled ? "ENABLED" : String(timer.active_state || "unknown").toUpperCase();
+    list.appendChild(row);
+  });
+  if (!timers.length) list.innerHTML = '<div class="app-empty">Keine systemd-Timer erkannt.</div>';
+}
+
+async function loadScheduler() {
+  const panel = document.getElementById("scheduler-panel");
+  if (!panel || document.getElementById("app-shell")?.classList.contains("hidden")) return;
+  try {
+    const data = await request("/api/scheduler", {headers:{}});
+    const summary = data.summary || {};
+    setHealthText("scheduler-job-count", String(summary.managed_jobs ?? (data.jobs || []).length));
+    setHealthText("scheduler-timer-count", String(summary.system_timers ?? (data.timers || []).length));
+    setHealthText("scheduler-active-count", String(summary.active_timers ?? 0));
+    setHealthText("scheduler-failed-count", String(summary.failed_jobs ?? 0));
+    renderSchedulerJobs(Array.isArray(data.jobs) ? data.jobs : []);
+    renderSchedulerTimers(Array.isArray(data.timers) ? data.timers : []);
+  } catch (error) {
+    console.error(error);
+    const jobs = document.getElementById("scheduler-job-list");
+    const timers = document.getElementById("scheduler-timer-list");
+    if (jobs) jobs.innerHTML = '<div class="app-empty">N2K-Jobs konnten nicht geladen werden.</div>';
+    if (timers) timers.innerHTML = '<div class="app-empty">Systemtimer konnten nicht geladen werden.</div>';
+  }
+}
+
+async function runSchedulerJob(jobId, button) {
+  if (!jobId || currentRole === "viewer") return;
+  const original = button?.textContent || "Jetzt ausführen";
+  if (button) { button.disabled = true; button.textContent = "Läuft …"; }
+  try {
+    const result = await request("/api/scheduler/run", {
+      method:"POST",
+      body:JSON.stringify({job_id:jobId}),
+      headers:{"X-CSRF-Token":csrfToken}
+    });
+    showN2KToast(result.detail || "Job erfolgreich ausgeführt.", "success");
+    await loadScheduler();
+    await loadNotifications();
+  } catch (error) {
+    console.error(error);
+    showN2KToast("Job konnte nicht erfolgreich ausgeführt werden.", "error");
+    await loadScheduler();
+  } finally {
+    if (button) { button.disabled = false; button.textContent = original; }
+  }
+}
 
 function switchView(targetId) {
   activeView = targetId || "dashboard-top";
@@ -5395,6 +5510,7 @@ setInterval(loadHardwareMaintenance, 120000);
 setInterval(loadNotifications, 60000);
 setInterval(loadSecurity, 120000);
 setInterval(loadRemoteAccess, 120000);
+setInterval(loadScheduler, 60000);
 setInterval(loadWorkspace, 30000);
 setInterval(loadFavorites, 60000);
 setInterval(loadShares, 60000);
