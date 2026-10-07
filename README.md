@@ -8,9 +8,9 @@ Netfreak2k Server-OS is a browser-managed server platform for Linux hosts. It ke
 
 ## Release status
 
-Current release candidate: **1.0.0-rc1**
+Current stable release: **1.0.0**
 
-The codebase is feature-frozen for the v1.0 line. Remaining stable-release gates are tracked in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+Netfreak2k Server-OS 1.0.0 is released as stable. Release verification is tracked in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Platform target
 
@@ -112,7 +112,7 @@ Netfreak2k uses the original **N2K Golden Glass** visual language. The project m
 
 ## License
 
-A project-wide license for Netfreak2k-owned source code has **not yet been selected**. This is a blocking item for the final public v1.0 stable release. Runtime dependencies and optional apps retain their respective upstream licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Netfreak2k-owned source code is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. See [LICENSE](LICENSE). Runtime dependencies and optional apps retain their respective upstream licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Home Assistant
 
