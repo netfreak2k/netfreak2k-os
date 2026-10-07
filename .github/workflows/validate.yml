@@ -197,6 +197,17 @@ jobs:
           test -f host/netfreak2k-cert-renew.service
           test -f host/netfreak2k-cert-renew.timer
 
+      - name: Docker Apps 2.0 sanity
+        run: |
+          grep -q 'apps-kpi-grid' dashboard/index.html
+          grep -q 'openAppDiagnostics' dashboard/app.js
+          grep -q '/apps/logs' server/api/server.py
+          grep -q '/apps/update-check' server/api/server.py
+          grep -q 'docker_apps_payload' host/vm-agent.py
+          grep -q 'docker_app_logs' host/vm-agent.py
+          grep -q 'docker_app_update_check' host/vm-agent.py
+          grep -q 'app-row-v2' dashboard/styles.css
+
       - name: Storage 2.0 sanity
         run: |
           grep -q 'storage-inventory-card' dashboard/index.html
