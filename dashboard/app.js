@@ -2220,6 +2220,7 @@ const viewGroups = {
   "storage-panel": ["storage-panel"],
   "backups-panel": ["backups-panel"],
   "network-panel": ["network-panel"],
+  "media-center-panel": ["media-center-panel"],
   "office-panel": ["office-panel"],
   "terminal-panel": ["terminal-panel"],
   "privacy-panel": ["privacy-panel"],
@@ -3038,6 +3039,7 @@ function applyMediaSection(section = "all") {
   document.querySelectorAll("[data-media-group]").forEach(card => {
     card.classList.toggle("media-section-hidden", mediaActiveSection !== "all" && card.dataset.mediaGroup !== mediaActiveSection);
   });
+  document.querySelector(".media-center-grid")?.classList.toggle("media-filtered", mediaActiveSection !== "all");
   saveMediaSession();
 }
 
@@ -4309,6 +4311,9 @@ function initMediaCenter() {
   refreshMediaDevices();
   updateMediaPlaybackUi();
 
+  document.querySelectorAll(".media-section-tabs button").forEach(button => button.addEventListener("click", () => {
+    applyMediaSection(button.dataset.mediaSection || "all");
+  }));
   document.querySelectorAll("#media-country-tabs button").forEach(button => button.addEventListener("click", () => {
     mediaCountry = button.dataset.country || "DE";
     document.querySelectorAll("#media-country-tabs button").forEach(item => item.classList.toggle("active", item === button));
