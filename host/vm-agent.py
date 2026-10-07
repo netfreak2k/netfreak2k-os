@@ -654,6 +654,7 @@ def update_preflight_payload():
         "required_total": sum(1 for item in checks if item.get("required")),
         "automatic_backup": True,
         "backup_verification_required": True,
+        "latest_backup": latest,
     }
 
 
