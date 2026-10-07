@@ -3016,6 +3016,24 @@ async function setBluetoothConnection(mac, connect) {
   }
 }
 
+async function setAirPlayDiscovery(enabled) {
+  const button = document.getElementById("media-airplay-toggle");
+  if (button) button.disabled = true;
+  try {
+    await request("/api/media/airplay", {
+      method: "POST",
+      body: JSON.stringify({action: enabled ? "enable" : "disable"}),
+      headers: {"X-CSRF-Token": csrfToken}
+    });
+    await refreshMediaDevices();
+  } catch (error) {
+    console.error(error);
+    alert(enabled ? "AirPlay-Suche konnte nicht aktiviert werden." : "AirPlay-Suche konnte nicht deaktiviert werden.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 async function applyMediaMultiroom(clear = false) {
   try {
     const body = clear
@@ -3167,6 +3185,19 @@ async function refreshMediaDevices() {
     setProtocol("usb", hasUsb, hasUsb ? "USB-Audio am Host erkannt" : "Kein USB-DAC erkannt");
     setProtocol("bluetooth", Boolean(bluetooth.available || host.bluetooth?.available), bluetooth.available ? "Bluetooth-Steuerung aktiv" : (host.bluetooth?.note || "Bluetooth"));
     setProtocol("airplay", routing.airplay?.available ? true : null, routing.airplay?.note || host.airplay?.note || "AirPlay vorbereitet");
+    const airplayToggle = document.getElementById("media-airplay-toggle");
+    const airplayStatus = document.getElementById("media-airplay-status");
+    const airplayDiscovery = Boolean(routing.airplay?.discovery_active);
+    if (airplayToggle) {
+      airplayToggle.textContent = airplayDiscovery ? "AirPlay-Suche stoppen" : "AirPlay-Suche aktivieren";
+      airplayToggle.dataset.enabled = airplayDiscovery ? "1" : "0";
+    }
+    if (airplayStatus) {
+      const count = Array.isArray(routing.airplay?.sinks) ? routing.airplay.sinks.length : 0;
+      airplayStatus.textContent = airplayDiscovery
+        ? `RAOP-Suche aktiv · ${count} AirPlay-Ausgang${count === 1 ? "" : "e"}`
+        : "RAOP-Suche ist aus";
+    }
     setProtocol("dlna", routing.dlna?.available ? true : null, routing.dlna?.note || host.dlna?.note || "DLNA vorbereitet");
 
     if (!routing.available) {
