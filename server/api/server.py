@@ -2088,6 +2088,41 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, 400)
             return
 
+        if path == "/media/multiroom":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                data = self.read_json()
+                action = str(data.get("action", "")).strip()
+                if action == "set":
+                    sinks = data.get("sinks")
+                    if not isinstance(sinks, list) or not (2 <= len(sinks) <= 8):
+                        raise ValueError("invalid_multiroom_sinks")
+                    clean = []
+                    for item in sinks:
+                        value = str(item or "").strip()
+                        if not value or len(value) > 180:
+                            raise ValueError("invalid_multiroom_sink")
+                        if value not in clean:
+                            clean.append(value)
+                    if len(clean) < 2:
+                        raise ValueError("invalid_multiroom_sinks")
+                    result = vm_agent("audio_multiroom_set", {"sinks": clean})
+                elif action == "clear":
+                    result = vm_agent("audio_multiroom_clear")
+                else:
+                    raise ValueError("invalid_multiroom_action")
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
         if path == "/workspace/upload":
             session = self.require_auth()
             if not session:
