@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
   <link rel="stylesheet" href="styles.css?v=20261007-media2">
-  <link rel="stylesheet" href="media-center.css?v=20261007-media3">
+  <link rel="stylesheet" href="media-center.css?v=20261007-media4">
 </head>
 <body>
   <div id="auth-shell" class="auth-shell">
@@ -676,12 +676,34 @@
               <section class="media-card media-streaming-card">
                 <div class="media-card-head"><div><small>STREAMING</small><h3>Deine Dienste</h3></div><span>↗</span></div>
                 <div class="media-service-grid">
-                  <button class="media-service apple" data-media-service="https://music.apple.com/"><span>♪</span><strong>Apple Music</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Web-App öffnen</small></button>
-                  <button class="media-service tidal" data-media-service="https://listen.tidal.com/"><span>◆</span><strong>TIDAL</strong><small>Web-App öffnen</small></button>
+                  <button class="media-service apple" data-media-service="https://music.apple.com/de/"><span>♪</span><strong>Apple Music</strong><small>Musik</small></button>
+                  <button class="media-service spotify" data-media-service="https://open.spotify.com/"><span>●</span><strong>Spotify</strong><small>Musik & Podcasts</small></button>
+                  <button class="media-service amazon" data-media-service="https://music.amazon.de/"><span>am</span><strong>Amazon Music</strong><small>Musik</small></button>
+                  <button class="media-service netflix" data-media-service="https://www.netflix.com/de/"><span>N</span><strong>Netflix</strong><small>Filme & Serien</small></button>
+                  <button class="media-service youtube" data-media-service="https://www.youtube.com/"><span>▶</span><strong>YouTube</strong><small>Video & Live</small></button>
+                  <button id="media-more-services" class="media-service more"><span>＋</span><strong>Weitere</strong><small>Dienste & Mediatheken</small></button>
                 </div>
                 <div class="media-service-note">Anmeldung erfolgt direkt beim jeweiligen Anbieter. Netfreak2k speichert keine Streaming-Passwörter.</div>
+                <div id="media-service-directory" class="media-service-directory hidden">
+                  <div class="media-directory-head">
+                    <div><small>DEUTSCHLAND</small><strong>Weitere Streaming-Dienste & Mediatheken</strong></div>
+                    <button id="media-service-directory-close" class="secondary compact">Schließen</button>
+                  </div>
+                  <p>Nach aktueller Relevanz in Deutschland sortiert; öffentlich-rechtliche Mediatheken sind mit enthalten.</p>
+                  <div id="media-service-directory-list" class="media-directory-list"></div>
+                </div>
+              </section>
+
+              <section class="media-card media-library-card">
+                <div class="media-card-head"><div><small>LOKALE MUSIK</small><h3>Audio-Ordner</h3></div><button id="media-library-refresh" class="secondary compact">Neu laden</button></div>
+                <div class="media-library-toolbar">
+                  <input id="media-library-search" type="search" placeholder="Lokale Musik durchsuchen …">
+                  <span id="media-library-count">0 Titel</span>
+                </div>
+                <div id="media-library-list" class="media-library-list">
+                  <div class="media-empty">Audio-Ordner wird geladen …</div>
+                </div>
+                <small class="media-hint">Quelle: Arbeitsplatz → Audio. MP3, M4A, AAC, FLAC, WAV, OGG, OPUS und WebA.</small>
               </section>
 
               <section class="media-card media-devices-card">
@@ -917,6 +939,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261007-media3"></script>
+  <script src="app.js?v=20261007-media4"></script>
 </body>
 </html>
