@@ -373,17 +373,6 @@ async function loadSecurity() {
     const roleBadge = document.getElementById("security-role-badge");
     if (roleBadge) roleBadge.textContent = currentRole.toUpperCase();
 
-    const totpEnabled = Boolean(me.totp_enabled);
-    document.getElementById("security-2fa-state").textContent = totpEnabled ? "Aktiv" : "Nicht aktiv";
-    const twoBadge = document.getElementById("security-2fa-badge");
-    if (twoBadge) {
-      twoBadge.textContent = totpEnabled ? "AKTIV" : "AUS";
-      twoBadge.className = "security-badge " + (totpEnabled ? "ok" : "warn");
-    }
-    document.getElementById("security-totp-begin")?.classList.toggle("hidden", totpEnabled);
-    document.getElementById("security-totp-disable")?.classList.toggle("hidden", !totpEnabled);
-    if (totpEnabled) document.getElementById("security-totp-setup")?.classList.add("hidden");
-
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     document.getElementById("security-session-count").textContent = String(sessions.length);
     const sessionList = document.getElementById("security-session-list");
@@ -417,7 +406,7 @@ async function loadSecurity() {
         row.querySelector(".security-user-avatar").textContent = (user.username || "?").slice(0,1).toUpperCase();
         row.querySelector("strong").textContent = user.username;
         row.querySelector("small").textContent =
-          (user.totp_enabled ? "2FA aktiv" : "ohne 2FA") + (user.last_login_at ? " · Login " + formatDateTime(user.last_login_at) : " · noch kein Login");
+          user.last_login_at ? "Login " + formatDateTime(user.last_login_at) : "noch kein Login";
         const roleSelect = row.querySelector(".security-role-select");
         roleSelect.value = user.role || "viewer";
         const enabled = row.querySelector(".security-enable input");
@@ -450,58 +439,6 @@ async function loadSecurity() {
     console.error(error);
     const badge = document.getElementById("security-role-badge");
     if (badge) badge.textContent = "FEHLER";
-  }
-}
-
-async function beginTotpSetup() {
-  try {
-    const data = await request("/api/security/totp/begin", {method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}});
-    document.getElementById("security-totp-secret").value = data.secret || "";
-    document.getElementById("security-totp-uri").value = data.otpauth_uri || "";
-    document.getElementById("security-totp-code").value = "";
-    document.getElementById("security-totp-setup").classList.remove("hidden");
-  } catch (error) { console.error(error); showN2KToast("2FA-Einrichtung konnte nicht gestartet werden.", "error"); }
-}
-
-async function confirmTotpSetup() {
-  const code = document.getElementById("security-totp-code")?.value.trim() || "";
-  try {
-    await request("/api/security/totp/confirm", {method:"POST", body:JSON.stringify({code}), headers:{"X-CSRF-Token":csrfToken}});
-    showN2KToast("Zwei-Faktor-Anmeldung ist jetzt aktiv.", "success");
-    await loadSecurity();
-  } catch (error) { console.error(error); showN2KToast("Der Authenticator-Code ist nicht gültig.", "error"); }
-}
-
-async function disableTotpSetup() {
-  if (!confirm("Zwei-Faktor-Anmeldung für dein Konto deaktivieren?")) return;
-  try {
-    await request("/api/security/totp/disable", {method:"POST", body:"{}", headers:{"X-CSRF-Token":csrfToken}});
-    showN2KToast("2FA wurde deaktiviert.", "success");
-    await loadSecurity();
-  } catch (error) { console.error(error); showN2KToast("2FA konnte nicht deaktiviert werden.", "error"); }
-}
-
-async function createSecurityUser() {
-  const username = document.getElementById("security-new-username")?.value.trim() || "";
-  const password = document.getElementById("security-new-password")?.value || "";
-  const role = document.getElementById("security-new-role")?.value || "viewer";
-  try {
-    await request("/api/security/users/create", {method:"POST", body:JSON.stringify({username,password,role}), headers:{"X-CSRF-Token":csrfToken}});
-    document.getElementById("security-user-create").classList.add("hidden");
-    showN2KToast("Benutzerkonto erstellt.", "success");
-    await loadSecurity();
-  } catch (error) { console.error(error); showN2KToast("Benutzer konnte nicht erstellt werden.", "error"); }
-}
-
-async function updateSecurityUser(username, role, enabled) {
-  try {
-    await request("/api/security/users/update", {method:"POST", body:JSON.stringify({username,role,enabled}), headers:{"X-CSRF-Token":csrfToken}});
-    showN2KToast("Benutzerrechte aktualisiert.", "success");
-    await loadSecurity();
-  } catch (error) {
-    console.error(error);
-    showN2KToast(error.code === "last_admin" ? "Der letzte aktive Admin kann nicht herabgestuft werden." : "Benutzer konnte nicht geändert werden.", "error");
-    await loadSecurity();
   }
 }
 
@@ -744,21 +681,15 @@ document.getElementById("login-form").addEventListener("submit", async event => 
   authError();
   const username = document.getElementById("login-username").value.trim();
   const password = document.getElementById("login-password").value;
-  const totp = document.getElementById("login-totp")?.value.trim() || "";
   try {
     const data = await request("/api/login", {
       method: "POST",
-      body: JSON.stringify({username, password, totp})
+      body: JSON.stringify({username, password})
     });
     csrfToken = data.csrf || "";
     enterApp(data.username, data.role || "viewer");
   } catch (error) {
-    if (error.code === "totp_required") {
-      authError("Bitte den 6-stelligen Code aus deiner Authenticator-App eingeben.");
-      document.getElementById("login-totp")?.focus();
-    } else {
-      authError(apiErrorMessage(error.code));
-    }
+    authError(apiErrorMessage(error.code));
   }
 });
 
@@ -4427,9 +4358,6 @@ document.querySelectorAll('input[name="remote-mode"]').forEach(input => input.ad
   document.getElementById("remote-domain-config")?.classList.toggle("hidden", !domainMode);
 }));
 
-document.getElementById("security-totp-begin")?.addEventListener("click", beginTotpSetup);
-document.getElementById("security-totp-confirm")?.addEventListener("click", confirmTotpSetup);
-document.getElementById("security-totp-disable")?.addEventListener("click", disableTotpSetup);
 document.getElementById("security-user-create-toggle")?.addEventListener("click", () => {
   document.getElementById("security-user-create")?.classList.toggle("hidden");
 });
