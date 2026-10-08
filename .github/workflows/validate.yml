@@ -341,7 +341,7 @@ jobs:
       - name: Users Security sanity
         run: |
           grep -q 'security-panel' dashboard/index.html
-          grep -q 'login-totp' dashboard/index.html
+          grep -q 'login-password' dashboard/index.html
           grep -q 'loadSecurity' dashboard/app.js
           grep -q 'CREATE TABLE IF NOT EXISTS audit_log' server/api/server.py
           grep -q 'def totp_code' server/api/server.py
