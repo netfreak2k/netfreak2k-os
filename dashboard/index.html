@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile4">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-14">
-  <link rel="stylesheet" href="photos.css?v=20261008-1">
+  <link rel="stylesheet" href="photos.css?v=20261008-3">
 </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -90,7 +90,7 @@
         <button class="nav-item" data-target="office-panel"><span>▤</span>Office</button>
         <button class="nav-item" data-target="ai-panel"><span>✦</span>KI</button>
         <button class="nav-item" data-target="media-center-panel"><span>♪</span>Media Center</button>
-        <button class="nav-item" data-target="photos-panel"><span>▧</span>Galery</button>
+        <button class="nav-item" data-target="photos-panel"><span>▧</span>Fotogalery</button>
         <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
         <div id="system-nav-group" class="nav-group">
           <button id="system-nav-toggle" class="nav-item nav-group-toggle" type="button" aria-expanded="false">
@@ -311,8 +311,9 @@
 
         <section id="module-grid" class="dashboard-grid module-grid hidden">
           <article id="photos-panel" class="panel section-anchor">
-            <div class="panel-head"><div><p class="eyebrow">N2K GALERY · LOKAL</p><h2>Galery</h2><p>Fotos aus dem Medienbereich deines N2K Drive. Ohne Cloud-Zwang.</p></div></div>
+            <div class="panel-head"><div><p class="eyebrow">N2K FOTOGALERY · LOKAL</p><h2>Fotogalery</h2><p>Fotos aus dem Medienbereich deines N2K Drive. Ohne Cloud-Zwang.</p></div></div>
             <div class="n2k-photos-toolbar"><button id="n2k-photos-back" disabled>← Zurück</button><strong id="n2k-photos-path">Mediathek</strong><input id="n2k-photos-search" type="search" placeholder="Fotos im Ordner suchen" aria-label="Fotos durchsuchen"><button id="n2k-photos-refresh">Aktualisieren</button><input id="n2k-photos-files" type="file" accept="image/*" multiple hidden><button id="n2k-photos-import">Fotos hinzufügen</button></div>
+            <div class="n2k-photo-tabs"><button type="button" data-photo-view="timeline" class="active">Timeline</button><button type="button" data-photo-view="all">Alle Fotos</button><button type="button" data-photo-view="favorites">Favoriten</button><button type="button" data-photo-view="albums">Alben</button><button type="button" id="n2k-photo-new-album">+ Album</button></div>
             <div id="n2k-photos-status" aria-live="polite">Fotos werden geladen …</div><div id="n2k-photos-grid"></div>
           </article>
           <article id="workspace-panel" class="panel workspace-panel section-anchor">
@@ -1689,9 +1690,9 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261008-networktile6"></script>
+  <script src="app.js?v=20261008-fotogalery3"></script>
   <script defer src="monitoring-tiles.js?v=20261008-10"></script>
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><button id="n2k-photo-close">✕ Schließen</button><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
-  <script defer src="photos.js?v=20261008-2"></script>
+  <script defer src="photos.js?v=20261008-3"></script>
 </body>
 </html>
