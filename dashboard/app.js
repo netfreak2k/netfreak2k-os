@@ -6253,6 +6253,7 @@ function updateMediaPlaybackUi() {
       : (station.now_playing?.artist ? `${station.now_playing.artist} · ${station.name}` : `${station.genre || "Radio"} · ${station.country || "Internet"}`))
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
+  if(station)n2kRememberPlayableMedia(station);
   if(station)n2kBridgeMediaToOverview(station);
   if (liveDot) liveDot.classList.toggle("active", playing);
   if (visualizer) visualizer.classList.toggle("has-signal", playing);
@@ -6612,6 +6613,7 @@ async function playMediaStation(index) {
     try { await mediaAudioContext.resume(); } catch (_) {}
   }
   mediaStationIndex = index;
+  n2kRememberPlayableMedia(station);
   if (audio.src !== station.url) {
     audio.src = station.url;
     audio.load();
@@ -6875,6 +6877,7 @@ async function playLocalTrack(index) {
   }
   mediaStationIndex = -1;
   mediaLocalIndex = index;
+  n2kRememberPlayableMedia(track);
   const targetUrl = new URL(track.url, window.location.href).href;
   if (audio.src !== targetUrl) {
     audio.src = track.url;
@@ -7401,7 +7404,33 @@ function pauseMediaPlayback() {
   updateMediaPlaybackUi();
 }
 
+function n2kRememberPlayableMedia(item) {
+ if(!item || !item.url)return;
+ const snapshot={...item,source:item.source||"radio"};
+ try{localStorage.setItem("n2k-last-playable-v1",JSON.stringify(snapshot));}catch(_){}
+}
+function n2kReadLastPlayableMedia() {
+ try{return JSON.parse(localStorage.getItem("n2k-last-playable-v1")||"null");}catch(_){return null}
+}
+async function n2kPlayOverviewSelection() {
+ const audio=ensureMediaAudio();
+ if(audio.src && mediaCurrentStation())return toggleMediaPlayback();
+ const recent=n2kReadLastPlayableMedia();
+ if(recent?.url){
+  if(recent.source==="local"){
+   const index=mediaLocalTracks.findIndex(t=>String(t.id)===String(recent.id)||t.url===recent.url);
+   if(index>=0)return playLocalTrack(index);
+   showN2KToast("Die zuletzt gespielte lokale Datei ist nicht mehr verfügbar.","error");
+   return;
+  }
+  let index=mediaStations.findIndex(t=>String(t.id)===String(recent.id)||t.url===recent.url);
+  if(index<0){mediaStations.push(recent);index=mediaStations.length-1;}
+  return playMediaStation(index);
+ }
+ return playMediaPlayback();
+}
 function stopMediaPlayback() {
+  n2kRememberPlayableMedia(mediaCurrentStation());
   stopRadioMetadataPolling(true);
   const audio = ensureMediaAudio();
   audio.pause();
@@ -7459,7 +7488,7 @@ function initMediaCenter() {
     mediaRadioSearchTimer = setTimeout(loadMediaRadioDirectory, 260);
   });
   document.getElementById("media-play")?.addEventListener("click", toggleMediaPlayback);
-  document.getElementById("overview-media-play")?.addEventListener("click", toggleMediaPlayback);
+  document.getElementById("overview-media-play")?.addEventListener("click", n2kPlayOverviewSelection);
   document.getElementById("overview-media-prev")?.addEventListener("click", () => stepMediaStation(-1));
   document.getElementById("overview-media-next")?.addEventListener("click", () => stepMediaStation(1));
   document.getElementById("top-media-prev")?.addEventListener("click", () => stepMediaStation(-1));
@@ -7647,60 +7676,3 @@ else n2kConnectPlayerCover();
  setInterval(refresh,30000);
 })();
 
-/* N2K Media tile: independent mirror of the visible player */
-(function(){
- const KEY="n2k-media-overview-v4";
- function read(){
-  const current=typeof mediaCurrentStation==="function"?mediaCurrentStation():null;
-  const top=document.getElementById("top-media-art");
-  const topTitle=document.getElementById("top-media-title");
-  const topSubtitle=document.getElementById("top-media-subtitle");
-  const css=top?(top.style.backgroundImage||""):"";
-  let playerArt="";
-  if(css.startsWith("url("))playerArt=css.slice(4,-1).trim().replace(/^["']|["']$/g,"");
-  const validate=url=>typeof url==="string"&&/^(https?:\/\/|\/|blob:|data:image\/)/i.test(url);
-  const mediaArt=current?(current.artwork_url||current.favicon||current.cover||current.image||""):"";
-  const title=current?(current.now_playing?.title||current.title||current.name||""):"";
-  const meta=current?(current.artist||current.genre||current.country||""):"";
-  let saved;
-  try{saved=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){saved=null}
-  const oldTitle=topTitle?.textContent?.trim()||"";
-  if(current){
-   const art=validate(mediaArt)?mediaArt:(validate(playerArt)?playerArt:"");
-   saved={title:title||oldTitle,meta:meta||topSubtitle?.textContent||"",art:art||saved?.art||""};
-   try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(_){}
-  }else if(!saved){
-   let old;try{old=JSON.parse(localStorage.getItem("n2k-media-last-artwork-v3")||"null")}catch(_){}
-   if(old?.artwork)saved={title:old.title||"",meta:old.subtitle||"",art:old.artwork};
-   if(saved)try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(_){}
-  }
-  if(!saved)return;
-  const tile=document.getElementById("overview-media-widget");
-  const titleNode=document.getElementById("overview-media-title");
-  const subtitleNode=document.getElementById("overview-media-subtitle");
-  const holder=document.getElementById("overview-media-art");
-  if(!tile||!holder)return;
-  if(saved.title&&titleNode)titleNode.textContent=saved.title;
-  if(saved.meta&&subtitleNode)subtitleNode.textContent=saved.meta;
-  if(validate(saved.art)){
-   let img=holder.querySelector("img.n2k-mirror-cover");
-   if(!img){
-    holder.replaceChildren();
-    img=document.createElement("img");
-    img.className="n2k-mirror-cover";
-    img.alt="Senderlogo oder Albumcover";
-    img.addEventListener("load",()=>{holder.dataset.imageState="ok"});
-    img.addEventListener("error",()=>{
-      holder.dataset.imageState="missing";
-      holder.title="Cover vom Anbieter nicht erreichbar";
-    });
-    holder.appendChild(img);
-   }
-   if(img.getAttribute("src")!==saved.art)img.src=saved.art;
-   holder.classList.add("has-artwork");
-  }
- }
- if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",read);
- else read();
- setInterval(read,2000);
-})();
