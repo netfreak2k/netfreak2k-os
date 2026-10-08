@@ -1674,16 +1674,20 @@
               <span class="state-pill">4 PANE</span>
             </div>
 <section class="n2k-hermes-panel" aria-labelledby="n2k-hermes-title">
- <div class="n2k-hermes-head"><div><p class="eyebrow">N2K LOCAL AGENT · OPTIONAL</p><h3 id="n2k-hermes-title">Hermes Agent</h3><p>Minimaler RAM-Verbrauch: kein Modellstart durch das Dashboard.</p></div><span id="n2k-hermes-status" class="state-pill">Nicht verbunden</span></div>
- <div class="n2k-hermes-stats"><div><small>Modell-Empfehlung</small><strong>Qwen3.5 · 0.8B</strong></div><div><small>Modellgröße</small><strong>ca. 1,3 GB</strong></div><div><small>Betrieb</small><strong>Manuell / extern</strong></div></div>
- <p id="n2k-hermes-note">Hermes wird nicht automatisch installiert oder gestartet. Bestehende KI-Dienste bleiben unberührt.</p>
+ <div class="n2k-hermes-head"><div><p class="eyebrow">N2K LOCAL AGENT · ON DEVICE</p><h3 id="n2k-hermes-title">Hermes Agent</h3><p>Hermes und das Modell laufen ausschließlich auf diesem Server.</p></div><span id="n2k-hermes-status" class="state-pill">Nicht verbunden</span></div>
+ <div class="n2k-hermes-stats"><div><small>Modell-Empfehlung</small><strong>Qwen3.5 · 0.8B</strong></div><div><small>Modellgröße</small><strong>ca. 1,3 GB</strong></div><div><small>Betrieb</small><strong>Lokal · On-Demand</strong></div></div>
+ <p id="n2k-hermes-note">Installiere Hermes lokal und konfiguriere das Modell, dann kannst du hier chatten.</p>
  <div class="n2k-hermes-actions"><button id="n2k-hermes-refresh" type="button">Verbindung prüfen</button><a id="n2k-hermes-launch" href="#" target="_blank" rel="noopener noreferrer" hidden>Hermes öffnen ↗</a></div>
  <details class="n2k-hermes-guide"><summary>Einrichtung für 8 GB RAM anzeigen</summary>
- <p><strong>Empfohlen:</strong> Bereits laufenden Hermes Agent auf dem Pi 4 oder KI-PC anbinden. Alternativ Hermes auf dem Server installieren und Qwen3.5:0.8b über Ollama nutzen. Der Modellkontext benötigt zusätzlichen RAM; 64K Kontext ist für Hermes vorgesehen und muss vor produktivem Betrieb geprüft werden.</p>
- <code>ollama pull qwen3.5:0.8b</code>
- <p>Hermes installieren und mit <code>hermes model</code> den lokalen Ollama-Endpunkt <code>http://127.0.0.1:11434/v1</code> auswählen. Kein automatischer Start und keine ungeprüften Agenten-Befehle.</p>
- <p>Für die Dashboard-Anzeige den Backend-Dienst mit <code>N2K_HERMES_URL</code> konfigurieren (z. B. eine intern erreichbare Hermes-Dashboard-Adresse). Erst nach Konfiguration wird die Schaltfläche zum Öffnen freigeschaltet.</p>
+ <p>Hermes Agent und Ollama auf dem Server installieren: <code>scripts/install-hermes-local-8gb.sh</code>. Anschließend lokal <code>hermes model</code> ausführen und <code>http://127.0.0.1:11434/v1</code> mit <code>qwen3.5:0.8b</code> auswählen.</p>
+ <p>4K Kontext, ein Modell gleichzeitig und automatisches Entladen. Der sichere Dashboard-Chat nutzt keine Shell-Tools und führt keine eigenständigen Systemaktionen aus.</p>
  </details>
+ <div class="n2k-hermes-chat">
+ <label for="n2k-hermes-prompt">Nachricht an lokalen Hermes</label>
+ <textarea id="n2k-hermes-prompt" rows="3" maxlength="3000" placeholder="Frage an Hermes auf diesem Server …"></textarea>
+ <div class="n2k-hermes-actions"><button id="n2k-hermes-send" type="button">An Hermes senden</button></div>
+ <div id="n2k-hermes-response" role="status" aria-live="polite">Noch keine Nachricht gesendet.</div>
+ </div>
  </section>
             <div class="ai-pane-grid">
               <section class="ai-pane" data-ai-pane="1"><div class="ai-pane-head"><strong>Chat 1</strong><span>ChatGPT</span></div><div class="ai-chat-history" id="ai-history-1"><div class="ai-empty">Noch keine lokale Notiz.</div></div><textarea id="ai-input-1" placeholder="Prompt / Kontext für Chat 1 …"></textarea><div class="ai-pane-actions"><button class="secondary compact ai-copy-open" data-pane="1">In ChatGPT öffnen</button><button class="mini-action ai-save-note" data-pane="1">Notiz merken</button></div></section>
