@@ -21,7 +21,7 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "hermes_local_status", "hermes_local_chat",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
@@ -3606,44 +3606,7 @@ def start_linux_upgrade():
         return {"error":"linux_upgrade_start_failed","detail":result.stderr.strip()[:300]}
     return {"accepted":True,"state":"running"}
 
-def hermes_local_status():
-    username = os.environ.get("N2K_HERMES_USER", "").strip()
-    if not username:
-        return {"configured":False,"error":"N2K_HERMES_USER_not_set"}
-    try:
-        account = pwd.getpwnam(username)
-    except KeyError:
-        return {"configured":False,"error":"local_user_unknown"}
-    binary = next((str(p) for p in [Path(account.pw_dir)/".local/bin/hermes",Path(account.pw_dir)/".hermes/bin/hermes"] if p.is_file()),None)
-    return {"configured":bool(binary),"installed":bool(binary),"model":"qwen3.5:0.8b","username":username}
-
-def hermes_local_chat(prompt):
-    if not isinstance(prompt,str) or not 1 <= len(prompt.strip()) <= 3000:
-        return {"error":"invalid_prompt"}
-    info=hermes_local_status()
-    if not info.get("installed"):
-        return {"error":info.get("error","hermes_not_installed")}
-    account=pwd.getpwnam(info["username"])
-    binary=next(str(p) for p in [Path(account.pw_dir)/".local/bin/hermes",Path(account.pw_dir)/".hermes/bin/hermes"] if p.is_file())
-    # Never run an LLM-controlled shell with root credentials.
-    argv=["runuser","-u",account.pw_name,"--",binary,"chat","--oneshot","--query-file","-","--safe-mode","--max-turns","1"]
-    try:
-        p=subprocess.run(argv,input=prompt,text=True,capture_output=True,timeout=110,
-            env={"HOME":account.pw_dir,"USER":account.pw_name,"LOGNAME":account.pw_name,
-                 "PATH":"/usr/local/bin:/usr/bin:/bin:"+str(Path(account.pw_dir)/".local/bin")})
-    except subprocess.TimeoutExpired:
-        return {"error":"hermes_timeout"}
-    if p.returncode:
-        return {"error":"hermes_execution_failed","detail":p.stderr[-300:]}
-    return {"reply":p.stdout[-16000:],"model":info["model"]}
-
 def execute(action, request):
-    if action == "hermes_local_status":
-        return hermes_local_status()
-
-    if action == "hermes_local_chat":
-        return hermes_local_chat(request.get("prompt"))
-
     if action == "status":
         return payload()
 
