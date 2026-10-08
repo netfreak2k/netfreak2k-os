@@ -9,7 +9,7 @@ function render(){
  history.scrollTop=history.scrollHeight;
 }
 async function status(){
- try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ollama-state").textContent=d.running?"Bereit":"Offline";$("n2k-ollama-note").textContent=d.running?"Lokal verbunden · Qwen2.5 0.5B · Modell wird nach jeder Anfrage entladen.":"Ollama nicht erreichbar. Prüfe systemctl status ollama.";}
+ try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ollama-state").textContent=d.ready?"Bereit":d.running?"Modell fehlt":"Offline";$("n2k-ollama-note").textContent=d.ready?"Lokales Modell Qwen2.5 0.5B bereit · RAM-Limit 1,5 GB.":d.setup?.message||"Ollama oder Modell noch nicht bereit. Installation wird beim Server-OS-Update erneut geprüft.";}
  catch(e){$("n2k-ollama-state").textContent="Status unbekannt";}
 }
 async function send(){
