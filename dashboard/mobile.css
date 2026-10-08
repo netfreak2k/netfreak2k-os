@@ -155,3 +155,283 @@
   .side-nav .nav-item{flex-basis:58px;width:58px}
   #top-update-status{max-width:94px}
 }
+
+
+/* N2K Mobile Dashboard 2.1 — targeted phone-only refinement.
+   Desktop and tablet breakpoints stay unchanged. */
+@media (max-width: 620px) {
+  html { scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  .workspace { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  main { padding: 12px 12px 26px; }
+
+  /* No inherited desktop grid areas or phantom media/search rows. */
+  .topbar.topbar-desktop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "brand" "right";
+    grid-template-rows: auto auto;
+    gap: 9px;
+    min-height: 0;
+    padding: 11px 14px 12px;
+    align-items: center;
+    background: rgba(8, 13, 21, .95);
+    border-bottom: 1px solid rgba(255, 229, 168, .10);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+  .topbar-brand { grid-area: brand; width: 100%; min-width: 0; }
+  .topbar-title-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+  }
+  .topbar-title-line h1 {
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(14px, 4.2vw, 18px);
+    line-height: 1.2;
+    font-weight: 750;
+    letter-spacing: -.025em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #top-update-status {
+    display: inline-flex;
+    flex: none;
+    max-width: none;
+    min-height: 34px;
+    padding: 7px 9px;
+    border-radius: 11px;
+    gap: 6px;
+  }
+  #top-update-status strong {
+    font-size: 10px;
+    letter-spacing: 0;
+    max-width: 105px;
+  }
+  .topbar-right {
+    grid-area: right;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .topbar-right .top-actions { display: flex; flex: none; gap: 8px; }
+  .topbar-right .icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 19px;
+  }
+  .topbar-right .topbar-welcome {
+    min-width: 0 !important;
+    max-width: calc(100% - 102px);
+    flex: 1 1 auto;
+    display: grid !important;
+    justify-items: end;
+    text-align: right;
+    margin: 0 !important;
+  }
+  .topbar-right .topbar-welcome > strong { font-size: 21px !important; line-height: 1.1; }
+  .topbar-right .topbar-welcome > small {
+    display: block;
+    max-width: 100%;
+    margin-top: 4px;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #a7b0bb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .notification-panel { top: 102px !important; }
+  .n2k-toast-stack { top: 108px !important; }
+
+  /* Alerts: a compact call-to-action instead of a full-height card. */
+  .overview-screen { gap: 10px; min-width: 0; }
+  .overview-warning {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 13px;
+    min-height: 0;
+    border-radius: 15px;
+    background: linear-gradient(110deg, rgba(40, 72, 118, .48), rgba(19, 26, 38, .65));
+  }
+  .overview-warning > div { min-width: 0; }
+  .overview-warning strong {
+    font-size: 13px;
+    line-height: 1.35;
+    color: #f4f6fa;
+  }
+  .overview-warning span {
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #bdc5d0;
+    margin-top: 3px;
+    overflow-wrap: break-word;
+  }
+  .overview-warning button {
+    width: auto;
+    min-width: 64px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(237, 203, 117, .22);
+    background: rgba(218, 179, 85, .11);
+    color: #f5d886;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Greeting copy can wrap and never be cropped. */
+  .overview-inline-status {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 3px 10px;
+    padding: 10px 12px;
+    min-height: 0;
+    border-radius: 14px;
+    background: rgba(12, 18, 27, .72);
+  }
+  .overview-inline-status .eyebrow { font-size: 9px; line-height: 1.1; }
+  #overview-greeting { font-size: 17px; line-height: 1.25; min-width: 0; }
+  .overview-inline-status > span:last-child,
+  #overview-health-copy {
+    grid-column: 1 / -1;
+    display: block;
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    color: #c1c9d2;
+  }
+
+  /* Two balanced rows of genuinely readable system metrics. */
+  .mini-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 9px; }
+  .overview-screen .mini-metric {
+    min-width: 0;
+    min-height: 91px;
+    gap: 9px;
+    padding: 12px 10px;
+    border-radius: 16px;
+    align-items: center;
+    background: rgba(8, 14, 22, .85);
+  }
+  .overview-screen .mini-metric > div:last-child { min-width: 0; }
+  .overview-screen .metric-ring, .overview-screen .mini-icon {
+    flex: 0 0 46px;
+    width: 46px;
+    height: 46px;
+  }
+  .overview-screen .metric-ring span { font-size: 11px; }
+  .overview-screen .mini-metric small {
+    font-size: 10px;
+    letter-spacing: .09em;
+    color: #aeb8c3;
+  }
+  .overview-screen .mini-metric strong {
+    font-size: clamp(11px, 3vw, 13px);
+    line-height: 1.3;
+    color: #f4f7fa;
+    overflow-wrap: anywhere;
+  }
+  .overview-screen .mini-metric .cpu-metric-copy > span {
+    display: block;
+    margin-top: 3px;
+    font-size: 9px;
+    line-height: 1.25;
+    color: #a1acb7;
+  }
+
+  /* Denser dashboard widgets while keeping large tap targets. */
+  .widget-grid { gap: 10px; }
+  .overview-screen .widget-grid > .widget {
+    min-width: 0;
+    min-height: 0;
+    padding: 13px 14px;
+    border-radius: 17px;
+    background: rgba(9, 15, 23, .86);
+  }
+  .overview-screen .widget-head { margin-bottom: 9px; }
+  .overview-screen .widget-head small { font-size: 10px; }
+  .overview-screen .widget-head h3 { font-size: 16px; line-height: 1.25; }
+  .drive-widget-body { gap: 13px; margin-top: 7px; }
+  .drive-donut { flex: 0 0 59px; width: 59px; height: 59px; }
+  .drive-donut span { font-size: 11px; }
+  .widget-stat-copy { min-width: 0; }
+  .widget-stat-copy strong { font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+  .widget-stat-copy span { font-size: 10.5px; line-height: 1.35; margin-top: 4px; }
+  .network-values span { font-size: 10px; }
+  .network-values strong { font-size: 16px; }
+  .network-widget canvas { height: 39px; margin-top: 7px; }
+  .widget-detail-lines b { font-size: 9px; }
+  .widget-detail-lines strong { font-size: 10px; }
+
+  /* Six primary tabs visible at common iPhone widths; the rest swipe horizontally. */
+  .sidebar {
+    height: calc(75px + env(safe-area-inset-bottom));
+    padding: 6px 9px calc(7px + env(safe-area-inset-bottom));
+    background: rgba(7, 12, 20, .98);
+    border-top: 1px solid rgba(255, 229, 168, .18);
+  }
+  .side-nav {
+    width: 100%;
+    height: 60px;
+    gap: 3px;
+    align-items: center;
+    padding: 0 1px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .side-nav .nav-item {
+    display: flex !important;
+    flex: 0 0 clamp(52px, 14.6vw, 59px);
+    width: clamp(52px, 14.6vw, 59px);
+    min-width: 0;
+    min-height: 56px;
+    gap: 4px;
+    padding: 5px 2px;
+    border-radius: 12px;
+    font-size: 9px !important;
+    line-height: 1.15;
+    letter-spacing: 0;
+    scroll-snap-align: start;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .side-nav .nav-item span { font-size: 19px; line-height: 1; }
+  .side-nav .nav-item.active {
+    background: linear-gradient(145deg, rgba(214, 172, 86, .26), rgba(104, 81, 39, .16));
+    border: 1px solid rgba(235, 203, 133, .35);
+    box-shadow: 0 2px 16px rgba(232, 185, 95, .11);
+    color: #f7e7bd;
+  }
+  .side-nav .nav-item.active span { color: #efd390; }
+}
+
+@media (max-width: 360px) {
+  .topbar-title-line { gap: 5px; }
+  .topbar-title-line h1 { font-size: 13px; }
+  #top-update-status { padding: 6px; }
+  #top-update-status strong { font-size: 9px; max-width: 95px; }
+  .overview-warning { grid-template-columns: minmax(0, 1fr); }
+  .overview-warning button { justify-self: start; }
+  .overview-screen .mini-metric { padding: 10px 7px; gap: 7px; }
+  .overview-screen .metric-ring, .overview-screen .mini-icon {
+    flex-basis: 40px; width: 40px; height: 40px;
+  }
+}

@@ -341,7 +341,7 @@ jobs:
       - name: Users Security sanity
         run: |
           grep -q 'security-panel' dashboard/index.html
-          grep -q 'login-totp' dashboard/index.html
+          grep -q 'login-password' dashboard/index.html
           grep -q 'loadSecurity' dashboard/app.js
           grep -q 'CREATE TABLE IF NOT EXISTS audit_log' server/api/server.py
           grep -q 'def totp_code' server/api/server.py
@@ -421,8 +421,8 @@ jobs:
 
       - name: GitHub update sanity
         run: |
-          grep -q 'archive/refs/heads' scripts/check-updates.sh
-          grep -q 'sha256sum' scripts/check-updates.sh
+          grep -q 'api.github.com/repos' scripts/check-updates.sh
+          grep -q 'remote_revision' scripts/check-updates.sh
           grep -q 'installed_fingerprint' scripts/check-updates.sh
           grep -q 'fingerprint' scripts/update-server.sh
           grep -q 'netfreak2k-update-check.timer' install.sh
