@@ -37,3 +37,8 @@
 #n2k-photo-editor button{padding:10px 15px;color:#f4faff;background:#1a496c;border:1px solid #45718f;border-radius:8px;cursor:pointer}
 #n2k-photo-editor .n2k-editor-buttons{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px}
 #n2k-photo-viewer .n2k-photo-top-actions{display:flex;gap:8px}
+
+/* v0.5 timeline year picker */
+#photos-panel #n2k-photo-year{margin-left:auto;min-width:125px;padding:10px 12px;border-radius:9px;color:#eef7ff;background:#17344f;border:1px solid rgba(116,158,195,.45);font-size:13px;font-weight:650;cursor:pointer}
+#photos-panel #n2k-photo-year[hidden]{display:none}
+@media(max-width:600px){#photos-panel #n2k-photo-year{margin-left:0;flex:1}}
