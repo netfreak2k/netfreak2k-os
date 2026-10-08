@@ -9,6 +9,10 @@ STATUS_FILE="${STATE_DIR}/update-status.json"
 COMMIT_API="https://api.github.com/repos/${N2K_REPO}/commits/${N2K_REF}"
 
 mkdir -p "${STATE_DIR}"
+# Host inventory is read-only and never blocks the GitHub update check.
+if [[ -f /usr/local/lib/netfreak2k/check-host-updates.py ]]; then
+  python3 /usr/local/lib/netfreak2k/check-host-updates.py || true
+fi
 checked_at="$(date +%s)"
 
 read_version_field(){
