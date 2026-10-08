@@ -55,7 +55,7 @@ function setMetric(type,value,info,detail,max=100){
 }
 function draw(canvas,values,max){
  if(!canvas||!canvas.isConnected)return;
- const w=canvas.clientWidth||200,h=64,dpr=Math.min(window.devicePixelRatio||1,2);
+ const w=canvas.clientWidth||200,h=32,dpr=Math.min(window.devicePixelRatio||1,2);
  canvas.width=Math.round(w*dpr);canvas.height=h*dpr;
  const ctx=canvas.getContext("2d");if(!ctx)return;
  ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
