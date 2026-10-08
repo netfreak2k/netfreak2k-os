@@ -1,0 +1,16 @@
+/* N2K Hermes compact AI panel */
+#ai-panel .n2k-hermes-panel{margin:12px 0 22px;padding:18px;border:1px solid rgba(88,177,214,.3);background:linear-gradient(130deg,rgba(11,39,62,.95),rgba(9,23,42,.96));border-radius:17px;color:#e9f6ff}
+#ai-panel .n2k-hermes-head{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+#ai-panel .n2k-hermes-head h3{font-size:21px;line-height:27px;margin:2px 0 7px}
+#ai-panel .n2k-hermes-head p{font-size:13px;line-height:19px;color:#a7c6da}
+#ai-panel .n2k-hermes-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:18px 0 13px}
+#ai-panel .n2k-hermes-stats>div{display:grid;gap:7px;padding:12px;background:rgba(5,21,35,.65);border:1px solid rgba(136,192,223,.15);border-radius:12px}
+#ai-panel .n2k-hermes-stats small{font-size:11px;color:#97bfd3}
+#ai-panel .n2k-hermes-stats strong{font-size:16px;font-weight:750;color:#f0faff}
+#ai-panel #n2k-hermes-note{font-size:12px;color:#bed6e7;line-height:18px}
+#ai-panel .n2k-hermes-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+#ai-panel .n2k-hermes-actions button,#ai-panel .n2k-hermes-actions a{background:#1b5770;color:#fff;padding:10px 13px;border-radius:9px;border:1px solid #3b91aa;text-decoration:none;font-size:13px;cursor:pointer}
+#ai-panel .n2k-hermes-guide{padding:11px 2px;font-size:13px;line-height:21px;color:#b8d4e4}
+#ai-panel .n2k-hermes-guide summary{cursor:pointer;color:#e5f5ff;font-weight:650}
+#ai-panel .n2k-hermes-guide code{font-size:12px;word-break:break-word;color:#96ebed}
+@media(max-width:640px){#ai-panel .n2k-hermes-stats{grid-template-columns:1fr}#ai-panel .n2k-hermes-head h3{font-size:19px}}
