@@ -66,3 +66,9 @@
 #photos-panel .n2k-photo-folder:has(button) strong{font-size:14px;overflow-wrap:anywhere}
 #photos-panel .n2k-photo-folder:has(button) small{color:#aac8da;font-size:11px}
 #photos-panel .n2k-photo-folder button{padding:9px 12px;background:#1c5b74;border:1px solid #468fb1;border-radius:8px;color:#fff;cursor:pointer}
+
+/* Fotogalery v0.9: responsive export tools and photo render performance */
+#photos-panel #n2k-photo-export-all,#photos-panel #n2k-photo-export-album{background:linear-gradient(140deg,#164e6c,#103550);border-color:#3e8db1;font-weight:700;white-space:nowrap}
+#photos-panel .n2k-photo-cell{content-visibility:auto;contain-intrinsic-size:auto 230px}
+#photos-panel .n2k-photo-item img{display:block;aspect-ratio:1 / 1;object-fit:cover;image-rendering:auto}
+@media(max-width:600px){#photos-panel .n2k-photos-toolbar button{flex-grow:1}#photos-panel .n2k-photo-cell{contain-intrinsic-size:auto 190px}}
