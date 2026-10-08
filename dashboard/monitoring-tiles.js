@@ -35,7 +35,24 @@ if(type==="temperature"||type==="fan"){
 }
 draw(card.querySelector("canvas"),history[type]||[],max);
 }
-function draw(canvas,values,max){if(!canvas||!canvas.isConnected)return;const w=canvas.clientWidth||200,h=31,dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=h*dpr;const ctx=canvas.getContext("2d");if(!ctx)return;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(values.length<2)return;const color=getComputedStyle(canvas.parentElement).getPropertyValue("--n2k-accent").trim()||"#3af";ctx.beginPath();values.forEach((v,i)=>{const x=i/(values.length-1)*w,y=h-3-Math.max(0,Math.min(1,v/max))*(h-8);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.lineWidth=1.8;ctx.strokeStyle=color;ctx.stroke();}
+function draw(canvas,values,max){
+ if(!canvas||!canvas.isConnected)return;
+ const w=canvas.clientWidth||200,h=64,dpr=Math.min(window.devicePixelRatio||1,2);
+ canvas.width=Math.round(w*dpr);canvas.height=h*dpr;
+ const ctx=canvas.getContext("2d");if(!ctx)return;
+ ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+ if(values.length<2){ctx.fillStyle="#8ba9c4";ctx.font="11px sans-serif";ctx.fillText("Verlauf wird erfasst …",8,34);return;}
+ const color=getComputedStyle(canvas.parentElement).getPropertyValue("--n2k-accent").trim()||"#3af";
+ const lo=Math.min(...values),hi=Math.max(...values);
+ const minSpan=max===5000?120:8,span=Math.max(minSpan,hi-lo);
+ const bottom=Math.max(0,lo-span*.2),top=Math.min(max,Math.max(hi+span*.2,bottom+span));
+ const y=v=>h-8-(v-bottom)/Math.max(1,top-bottom)*(h-16);
+ ctx.strokeStyle="rgba(120,170,215,.19)";ctx.lineWidth=1;
+ for(let i=0;i<3;i++){const yy=8+i*(h-16)/2;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+ ctx.beginPath();values.forEach((v,i)=>{const x=i/(values.length-1)*w;i?ctx.lineTo(x,y(v)):ctx.moveTo(x,y(v));});
+ ctx.lineWidth=2;ctx.strokeStyle=color;ctx.stroke();
+ ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.globalAlpha=.12;ctx.fillStyle=color;ctx.fill();ctx.globalAlpha=1;
+}
 async function poll(){
 if(document.getElementById("app-shell")?.classList.contains("hidden"))return;
 try{
@@ -54,7 +71,7 @@ setMetric("temperature",temp,valid(t.max_c)?"Max "+Number(t.max_c).toFixed(0)+" 
 const fans=c.fans||c.fan_speeds||d.fans||[];
 const numbers=Array.isArray(fans)?fans.map(f=>val(typeof f==="object"?(f.rpm??f.speed_rpm??f.current_rpm):f)).filter(v=>v!==null):[];
 const rpm=numbers.length?numbers[0]:val(c.fan_rpm);
-setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Hardwaremessung":"Kein Lüftersensor verfügbar",5000);
+setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Echter Tachometerwert":"Kein RPM-Sensor vom Host gemeldet",5000);
 }catch(e){console.debug("N2K tiles sensors:",e.message)}
 }
 function start(){
