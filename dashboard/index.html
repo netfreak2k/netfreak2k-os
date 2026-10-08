@@ -1002,6 +1002,15 @@
               <div><p class="eyebrow">N2K MESH COMMUNICATION</p><h2>Reticulum Messenger</h2><p>Unser N2K RNS Gateway DEV · LXMF-Nachrichten über Reticulum.</p></div>
               <span class="panel-symbol">✉</span>
             </div>
+            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
+              <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
+              <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
+              <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+                <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
+                <div style="display:grid;gap:8px"><strong>Nachricht senden</strong><input id="n2k-send-dest" placeholder="LXMF-Zielhash" maxlength="32"><textarea id="n2k-send-content" maxlength="2048" rows="4" placeholder="Nachricht schreiben …"></textarea><button id="n2k-send-button" class="primary compact">Über LXMF senden</button><div id="n2k-native-messages" aria-live="polite">Noch keine Nachrichten</div></div>
+              </div>
+            </section>
             <section class="tor-browser-shell" style="padding:18px;display:grid;gap:14px">
               <div class="tor-browser-toolbar">
                 <div><small>HOME ASSISTANT ADD-ON</small><strong>N2K RNS Gateway DEV</strong><span id="n2k-rns-ha-status" aria-live="polite">Home Assistant wird geprüft …</span></div>
