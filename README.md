@@ -42,6 +42,12 @@ Netfreak2k does **not** replace the host OS, repartition disks, install a bootlo
 - N2K Drive workspace, WebDAV/CalDAV, calendar, Office and Media Center
 - branded terminal and configurable desktop appearance
 
+## Windows und macOS (experimenteller VM-Installationsweg)
+
+Auf Windows 11 und Intel-macOS kann Netfreak2k Server-OS über eine von Multipass bereitgestellte Ubuntu-VM installiert werden. Die neuen Einstiegsskripte sind `install-windows.ps1` und `install-macos.sh`; siehe [Plattform-Anleitung](docs/INSTALL_WINDOWS_MACOS.md).
+
+**Wichtig:** Dies ist keine native Windows-/macOS-Portierung. Die VM muss die Voraussetzungen des Linux-Installers, insbesondere amd64 und Nested VT-x/AMD-V für KVM, erfüllen. Ohne diese wird die Installation gestoppt. Auf Apple Silicon wird die derzeitige amd64-Version nicht unterstützt. Funktionen mit direktem Zugriff auf den Windows-/macOS-Host sind nicht gleichwertig. Für den vollständigen Linux-Umfang empfiehlt sich ein direkt installierter Linux-Host.
+
 ## Installation
 
 Run the installer as root on a supported host:
