@@ -3384,3 +3384,9 @@ body::after{
 .n2k-help-section details p{margin:0;padding:12px 15px 15px}
 .n2k-help-section a{color:#82cfff}
 @media(max-width:680px){.n2k-help-grid{grid-template-columns:1fr}.n2k-help-section{padding:15px 0}.n2k-help-nav{gap:5px}.n2k-help-nav a{padding:8px 9px;font-size:11px}}
+
+/* Media thumbnail uses the exact same image URL as the Media Center player. */
+#overview-media-widget #overview-media-art{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate}
+#overview-media-widget #overview-media-art img.n2k-last-cover{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;object-position:center;border:0;border-radius:inherit}
+#overview-media-widget #overview-media-art img.n2k-last-cover[hidden]{display:none!important}
+#overview-media-widget #overview-media-art[data-cover-error="1"]::after{content:"♪";font-size:28px;color:#b9d6ed;position:absolute;inset:0;display:grid;place-items:center}
