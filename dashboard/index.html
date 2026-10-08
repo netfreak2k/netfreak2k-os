@@ -63,9 +63,6 @@
         <label>Passwort
           <input id="login-password" type="password" autocomplete="current-password" required>
         </label>
-        <label>2FA-Code <small>(falls aktiviert)</small>
-          <input id="login-totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
-        </label>
         <button type="submit">Anmelden</button>
       </form>
 
@@ -576,34 +573,18 @@
               <div>
                 <p class="eyebrow">N2K SECURITY CENTER</p>
                 <h2>Benutzer & Sicherheit</h2>
-                <p>Konten, Rollen, Zwei-Faktor-Anmeldung, aktive Sitzungen und Audit-Protokoll.</p>
+                <p>Konten, Rollen, aktive Sitzungen und Audit-Protokoll.</p>
               </div>
               <span id="security-role-badge" class="status-chip">lädt</span>
             </div>
 
             <div class="security-summary-grid">
               <section><small>MEIN KONTO</small><strong id="security-me">–</strong><span id="security-me-role">–</span></section>
-              <section><small>ZWEI-FAKTOR</small><strong id="security-2fa-state">–</strong><span>TOTP Authenticator</span></section>
               <section><small>AKTIVE SITZUNGEN</small><strong id="security-session-count">0</strong><span>angemeldete Browser</span></section>
               <section><small>BENUTZER</small><strong id="security-user-count">–</strong><span>lokale N2K-Konten</span></section>
             </div>
 
             <div class="security-grid">
-              <section class="security-card">
-                <div class="security-card-head"><div><small>ZWEI-FAKTOR</small><strong>Authenticator-App</strong></div><span id="security-2fa-badge" class="security-badge">AUS</span></div>
-                <p>Schützt dein Konto zusätzlich mit einem sechsstelligen TOTP-Code.</p>
-                <div id="security-totp-setup" class="security-totp-setup hidden">
-                  <label>Secret<input id="security-totp-secret" readonly></label>
-                  <label>Authenticator URI<textarea id="security-totp-uri" rows="3" readonly></textarea></label>
-                  <label>Code bestätigen<input id="security-totp-code" inputmode="numeric" maxlength="6" placeholder="123456"></label>
-                  <button id="security-totp-confirm" class="primary compact">2FA aktivieren</button>
-                </div>
-                <div class="security-card-actions">
-                  <button id="security-totp-begin" class="primary compact">2FA einrichten</button>
-                  <button id="security-totp-disable" class="secondary compact hidden">2FA deaktivieren</button>
-                </div>
-              </section>
-
               <section class="security-card">
                 <div class="security-card-head"><div><small>SITZUNGEN</small><strong>Angemeldete Geräte</strong></div></div>
                 <div id="security-session-list" class="security-list"><div class="app-empty">Sitzungen werden geladen …</div></div>
@@ -660,7 +641,7 @@
                   <label>E-Mail für Let's Encrypt<input id="remote-email" type="email" maxlength="190" placeholder="admin@example.de"></label>
                   <div class="remote-requirements">
                     <strong>Vorher erforderlich</strong>
-                    <span>DNS zeigt auf deine öffentliche IP · TCP 80/443 sind im Router auf den Server weitergeleitet · für Admin-Konten ist 2FA empfohlen.</span>
+                    <span>DNS zeigt auf deine öffentliche IP · TCP 80/443 sind im Router auf den Server weitergeleitet.</span>
                   </div>
                 </div>
                 <div class="security-card-actions">
