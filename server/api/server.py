@@ -3875,7 +3875,7 @@ class Handler(BaseHTTPRequestHandler):
                     lat,lon=map(float,coordinates.split(","))
                     found={"latitude":lat,"longitude":lon,"name":place}
                 else:
-                    search=re.sub(r"\\s*\\([^)]*\\)","",place).strip()
+                    search=re.sub(r"\s*\([^)]*\)","",place).strip()
                     search=re.split(r"[, ]",search,maxsplit=1)[0]
                     req=Request("https://geocoding-api.open-meteo.com/v1/search?"+urlencode({"name":search,"count":1,"language":"de","format":"json"}),headers={"User-Agent":"Netfreak2k-OS/1.0"})
                     with urlopen(req,timeout=6) as resp:
