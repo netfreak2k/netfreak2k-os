@@ -25,7 +25,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -752,6 +752,64 @@ def container_state(name):
     result = run("docker", "inspect", "--format", "{{.State.Status}}", name)
     return result.stdout.strip() if result.returncode == 0 else None
 
+
+
+# The relay is independent of the browser and is ALWAYS a non-exit relay.
+TOR_RELAY_CONTAINER = "netfreak2k-tor-relay"
+TOR_RELAY_PORT = 9001
+
+def tor_relay_status():
+    state = container_state(TOR_RELAY_CONTAINER)
+    started = None
+    if state is not None:
+        info = run("docker", "inspect", "--format", "{{.State.StartedAt}}", TOR_RELAY_CONTAINER)
+        started = info.stdout.strip() if info.returncode == 0 else None
+    return {
+        "installed": state is not None,
+        "running": state == "running",
+        "state": state or "not_installed",
+        "port": TOR_RELAY_PORT,
+        "mode": "non-exit",
+        "started_at": started,
+    }
+
+def tor_relay_set(enabled):
+    if type(enabled) is not bool:
+        raise RuntimeError("invalid_relay_state")
+    state = container_state(TOR_RELAY_CONTAINER)
+    if not enabled:
+        if state == "running":
+            run("docker", "stop", "--time", "20", TOR_RELAY_CONTAINER, check=True, timeout=40)
+        return tor_relay_status()
+    if state is None:
+        if not port_available(TOR_RELAY_PORT):
+            raise RuntimeError("relay_port_in_use")
+        # Only the ORPort is exposed; SOCKS, control and DNS listeners stay disabled.
+        # ExitPolicy enforces that user traffic NEVER exits to the clearnet.
+        torrc = ("SocksPort 0\\nControlPort 0\\nDNSPort 0\\n"
+                 "ORPort 9001\\nExitRelay 0\\nExitPolicy reject *:*\\n"
+                 "Nickname Netfreak2kRelay\\n"
+                 "DataDirectory /var/lib/tor\\n"
+                 "RelayBandwidthRate 512 KB\\nRelayBandwidthBurst 1 MB\\n"
+                 "Log notice stdout\\n")
+        # Alpine installs Tor on start; no host-level Tor changes.
+        run("docker", "volume", "create", "netfreak2k-tor-relay-data", check=True)
+        cmd = ["docker", "run", "-d", "--name", TOR_RELAY_CONTAINER,
+               "--restart", "unless-stopped",
+               "--label", "netfreak2k.managed=true",
+               "--label", "netfreak2k.app=tor-relay",
+               "--security-opt", "no-new-privileges:true",
+               "--cap-drop", "ALL",
+               "-p", "9001:9001/tcp",
+               "-v", "netfreak2k-tor-relay-data:/var/lib/tor",
+               "alpine:3.20", "/bin/sh", "-c",
+               "apk add --no-cache tor >/dev/null && printf '%s' " +
+               __import__("shlex").quote(torrc) +
+               " > /tmp/torrc && exec tor -f /tmp/torrc"]
+        run(*cmd, check=True, timeout=120)
+    elif state != "running":
+        run("docker", "start", TOR_RELAY_CONTAINER, check=True, timeout=60)
+    return tor_relay_status()
 
 def catalog_payload():
     apps = []
@@ -3790,6 +3848,12 @@ def execute(action, request):
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
+
+    if action == "tor_relay_status":
+        return tor_relay_status()
+
+    if action == "tor_relay_set":
+        return tor_relay_set(request.get("enabled"))
 
     if action == "app_catalog":
         return catalog_payload()
