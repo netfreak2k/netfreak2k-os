@@ -3613,9 +3613,9 @@ def ollama_local_status():
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=3) as resp:
             data=json.load(resp)
         models=[m.get("name","") for m in data.get("models",[])]
-        return {"running":True,"models":models,"model":"qwen3.5:0.8b"}
+        return {"running":True,"models":models,"model":"qwen2.5:0.5b"}
     except (OSError, ValueError, urllib.error.URLError):
-        return {"running":False,"models":[],"model":"qwen3.5:0.8b"}
+        return {"running":False,"models":[],"model":"qwen2.5:0.5b"}
 
 def ollama_local_chat(messages):
     if not isinstance(messages,list) or not 1 <= len(messages) <= 12:
@@ -3629,16 +3629,16 @@ def ollama_local_chat(messages):
             return {"error":"invalid_message_content"}
         safe.append({"role":item["role"],"content":content})
     if safe[-1]["role"]!="user": return {"error":"last_message_must_be_user"}
-    data={"model":"qwen3.5:0.8b","messages":safe,"stream":False,
+    data={"model":"qwen2.5:0.5b","messages":safe,"stream":False,
           "think":False,"keep_alive":0,
-          "options":{"num_ctx":2048,"num_predict":192,"temperature":0.5}}
+          "options":{"num_ctx":1024,"num_predict":96,"temperature":0.5}}
     request=urllib.request.Request("http://127.0.0.1:11434/api/chat",
         data=json.dumps(data).encode(),headers={"Content-Type":"application/json"},method="POST")
     try:
         with urllib.request.urlopen(request,timeout=90) as response:
             result=json.load(response)
         return {"reply":str(result.get("message",{}).get("content",""))[:6000],
-                "model":"qwen3.5:0.8b"}
+                "model":"qwen2.5:0.5b"}
     except urllib.error.HTTPError as exc:
         return {"error":"ollama_http_error","detail":str(exc.code)}
     except (OSError,ValueError,urllib.error.URLError):
