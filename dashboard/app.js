@@ -6262,6 +6262,16 @@ function updateMediaPlaybackUi() {
 function updateMediaArtwork(item) {
   const cover = document.getElementById("media-cover");
   const topArt = document.getElementById("top-media-art");
+  const overviewArt = document.getElementById("overview-media-art");
+  if (overviewArt) {
+    const url = item?.artwork_url || item?.favicon || "";
+    const safe = typeof url==="string" && (/^https:\/\//i.test(url) || /^http:\/\//i.test(url) || /^blob:/i.test(url) || /^data:image\//i.test(url) || url.startsWith("/")) ? url : "";
+    overviewArt.style.backgroundImage = safe ? 'url('+JSON.stringify(safe)+')' : "";
+    overviewArt.classList.toggle("has-artwork",Boolean(safe));
+    overviewArt.textContent = safe ? "" : "♪";
+    overviewArt.title = item?.title || item?.name || "Zuletzt gespielt";
+  }
+
   const artwork = item?.artwork_url || item?.favicon || "";
   const safeArtwork = artwork ? artwork.replace(/"/g, "%22") : "";
 
