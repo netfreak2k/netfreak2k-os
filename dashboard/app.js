@@ -4266,7 +4266,7 @@ async function loadUpdates() {
       if(!window.confirm("Linux-Paketupdates auf diesem Server jetzt installieren? Dienste können kurz unterbrochen werden. Kein automatischer Neustart. Vorher Backup prüfen.")) return;
       upgradeButton.disabled=true;
       try {
-        const response=await request("/api/updates/linux/install",{method:"POST"});
+        const response=await request("/api/updates/linux/install",{method:"POST",body:"{}",headers:{"X-CSRF-Token":csrfToken}});
         if(!response.accepted) throw Error(response.error || "Start abgelehnt");
         alert("Linux-Update gestartet. Fortschritt erscheint nach Aktualisierung der Seite.");
         loadUpdates();
