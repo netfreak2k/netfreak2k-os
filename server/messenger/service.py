@@ -124,7 +124,8 @@ class Handler(BaseHTTPRequestHandler):
                 identity = RNS.Identity.recall(bytes.fromhex(dest))
                 if identity is None:
                     raise ValueError("destination_identity_unknown")
-                message = LXMF.LXMessage(LXMF.LXMessage.DIRECT, content, DELIVERY, destination_hash=bytes.fromhex(dest))
+                destination = RNS.Destination(identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+                message = LXMF.LXMessage(destination, DELIVERY, content, desired_method=LXMF.LXMessage.DIRECT)
                 # Identity/path resolution and delivery success are asynchronous.
                 ROUTER.handle_outbound(message)
                 append_message({"direction":"out","source":dest,"content":content,"time":int(time.time()),"status":"queued"})
