@@ -3390,3 +3390,12 @@ body::after{
 #overview-media-widget #overview-media-art img.n2k-last-cover{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;object-position:center;border:0;border-radius:inherit}
 #overview-media-widget #overview-media-art img.n2k-last-cover[hidden]{display:none!important}
 #overview-media-widget #overview-media-art[data-cover-error="1"]::after{content:"♪";font-size:28px;color:#b9d6ed;position:absolute;inset:0;display:grid;place-items:center}
+
+/* N2K Media: force a visible cover in the compact overview card. */
+#overview-media-widget .overview-media-now{display:flex!important;align-items:center!important;gap:9px!important;min-height:54px!important}
+#overview-media-widget #overview-media-art{display:flex!important;align-items:center;justify-content:center;flex:0 0 50px!important;width:50px!important;height:50px!important;min-width:50px!important;min-height:50px!important;padding:0!important;overflow:hidden!important;border-radius:11px!important}
+#overview-media-widget #overview-media-art img.n2k-mirror-cover{display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain!important;background:rgba(255,255,255,.065)}
+#overview-media-widget #overview-media-art[data-image-state="missing"] img.n2k-mirror-cover{display:none!important}
+#overview-media-widget #overview-media-art[data-image-state="missing"]::after{content:"♪";font-size:22px;color:#d8e9f5}
+#overview-media-widget .overview-media-now>div{flex:1;min-width:0;overflow:hidden}
+#overview-media-widget .overview-media-now strong,#overview-media-widget .overview-media-now small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
