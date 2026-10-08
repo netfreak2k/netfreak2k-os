@@ -3707,6 +3707,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(photogalery_trash(session["username"]))
             return
 
+        if path == "/ollama/context":
+            if not self.require_auth():
+                return
+            self.send_json(vm_agent("n2k_ai_context"))
+            return
+
         if path == "/ollama/status":
             if not self.require_auth():
                 return
@@ -4877,7 +4883,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body,dict):
                 self.send_json({"error":"invalid_body"},400)
                 return
-            result=vm_agent("ollama_local_chat",{"messages":body.get("messages")})
+            result=vm_agent("ollama_local_chat",{"messages":body.get("messages"),"system_context":body.get("system_context") is True})
             if not result.get("available") or result.get("error"):
                 self.send_json(result,503)
                 return
