@@ -3338,6 +3338,18 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path in ("/messenger/messages", "/messenger/contacts"):
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                endpoint = path.rsplit("/", 1)[-1]
+                response = urlopen("http://netfreak2k-messenger:8091/" + endpoint, timeout=4)
+                self.send_json(json.loads(response.read(131072).decode("utf-8")))
+            except (OSError, ValueError, json.JSONDecodeError):
+                self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
         if path == "/messenger/status":
             session = self.require_auth()
             if not session:
@@ -3932,6 +3944,28 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+
+        if path in ("/messenger/messages", "/messenger/contacts"):
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                payload = self.read_json()
+                endpoint = path.rsplit("/", 1)[-1]
+                body = json.dumps(payload).encode("utf-8")
+                req = Request("http://netfreak2k-messenger:8091/" + endpoint, data=body,
+                              headers={"Content-Type":"application/json"}, method="POST")
+                response = urlopen(req, timeout=12)
+                result = json.loads(response.read(16384).decode("utf-8"))
+                audit_event(session["username"], "messenger_" + endpoint, "native", self.client_ip())
+                self.send_json(result)
+            except Exception as exc:
+                from urllib.error import HTTPError
+                if isinstance(exc, HTTPError):
+                    self.send_json({"error":"messenger_rejected_request"}, 400)
+                else:
+                    self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
 
         if path == "/tor/relay":
             session = self.require_auth()
