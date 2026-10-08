@@ -1235,6 +1235,65 @@ def safe_relative(value):
 
 
 
+
+def photogalery_file(username, rel):
+    root = workspace_base(username, "media").resolve()
+    target = (root / safe_relative(rel)).resolve()
+    if root not in target.parents or not target.is_file() or target.is_symlink():
+        raise ValueError("not_found")
+    if target.suffix.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"}:
+        raise ValueError("invalid_image")
+    return target
+
+
+def photogalery_duplicates(username):
+    import hashlib
+    library = photogalery_library(username, limit=12000)
+    by_size = {}
+    for item in library["items"]:
+        by_size.setdefault(item["size_bytes"], []).append(item)
+    by_hash = {}
+    for group in by_size.values():
+        if len(group) < 2:
+            continue
+        for item in group:
+            try:
+                file = photogalery_file(username, item["key"])
+                digest = hashlib.sha256()
+                with file.open("rb") as stream:
+                    for part in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(part)
+                by_hash.setdefault(digest.hexdigest(), []).append(item["key"])
+            except (OSError, ValueError):
+                continue
+    return {"groups": [group for group in by_hash.values() if len(group) > 1],
+            "partial": bool(library.get("truncated"))}
+
+
+def photogalery_thumb(username, rel):
+    import hashlib
+    from PIL import Image, ImageOps
+    target = photogalery_file(username, rel)
+    stat = target.stat()
+    cache = DATA_DIR / "photo_thumbnails" / username
+    cache.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.sha256(f"{target}:{stat.st_size}:{stat.st_mtime_ns}:v1".encode()).hexdigest()
+    result = cache / (cache_key + ".jpg")
+    if not result.exists():
+        with Image.open(target) as picture:
+            picture = ImageOps.exif_transpose(picture)
+            picture.thumbnail((480, 480))
+            if picture.mode != "RGB":
+                picture = picture.convert("RGB")
+            tmp = cache / (cache_key + ".tmp")
+            try:
+                picture.save(tmp, "JPEG", quality=78, optimize=True)
+                tmp.replace(result)
+            finally:
+                tmp.unlink(missing_ok=True)
+    return result
+
+
 def photogalery_library(username, limit=12000):
     root = workspace_base(username, "media").resolve()
     images = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"}
@@ -3449,6 +3508,26 @@ class Handler(BaseHTTPRequestHandler):
             limit = (query.get("limit") or ["60"])[0]
             payload = radio_browser_stations(country, search, limit)
             self.send_json(payload, 200 if payload.get("stations") else 503)
+            return
+
+        if path == "/photos/thumb":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                photo = (query.get("key") or [""])[0]
+                self.send_file(photogalery_thumb(session["username"], photo))
+            except ImportError:
+                self.send_json({"error": "pillow_not_installed"}, 503)
+            except (OSError, ValueError) as exc:
+                self.send_json({"error": str(exc)}, 404)
+            return
+
+        if path == "/photos/duplicates":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(photogalery_duplicates(session["username"]))
             return
 
         if path == "/photos/library":
