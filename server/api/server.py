@@ -275,7 +275,6 @@ def db_connect():
         conn.execute("ALTER TABLE users ADD COLUMN totp_secret TEXT")
     if "totp_enabled" not in user_columns:
         conn.execute("ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0")
-    conn.execute("UPDATE users SET totp_secret=NULL, totp_enabled=0 WHERE totp_enabled<>0 OR totp_secret IS NOT NULL")
     if "last_login_at" not in user_columns:
         conn.execute("ALTER TABLE users ADD COLUMN last_login_at INTEGER")
     session_columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
@@ -341,13 +340,14 @@ def create_admin(username, password):
 def user_auth_record(username):
     with db_connect() as conn:
         row = conn.execute(
-            "SELECT password_hash,salt,role,enabled,last_login_at FROM users WHERE username=?",
+            "SELECT password_hash,salt,role,enabled,totp_secret,totp_enabled,last_login_at FROM users WHERE username=?",
             (username,),
         ).fetchone()
     if not row:
         return None
     return {"password_hash": row[0], "salt": row[1], "role": row[2] or "viewer",
-            "enabled": bool(row[3]), "last_login_at": row[4]}
+            "enabled": bool(row[3]), "totp_secret": row[4], "totp_enabled": bool(row[5]),
+            "last_login_at": row[6]}
 
 
 def verify_login(username, password):
@@ -358,6 +358,25 @@ def verify_login(username, password):
     salt = base64.b64decode(record["salt"])
     supplied = hash_password(password, salt)
     return hmac.compare_digest(stored, supplied)
+
+
+def totp_code(secret, at=None):
+    at = int(at or time.time())
+    padded = secret + "=" * ((8 - len(secret) % 8) % 8)
+    key = base64.b32decode(padded, casefold=True)
+    counter = (at // 30).to_bytes(8, "big")
+    digest = hmac.new(key, counter, hashlib.sha1).digest()
+    offset = digest[-1] & 15
+    value = int.from_bytes(digest[offset:offset + 4], "big") & 0x7fffffff
+    return f"{value % 1000000:06d}"
+
+
+def verify_totp(secret, code):
+    code = re.sub(r"\s+", "", str(code or ""))
+    if not re.fullmatch(r"\d{6}", code):
+        return False
+    now = int(time.time())
+    return any(hmac.compare_digest(totp_code(secret, now + drift), code) for drift in (-30, 0, 30))
 
 
 def audit_event(username, action, detail="", remote_addr=""):
@@ -421,16 +440,16 @@ def delete_session(token):
 
 def security_payload(username):
     with db_connect() as conn:
-        current = conn.execute("SELECT role,last_login_at FROM users WHERE username=?", (username,)).fetchone()
+        current = conn.execute("SELECT role,totp_enabled,last_login_at FROM users WHERE username=?", (username,)).fetchone()
         role = current[0] if current else "viewer"
-        users = conn.execute("SELECT username,role,enabled,created_at,last_login_at FROM users ORDER BY created_at").fetchall() if role == "admin" else []
+        users = conn.execute("SELECT username,role,enabled,totp_enabled,created_at,last_login_at FROM users ORDER BY created_at").fetchall() if role == "admin" else []
         sessions = conn.execute("SELECT token_hash,username,expires_at,created_at,user_agent,remote_addr FROM sessions WHERE expires_at>? ORDER BY created_at DESC", (int(time.time()),)).fetchall()
         if role != "admin":
             sessions = [row for row in sessions if row[1] == username]
         audit = conn.execute("SELECT id,username,action,detail,remote_addr,created_at FROM audit_log ORDER BY created_at DESC LIMIT 100").fetchall() if role == "admin" else []
     return {
-        "me": {"username": username, "role": role, "last_login_at": current[1] if current else None},
-        "users": [{"username": r[0], "role": r[1], "enabled": bool(r[2]), "created_at": r[3], "last_login_at": r[4]} for r in users],
+        "me": {"username": username, "role": role, "totp_enabled": bool(current[1]) if current else False, "last_login_at": current[2] if current else None},
+        "users": [{"username": r[0], "role": r[1], "enabled": bool(r[2]), "totp_enabled": bool(r[3]), "created_at": r[4], "last_login_at": r[5]} for r in users],
         "sessions": [{"id": r[0][:16], "username": r[1], "expires_at": r[2], "created_at": r[3], "user_agent": r[4], "remote_addr": r[5]} for r in sessions],
         "audit": [{"id": r[0], "username": r[1], "action": r[2], "detail": r[3], "remote_addr": r[4], "created_at": r[5]} for r in audit],
     }
@@ -471,6 +490,31 @@ def update_user_account(username, role=None, enabled=None):
         conn.execute("UPDATE users SET role=?,enabled=? WHERE username=?", (new_role, new_enabled, username))
         if not new_enabled:
             conn.execute("DELETE FROM sessions WHERE username=?", (username,))
+        conn.commit()
+
+
+def begin_totp_setup(username):
+    secret = base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+    with db_connect() as conn:
+        conn.execute("UPDATE users SET totp_secret=?,totp_enabled=0 WHERE username=?", (secret, username))
+        conn.commit()
+    label = quote(f"Netfreak2k:{username}")
+    issuer = quote("Netfreak2k")
+    return {"secret": secret, "otpauth_uri": f"otpauth://totp/{label}?secret={secret}&issuer={issuer}&digits=6&period=30"}
+
+
+def confirm_totp_setup(username, code):
+    with db_connect() as conn:
+        row = conn.execute("SELECT totp_secret FROM users WHERE username=?", (username,)).fetchone()
+        if not row or not row[0] or not verify_totp(row[0], code):
+            raise ValueError("invalid_totp")
+        conn.execute("UPDATE users SET totp_enabled=1 WHERE username=?", (username,))
+        conn.commit()
+
+
+def disable_totp(username):
+    with db_connect() as conn:
+        conn.execute("UPDATE users SET totp_secret=NULL,totp_enabled=0 WHERE username=?", (username,))
         conn.commit()
 
 
@@ -3444,7 +3488,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         viewer_mutation_session = self.session()
-        viewer_allowed_posts = {"/logout", "/notifications/read", "/security/session/revoke"}
+        viewer_allowed_posts = {"/logout", "/notifications/read", "/security/totp/begin", "/security/totp/confirm", "/security/totp/disable", "/security/session/revoke"}
         if viewer_mutation_session and viewer_mutation_session.get("role") == "viewer" and path not in viewer_allowed_posts:
             self.send_json({"error": "read_only_role"}, 403)
             return
@@ -3680,6 +3724,37 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True})
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/security/totp/begin":
+            session = self.require_auth()
+            if not session or not self.require_csrf_token(session):
+                return
+            result = begin_totp_setup(session["username"])
+            audit_event(session["username"], "totp_begin", "", self.client_ip())
+            self.send_json(result)
+            return
+
+        if path == "/security/totp/confirm":
+            session = self.require_auth()
+            if not session or not self.require_csrf_token(session):
+                return
+            try:
+                data = self.read_json()
+                confirm_totp_setup(session["username"], data.get("code"))
+                audit_event(session["username"], "totp_enable", "", self.client_ip())
+                self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+
+        if path == "/security/totp/disable":
+            session = self.require_auth()
+            if not session or not self.require_csrf_token(session):
+                return
+            disable_totp(session["username"])
+            audit_event(session["username"], "totp_disable", "", self.client_ip())
+            self.send_json({"ok": True})
             return
 
         if path == "/security/session/revoke":
