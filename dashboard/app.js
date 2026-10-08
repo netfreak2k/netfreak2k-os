@@ -442,6 +442,30 @@ async function loadSecurity() {
   }
 }
 
+async function createSecurityUser() {
+  const username = document.getElementById("security-new-username")?.value.trim() || "";
+  const password = document.getElementById("security-new-password")?.value || "";
+  const role = document.getElementById("security-new-role")?.value || "viewer";
+  try {
+    await request("/api/security/users/create", {method:"POST", body:JSON.stringify({username,password,role}), headers:{"X-CSRF-Token":csrfToken}});
+    document.getElementById("security-user-create").classList.add("hidden");
+    showN2KToast("Benutzerkonto erstellt.", "success");
+    await loadSecurity();
+  } catch (error) { console.error(error); showN2KToast("Benutzer konnte nicht erstellt werden.", "error"); }
+}
+
+async function updateSecurityUser(username, role, enabled) {
+  try {
+    await request("/api/security/users/update", {method:"POST", body:JSON.stringify({username,role,enabled}), headers:{"X-CSRF-Token":csrfToken}});
+    showN2KToast("Benutzerrechte aktualisiert.", "success");
+    await loadSecurity();
+  } catch (error) {
+    console.error(error);
+    showN2KToast(error.code === "last_admin" ? "Der letzte aktive Admin kann nicht herabgestuft werden." : "Benutzer konnte nicht geändert werden.", "error");
+    await loadSecurity();
+  }
+}
+
 async function revokeSecuritySession(id) {
   try {
     await request("/api/security/session/revoke", {method:"POST", body:JSON.stringify({id}), headers:{"X-CSRF-Token":csrfToken}});
