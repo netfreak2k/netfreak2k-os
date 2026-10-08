@@ -21,7 +21,7 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
@@ -3587,6 +3587,25 @@ def backup_restore(backup_id):
     return {"accepted": True, "backup_id": backup_id, "verified": True}
 
 
+def start_linux_upgrade():
+    script = "/usr/local/lib/netfreak2k/linux-upgrade.sh"
+    if not Path(script).is_file():
+        return {"error":"linux_upgrade_worker_not_installed"}
+    status_path = Path("/var/lib/netfreak2k/linux-upgrade-status.json")
+    try:
+        previous = json.loads(status_path.read_text()) if status_path.exists() else {}
+    except (OSError, ValueError):
+        previous = {}
+    if previous.get("state") == "running":
+        p = subprocess.run(["systemctl","is-active","--quiet","netfreak2k-linux-upgrade.service"],check=False)
+        if p.returncode == 0:
+            return {"error":"linux_upgrade_already_running"}
+    result = subprocess.run(["systemd-run","--unit=netfreak2k-linux-upgrade","--collect","--property=Type=exec",
+        "--property=TimeoutStartSec=2h",script],capture_output=True,text=True,timeout=15,check=False)
+    if result.returncode != 0:
+        return {"error":"linux_upgrade_start_failed","detail":result.stderr.strip()[:300]}
+    return {"accepted":True,"state":"running"}
+
 def execute(action, request):
     if action == "status":
         return payload()
@@ -3599,6 +3618,9 @@ def execute(action, request):
 
     if action == "update_safe_netfreak2k":
         return safe_trigger_update()
+
+    if action == "linux_upgrade_start":
+        return start_linux_upgrade()
 
     if action == "check_updates":
         return check_updates_now()
