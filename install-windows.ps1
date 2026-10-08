@@ -17,9 +17,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host 'Prüfe Hardwarevirtualisierung innerhalb der VM...'
 multipass exec $vm -- bash -lc 'grep -Eq "(vmx|svm)" /proc/cpuinfo'
 if ($LASTEXITCODE -ne 0) {
-  Write-Warning 'Nested VT-x/AMD-V fehlt: HAOS/KVM ist in dieser VM nicht verfügbar. Die Linux-Installation ist deshalb nicht vollständig funktionsgleich.'
-  $answer=Read-Host 'Mit eingeschränktem Funktionsumfang fortfahren? (j/N)'
-  if ($answer -notmatch '^[jJyY]$') { exit 2 }
+  throw 'Installation gestoppt: Dem Ubuntu-Gast fehlen VT-x/AMD-V. Der aktuelle Installer benötigt KVM. Für vollen Funktionsumfang Linux direkt installieren.'
 }
 multipass exec $vm -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/netfreak2k/netfreak2k-os/main/install.sh | sudo bash'
 if ($LASTEXITCODE -ne 0) { throw 'Linux-Installation fehlgeschlagen. Logs mit: multipass shell netfreak2k-os' }
