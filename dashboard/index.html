@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile4">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-15">
   <link rel="stylesheet" href="photos.css?v=20261008-10">
-  <link rel="stylesheet" href="ollama-chat.css?v=20261008-3">
+  <link rel="stylesheet" href="ollama-chat.css?v=20261008-4">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -1669,7 +1669,7 @@
           </article>
 
           <article id="ai-panel" class="panel ai-workspace-panel section-anchor">
- <header class="n2k-ai-page-head"><div><p class="eyebrow">KI · LOCAL INTELLIGENCE</p><h2>Netfreak2k Offgrid Mesh Local Intelligence</h2></div></header>
+ 
  <section class="n2k-ollama-panel" aria-label="N2K Server-Assistent">
    <div class="n2k-ollama-head">
      <div class="n2k-ai-identity"><div><h3>Netfreak2k Offgrid Mesh Local Intelligence</h3><p>Lokal · Ollama · Qwen2.5 0.5B</p></div></div>
@@ -1679,6 +1679,7 @@
      <button type="button" data-n2k-ai-prompt="Wie ist der aktuelle Zustand meines Servers? Nutze die vorhandenen Systemdaten."><span aria-hidden="true">⌁</span> Systemcheck</button>
      <button type="button" data-n2k-ai-prompt="Bewerte den Arbeitsspeicher und die aktuelle CPU-Last anhand der vorhandenen Werte."><span aria-hidden="true">▦</span> CPU &amp; RAM</button>
      <button type="button" data-n2k-ai-prompt="Sind Docker-Container gestört oder auffällig? Nenne nur belegte Fakten."><span aria-hidden="true">⬡</span> Docker</button>
+     <button type="button" data-n2k-ai-prompt="Prüfe Netzwerkinterfaces und Standardroute anhand der tatsächlichen lokalen Daten."><span aria-hidden="true">⌁</span> Netzwerk</button>
      <button type="button" data-n2k-ai-prompt="Welche Linux-Paketupdates sind erkannt und was bedeutet das?"><span aria-hidden="true">↻</span> Updates</button>
    </div>
    <div id="n2k-ollama-history" class="n2k-ollama-history" role="log" aria-live="polite"></div>
@@ -1706,6 +1707,6 @@
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
 <div id="n2k-photo-editor" class="n2k-photo-editor" role="dialog" aria-modal="true" aria-label="Bildeditor" hidden><div class="n2k-editor-shell"><h2>Foto bearbeiten</h2><canvas id="n2k-editor-preview"></canvas><div class="n2k-editor-controls"><button id="n2k-editor-rotate">↻ 90° drehen</button><label>Helligkeit <input id="n2k-editor-brightness" type="range" min="30" max="170" value="100"></label><label>Kontrast <input id="n2k-editor-contrast" type="range" min="30" max="170" value="100"></label><label><input id="n2k-editor-crop" type="checkbox"> Quadratisch zuschneiden</label></div><div class="n2k-editor-buttons"><button id="n2k-editor-cancel">Abbrechen</button><button id="n2k-editor-save">Als neue Datei speichern</button></div></div></div>
-  <script src="ollama-chat.js?v=20261008-3"></script>
+  <script src="ollama-chat.js?v=20261008-4"></script>
 </body>
 </html>
