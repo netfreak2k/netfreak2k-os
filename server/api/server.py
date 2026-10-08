@@ -1563,6 +1563,80 @@ def workspace_mkdir(username, area, rel, name):
 
 
 
+
+def photogalery_restore_zip(username, archive_file):
+    import zipfile
+    from pathlib import PurePosixPath
+    root = workspace_base(username, "media").resolve()
+    staged = []
+    meta = None
+    total = 0
+    with zipfile.ZipFile(archive_file) as archive:
+        entries = archive.infolist()
+        if len(entries) > 12002:
+            raise ValueError("too_many_files")
+        for entry in entries:
+            if entry.is_dir():
+                continue
+            name = entry.filename
+            if name == "fotogalery-metadata.json":
+                if entry.file_size > 1500000:
+                    raise ValueError("metadata_too_large")
+                meta = json.loads(archive.read(entry).decode("utf-8"))
+                continue
+            if name == "fotogalery-export.json":
+                continue
+            if not name.startswith("Fotos/"):
+                raise ValueError("invalid_archive_path")
+            relative = PurePosixPath(name[6:])
+            if not relative.parts or any(p in ("", ".", "..") for p in relative.parts):
+                raise ValueError("invalid_archive_path")
+            if relative.suffix.lower() not in {".jpg",".jpeg",".png",".webp",".gif",".bmp",".avif"}:
+                raise ValueError("invalid_image")
+            # Block symlinks and any non-regular ZIP entries.
+            mode = (entry.external_attr >> 16) & 0o170000
+            if mode not in (0, 0o100000):
+                raise ValueError("unsupported_zip_entry")
+            total += entry.file_size
+            if total > 250 * 1024 * 1024:
+                raise ValueError("restore_limit_250mb")
+            destination = (root / Path(*relative.parts)).resolve()
+            if root not in destination.parents or destination.exists():
+                if destination.exists():
+                    staged.append((entry, None))
+                    continue
+                raise ValueError("invalid_archive_path")
+            staged.append((entry, destination))
+        if meta is not None:
+            favorites = meta.get("favorites", []) if isinstance(meta, dict) else None
+            albums = meta.get("albums", {}) if isinstance(meta, dict) else None
+            if not isinstance(favorites, list) or not isinstance(albums, dict):
+                raise ValueError("invalid_metadata")
+        restored = 0
+        for entry, destination in staged:
+            if destination is None:
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            # Exclusive create prevents overwriting files during ZIP extraction.
+            try:
+                with archive.open(entry) as source, destination.open("xb") as target:
+                    shutil.copyfileobj(source, target, 1024 * 1024)
+                restored += 1
+            except Exception:
+                destination.unlink(missing_ok=True)
+                raise
+    # Metadata import merges non-destructively, preserving existing albums and favorites.
+    if meta is not None:
+        old = photogalery_metadata(username)
+        favorites = list(dict.fromkeys(old.get("favorites", []) + meta.get("favorites", [])))
+        albums = dict(old.get("albums", {}))
+        for name, keys in meta.get("albums", {}).items():
+            if isinstance(keys, list):
+                albums[name] = list(dict.fromkeys(albums.get(name, []) + keys))
+        save_photogalery_metadata(username, {"favorites":favorites,"albums":albums})
+    return {"restored":restored,"skipped_existing":len(staged)-restored,"metadata_imported":meta is not None}
+
+
 def photogalery_archive(username, album=None):
     import zipfile
     import tempfile
@@ -3744,6 +3818,30 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+
+        if path == "/photos/restore-zip":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            size = int(self.headers.get("Content-Length", "0") or 0)
+            if size < 1 or size > 250 * 1024 * 1024:
+                self.send_json({"error":"restore_limit_250mb"}, 413)
+                return
+            import tempfile
+            try:
+                with tempfile.TemporaryFile() as temp:
+                    remaining = size
+                    while remaining:
+                        data = self.rfile.read(min(1024 * 1024, remaining))
+                        if not data:
+                            raise ValueError("incomplete_upload")
+                        temp.write(data)
+                        remaining -= len(data)
+                    temp.seek(0)
+                    self.send_json(photogalery_restore_zip(session["username"], temp))
+            except (ValueError, OSError, __import__("zipfile").BadZipFile, json.JSONDecodeError) as exc:
+                self.send_json({"error":str(exc)}, 400)
+            return
 
         if path == "/photos/metadata":
             session = self.require_auth()
