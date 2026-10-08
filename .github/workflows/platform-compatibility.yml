@@ -1,0 +1,112 @@
+name: Platform compatibility checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    name: Static checks / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax of Linux API and host agents
+        shell: bash
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          for name in ['server/api/server.py', 'host/vm-agent.py']:
+              ast.parse(Path(name).read_text(encoding='utf-8'), filename=name)
+              print('PASS Python:', name)
+          PY
+      - name: Dashboard JavaScript syntax
+        shell: bash
+        run: |
+          node --check dashboard/app.js
+          node --check dashboard/monitoring-tiles.js
+          node --check dashboard/photos.js
+          node --check dashboard/ollama-chat.js
+      - name: HTML and script references
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('dashboard/index.html').read_text(encoding='utf-8')
+          assert 'id="overview-media-art"' in html
+          assert 'id="top-media-art"' in html
+          for path in re.findall(r'(?:src|href)="((?:app|mobile|styles|photos|monitoring-tiles|ollama-chat)[^"]+)"',html):
+              path=path.split('?')[0]
+              assert (Path('dashboard')/path).is_file(), path
+          print('PASS dashboard references')
+          PY
+      - name: Windows PowerShell parse
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $errors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path './install-windows.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          Write-Host 'PASS Windows PowerShell syntax'
+      - name: POSIX scripts parse
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bash -n install-macos.sh
+          bash -n install.sh
+          echo 'PASS shell syntax'
+      - name: Installation constraints checked
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          linux=Path('install.sh').read_text()
+          windows=Path('install-windows.ps1').read_text()
+          macos=Path('install-macos.sh').read_text()
+          assert 'uname -s' in linux and 'Nur Linux' in linux
+          assert 'linuxmint|ubuntu' in linux
+          assert 'multipass' in windows.lower() and 'multipass' in macos.lower()
+          assert 'vmx' in windows and 'vmx' in macos
+          assert 'x86_64' in macos
+          print('PASS installation prerequisites')
+          PY
+
+  linux-runtime-smoke:
+    name: Linux API import smoke (no VM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Python library imports
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import ast
+          for p in Path('server/api').glob('*.py'):
+              ast.parse(p.read_text(encoding='utf-8'),filename=str(p))
+          print('PASS API Python syntax smoke')
+          PY
+      - name: Mark unverified platform features
+        shell: bash
+        run: |
+          {
+            echo '## Test coverage'
+            echo ''
+            echo '- ✅ Windows/macOS/Linux script and dashboard syntax checks'
+            echo '- ✅ Installer prerequisite assertions'
+            echo '- ⚠️ Windows/macOS native server integration: not implemented'
+            echo '- ⚠️ Nested KVM, Home Assistant OS, USB/Bluetooth, host backups: not tested on hosted runners'
+            echo '- ⚠️ Apple Silicon: unsupported by existing amd64 Linux installer'
+            echo ''
+            echo 'A green workflow **does not certify feature parity** or a successful full installation.'
+          } >> "$GITHUB_STEP_SUMMARY"
