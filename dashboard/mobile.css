@@ -613,3 +613,108 @@
   #n2k-mobile-dock~.workspace .panel{min-width:0}
 }
 @media(min-width:621px){.n2k-mobile-dock,.n2k-mobile-nav-shade{display:none!important}}
+
+
+/* N2K MOBILE VISUAL PREVIEW 2026-10 — strictly phone-only.
+   Testable independently through the feature branch; no desktop rules.
+   No decorative animations or effects that obscure system information. */
+@media screen and (max-width:620px) {
+  :root {
+    --n2k-phone-bg:#09131d;
+    --n2k-phone-surface:rgba(18,34,47,.90);
+    --n2k-phone-border:rgba(118,183,180,.20);
+    --n2k-phone-accent:#67d9b0;
+    --n2k-phone-copy:#eaf4f5;
+    --n2k-phone-muted:#a7bec9;
+  }
+  html { background:var(--n2k-phone-bg); color-scheme:dark; }
+  body {
+    background:linear-gradient(155deg,#0b1e29 0%,#0a1420 42%,#09131d 100%);
+    color:var(--n2k-phone-copy);
+  }
+  .workspace { background:transparent; }
+  .topbar.topbar-desktop {
+    background:rgba(8,23,33,.97)!important;
+    border-bottom:1px solid var(--n2k-phone-border)!important;
+    box-shadow:0 8px 26px rgba(0,0,0,.17);
+  }
+  .topbar .topbar-title-line h1 { color:#f0f8f6;letter-spacing:-.02em; }
+  .topbar .topbar-welcome>strong {color:#f0f8f6}
+  .topbar .topbar-welcome>small {color:var(--n2k-phone-muted)}
+  #top-update-status {border:1px solid rgba(103,217,176,.3);background:rgba(103,217,176,.09)}
+  .overview-inline-status {
+    background:rgba(17,43,52,.72);
+    border:1px solid var(--n2k-phone-border);
+    border-radius:13px;
+    color:var(--n2k-phone-copy)
+  }
+  #overview-greeting {font-size:clamp(18px,5vw,22px);letter-spacing:-.035em;font-weight:750}
+  #overview-health-copy {color:var(--n2k-phone-muted);font-size:11px;line-height:1.5}
+  .mini-metrics {gap:10px!important}
+  .mini-metric {
+    position:relative;min-height:94px!important;
+    background:var(--n2k-phone-surface)!important;
+    border:1px solid var(--n2k-phone-border)!important;
+    border-radius:18px!important;
+    box-shadow:0 8px 24px rgba(0,0,0,.14);
+    padding:13px 11px!important
+  }
+  .mini-metric strong {color:#f1f8f9;font-size:14px!important;font-variant-numeric:tabular-nums}
+  .mini-metric small {font-size:10px!important;color:#a6c7d0}
+  .mini-metric span {font-size:10px!important}
+  .metric-ring {width:48px;height:48px;flex-basis:48px}
+  .widget-grid {gap:11px!important}
+  .widget-grid>.widget,.widget-grid>button.widget {
+    background:var(--n2k-phone-surface)!important;
+    border:1px solid var(--n2k-phone-border)!important;
+    border-radius:20px!important;padding:15px!important;
+    box-shadow:0 8px 22px rgba(0,0,0,.14)
+  }
+  .widget .widget-head h3 {color:#eff8f7;font-size:16px!important;font-weight:730}
+  .widget .widget-head small,.widget-detail-lines {color:var(--n2k-phone-muted)}
+  .widget-detail-lines {font-size:11px;line-height:1.55}
+  .network-values strong {font-size:17px!important;font-variant-numeric:tabular-nums}
+  .overview-statusbar {gap:8px}
+  .overview-statusbar button {
+    border-radius:13px;border:1px solid var(--n2k-phone-border);
+    background:rgba(20,48,57,.72);color:#eaf5f3;font-size:10px;min-height:48px
+  }
+  .panel {
+    background:var(--n2k-phone-surface);
+    border:1px solid var(--n2k-phone-border);
+    border-radius:19px!important;
+    box-shadow:0 8px 24px rgba(0,0,0,.12)
+  }
+  .panel h2 {font-size:18px!important;letter-spacing:-.02em;color:#f1f8fa}
+  .panel p {font-size:12px;line-height:1.55}
+  .n2k-mobile-dock {
+    background:rgba(8,24,34,.98)!important;
+    border-top:1px solid rgba(113,206,177,.27)!important;
+    box-shadow:0 -9px 28px rgba(0,0,0,.22)
+  }
+  .n2k-mobile-dock button {
+    color:#b4ccd3!important;border-radius:13px!important;
+    font-size:11px!important;min-height:54px!important
+  }
+  .n2k-mobile-dock button span {font-size:22px}
+  .n2k-mobile-dock button.active {
+    background:rgba(90,216,175,.14)!important;
+    color:#8bffcd!important
+  }
+  body.n2k-mobile-menu-open .sidebar {
+    background:#0d2230!important;
+    border:1px solid rgba(105,211,178,.32)!important;
+    box-shadow:0 18px 45px rgba(0,0,0,.55)!important
+  }
+  body.n2k-mobile-menu-open .side-nav .nav-item.active {
+    background:rgba(100,218,175,.16)!important;color:#a2ffcf!important
+  }
+  input:focus-visible,select:focus-visible,textarea:focus-visible,
+  button:focus-visible,.n2k-mobile-dock button:focus-visible {
+    outline:2px solid #80e5bd!important;outline-offset:2px
+  }
+  .panel button,.widget button {touch-action:manipulation}
+}
+@media screen and (max-width:620px) and (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
