@@ -1,7 +1,7 @@
 /* N2K Fotos v0.1 — local photo gallery over existing authenticated workspace API */
 (function(){
 "use strict";
-let path="",photos=[],index=0,view="timeline",activeAlbum="";
+let path="",photos=[],index=0,view="timeline",activeAlbum="",yearFilter="all";
 const stateKey="n2k-fotogalery-v03";
 function readState(){try{const x=JSON.parse(localStorage.getItem(stateKey)||"{}");return {favorites:Array.isArray(x.favorites)?x.favorites:[],albums:x.albums&&typeof x.albums==="object"?x.albums:{}}}catch{return {favorites:[],albums:{}}}}
 let photoState=readState();
@@ -41,7 +41,9 @@ async function load(){
   let visible=photos.filter(item=>item.name.toLocaleLowerCase("de").includes(term));
   if(view==="favorites")visible=visible.filter(item=>photoState.favorites.includes(photoKey(item)));
   if(view==="albums"&&activeAlbum)visible=visible.filter(item=>(photoState.albums[activeAlbum]||[]).includes(photoKey(item)));
-  if(view==="timeline")visible.sort((a,b)=>stamp(b)-stamp(a));
+  if(view==="timeline"){visible.sort((a,b)=>stamp(b)-stamp(a));if(yearFilter!=="all")visible=visible.filter(item=>String(new Date(stamp(item)).getFullYear())===yearFilter);}
+  const years=[...new Set(photos.map(item=>stamp(item)?new Date(stamp(item)).getFullYear():null).filter(Boolean))].sort((a,b)=>b-a);
+  const yearSelect=$("n2k-photo-year");if(yearSelect){yearSelect.replaceChildren(new Option("Alle Jahre","all"),...years.map(y=>new Option(String(y),String(y))));yearSelect.value=yearFilter;yearSelect.hidden=view!=="timeline";}
   const back=$("n2k-photos-back");if(back)back.disabled=!path;
   $("n2k-photos-path").textContent=path?"Mediathek / "+path:"Mediathek";
   status.textContent=visible.length+" Fotos · "+folders.length+" Ordner"+(activeAlbum?" · Album: "+activeAlbum:"");
@@ -76,7 +78,6 @@ async function load(){
 }
 function openPhoto(i){if(i<0||!photos[i])return;index=i;const modal=$("n2k-photo-viewer");modal.hidden=false;showPhoto();}
 function showPhoto(){const photo=photos[index];if(!photo)return;$("n2k-photo-full").src=source(photo.name);$("n2k-photo-full").alt=photo.name;$("n2k-photo-caption").textContent=photo.name+(fmt(photo.modified_at)?" · "+fmt(photo.modified_at):"");}
-async 
 let editorImage=null,rotation=0;
 function openEditor(){
  const photo=photos[index];if(!photo)return;
@@ -113,6 +114,7 @@ async function saveEdited(){
 async function init(){
  await fetchState();
  $("n2k-photos-refresh")?.addEventListener("click",load);
+ $("n2k-photo-year")?.addEventListener("change",e=>{yearFilter=e.target.value;load()});
  document.querySelectorAll("[data-photo-view]").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.photoView;activeAlbum="";load()}));
  $("n2k-photo-new-album")?.addEventListener("click",()=>{const name=prompt("Neues Album:");if(!name||!name.trim())return;const clean=name.trim();if(!Object.prototype.hasOwnProperty.call(photoState.albums,clean))photoState.albums[clean]=[];saveState();view="albums";activeAlbum=clean;load()});
  $("n2k-photos-search")?.addEventListener("input",load);
