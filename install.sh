@@ -135,6 +135,9 @@ install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/
 install -m 0755 "${N2K_DIR}/scripts/check-host-updates.py" /usr/local/lib/netfreak2k/check-host-updates.py
 install -m 0755 "${N2K_DIR}/scripts/linux-upgrade.sh" /usr/local/lib/netfreak2k/linux-upgrade.sh
 install -m 0755 "${N2K_DIR}/scripts/provision-ollama.sh" /usr/local/lib/netfreak2k/provision-ollama.sh
+install -m 0755 "${N2K_DIR}/scripts/retry-ollama.sh" /usr/local/lib/netfreak2k/retry-ollama.sh
+install -m 0644 "${N2K_DIR}/host/netfreak2k-ollama-retry.service" /etc/systemd/system/netfreak2k-ollama-retry.service
+install -m 0644 "${N2K_DIR}/host/netfreak2k-ollama-retry.timer" /etc/systemd/system/netfreak2k-ollama-retry.timer
 install -m 0755 "${N2K_DIR}/scripts/backup-scheduler.sh" /usr/local/lib/netfreak2k/backup-scheduler.sh
 install -m 0755 "${N2K_DIR}/scripts/configure-gateway.sh" /usr/local/sbin/netfreak2k-gateway
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
@@ -147,6 +150,7 @@ systemctl daemon-reload
 systemctl enable --now netfreak2k-vm-agent.service
 systemctl enable --now netfreak2k-ha-proxy.service
 systemctl enable --now netfreak2k-update-check.timer
+systemctl enable --now netfreak2k-ollama-retry.timer
 systemctl enable --now netfreak2k-backup-scheduler.timer
 systemctl enable --now netfreak2k-cert-renew.timer
 
