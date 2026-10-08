@@ -40,7 +40,7 @@ def append_message(record):
 
 def on_delivery(message):
     try:
-        append_message({'direction':'in', 'source':message.source_hash.hex(), 'content':str(message.content), 'time':int(time.time())})
+        append_message({'direction':'in', 'source':message.source_hash.hex(), 'content':(message.content.decode('utf-8', errors='replace') if isinstance(message.content, bytes) else str(message.content)), 'time':int(time.time())})
     except Exception:
         pass
 
@@ -66,6 +66,7 @@ def start_stack():
         ROUTER = LXMF.LXMRouter(storagepath=str(lxmf_path))
         DELIVERY = ROUTER.register_delivery_identity(IDENTITY, display_name="Netfreak2k OS")
         ROUTER.register_delivery_callback(on_delivery)
+        ROUTER.announce(DELIVERY.hash)
         RUNTIME.update(online=True, identity=DELIVERY.hash.hex(), error=None)
     except Exception as exc:
         RUNTIME.update(online=False, error=str(exc)[:180])
@@ -123,7 +124,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("invalid_content")
                 identity = RNS.Identity.recall(bytes.fromhex(dest))
                 if identity is None:
-                    raise ValueError("destination_identity_unknown")
+                    RNS.Transport.request_path(bytes.fromhex(dest))
+                    raise ValueError("destination_unknown_announce_required")
                 destination = RNS.Destination(identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
                 message = LXMF.LXMessage(destination, DELIVERY, content, desired_method=LXMF.LXMessage.DIRECT)
                 # Identity/path resolution and delivery success are asynchronous.
