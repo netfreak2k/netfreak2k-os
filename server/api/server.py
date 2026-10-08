@@ -3338,6 +3338,18 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/messenger/status":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                response = urlopen("http://netfreak2k-messenger:8091/status", timeout=3)
+                data = json.loads(response.read(16384).decode("utf-8"))
+                self.send_json(data)
+            except (OSError, ValueError, json.JSONDecodeError):
+                self.send_json({"online": False, "error": "native_messenger_unavailable"}, 503)
+            return
+
         if path == "/tor/relay":
             session = self.require_auth()
             if not session:
