@@ -42,3 +42,17 @@
 #photos-panel #n2k-photo-year{margin-left:auto;min-width:125px;padding:10px 12px;border-radius:9px;color:#eef7ff;background:#17344f;border:1px solid rgba(116,158,195,.45);font-size:13px;font-weight:650;cursor:pointer}
 #photos-panel #n2k-photo-year[hidden]{display:none}
 @media(max-width:600px){#photos-panel #n2k-photo-year{margin-left:0;flex:1}}
+
+/* v0.6: cohesive responsive photo library, stable controls */
+#photos-panel .n2k-photo-bulk{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 14px;padding:12px;border:1px solid rgba(116,158,195,.22);background:rgba(8,27,44,.7);border-radius:12px}
+#photos-panel .n2k-photo-bulk strong{color:#e3f3ff;font-size:12px;margin-right:auto}
+#photos-panel .n2k-photo-bulk button{padding:9px 11px;border-radius:8px;background:#1b486a;border:1px solid rgba(127,190,226,.35);color:#eef9ff;cursor:pointer;font-size:12px}
+#photos-panel button:disabled{opacity:.4;cursor:not-allowed}
+#photos-panel .n2k-photo-cell .n2k-photo-item:focus-visible,#photos-panel button:focus-visible{outline:2px solid #77caff;outline-offset:2px}
+#photos-panel .n2k-photo-item-actions{justify-content:space-between}
+#photos-panel .n2k-photo-item-actions .n2k-photo-select.active{color:#fff;background:#236c89;border-color:#76c9f0}
+#photos-panel .n2k-photo-item-actions button{min-height:32px}
+#photos-panel .n2k-photo-month{font-size:19px;font-weight:750;line-height:24px}
+#photos-panel #n2k-photo-more{grid-column:1/-1;min-height:48px;text-align:center;align-items:center}
+#n2k-photo-viewer .n2k-photo-top-actions{flex-wrap:wrap;justify-content:center}
+@media(max-width:600px){#photos-panel .n2k-photo-bulk{gap:6px}#photos-panel .n2k-photo-bulk strong{flex-basis:100%}#photos-panel .n2k-photo-bulk button{flex:1}#photos-panel .n2k-photo-month{font-size:16px}#n2k-photo-viewer{padding:12px}#n2k-photo-full{max-width:96vw}}
