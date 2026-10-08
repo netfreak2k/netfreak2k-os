@@ -134,6 +134,7 @@ install -m 0644 "${N2K_DIR}/host/netfreak2k-ha-proxy.service" /etc/systemd/syste
 install -m 0755 "${N2K_DIR}/scripts/check-updates.sh" /usr/local/lib/netfreak2k/check-updates.sh
 install -m 0755 "${N2K_DIR}/scripts/check-host-updates.py" /usr/local/lib/netfreak2k/check-host-updates.py
 install -m 0755 "${N2K_DIR}/scripts/linux-upgrade.sh" /usr/local/lib/netfreak2k/linux-upgrade.sh
+install -m 0755 "${N2K_DIR}/scripts/provision-ollama.sh" /usr/local/lib/netfreak2k/provision-ollama.sh
 install -m 0755 "${N2K_DIR}/scripts/backup-scheduler.sh" /usr/local/lib/netfreak2k/backup-scheduler.sh
 install -m 0755 "${N2K_DIR}/scripts/configure-gateway.sh" /usr/local/sbin/netfreak2k-gateway
 install -m 0644 "${N2K_DIR}/host/netfreak2k-update-check.service" /etc/systemd/system/netfreak2k-update-check.service
@@ -151,6 +152,11 @@ systemctl enable --now netfreak2k-cert-renew.timer
 
 log "Installiere Home Assistant OS als KVM-VM."
 bash "${N2K_DIR}/scripts/provision-haos.sh"
+
+log "Richte lokale KI automatisch ein (Ollama / Qwen2.5 0.5B)."
+if ! /usr/local/lib/netfreak2k/provision-ollama.sh; then
+  log "Lokale KI noch nicht bereit; Netfreak2k bleibt nutzbar. Status unter KI pruefen."
+fi
 
 log "Starte Netfreak2k Webplattform."
 cd "${N2K_DIR}/server"
