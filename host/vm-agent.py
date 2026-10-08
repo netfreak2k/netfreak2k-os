@@ -762,12 +762,19 @@ def tor_relay_status():
     state = container_state(TOR_RELAY_CONTAINER)
     started = None
     if state is not None:
+        managed_container_state(TOR_RELAY_CONTAINER)
         info = run("docker", "inspect", "--format", "{{.State.StartedAt}}", TOR_RELAY_CONTAINER)
         started = info.stdout.strip() if info.returncode == 0 else None
+    traffic = None
+    if state == "running":
+        stats = run("docker", "stats", "--no-stream", "--format", "{{.NetIO}}", TOR_RELAY_CONTAINER, timeout=12)
+        if stats.returncode == 0:
+            traffic = stats.stdout.strip() or None
     return {
         "installed": state is not None,
         "running": state == "running",
         "state": state or "not_installed",
+        "traffic": traffic,
         "port": TOR_RELAY_PORT,
         "mode": "non-exit",
         "started_at": started,
@@ -777,6 +784,8 @@ def tor_relay_set(enabled):
     if type(enabled) is not bool:
         raise RuntimeError("invalid_relay_state")
     state = container_state(TOR_RELAY_CONTAINER)
+    if state is not None:
+        managed_container_state(TOR_RELAY_CONTAINER)
     if not enabled:
         if state == "running":
             run("docker", "stop", "--time", "20", TOR_RELAY_CONTAINER, check=True, timeout=40)
@@ -796,6 +805,7 @@ def tor_relay_set(enabled):
         run("docker", "volume", "create", "netfreak2k-tor-relay-data", check=True)
         cmd = ["docker", "run", "-d", "--name", TOR_RELAY_CONTAINER,
                "--restart", "unless-stopped",
+               "--memory", "256m", "--pids-limit", "128",
                "--label", "netfreak2k.managed=true",
                "--label", "netfreak2k.app=tor-relay",
                "--security-opt", "no-new-privileges:true",
