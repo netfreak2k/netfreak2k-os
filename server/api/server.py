@@ -1233,6 +1233,40 @@ def safe_relative(value):
     return Path(*parts) if parts else Path()
 
 
+
+def photogalery_metadata(username):
+    with db_connect() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS photo_library_meta (username TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+        row = conn.execute("SELECT payload FROM photo_library_meta WHERE username=?", (username,)).fetchone()
+    if not row:
+        return {"favorites": [], "albums": {}}
+    try:
+        data = json.loads(row[0])
+        return data if isinstance(data, dict) else {"favorites": [], "albums": {}}
+    except (ValueError, TypeError):
+        return {"favorites": [], "albums": {}}
+
+
+def save_photogalery_metadata(username, data):
+    if not isinstance(data, dict):
+        raise ValueError("invalid_payload")
+    favorites = data.get("favorites", [])
+    albums = data.get("albums", {})
+    if not isinstance(favorites, list) or not isinstance(albums, dict) or len(favorites) > 20000 or len(albums) > 2000:
+        raise ValueError("invalid_metadata")
+    if any(not isinstance(x, str) or len(x) > 1024 for x in favorites):
+        raise ValueError("invalid_favorites")
+    if any(not isinstance(k, str) or len(k) > 128 or not isinstance(v, list) or len(v) > 20000 or any(not isinstance(x, str) or len(x) > 1024 for x in v) for k, v in albums.items()):
+        raise ValueError("invalid_albums")
+    payload = json.dumps({"favorites": favorites, "albums": albums}, ensure_ascii=False)
+    if len(payload) > 1500000:
+        raise ValueError("metadata_too_large")
+    with db_connect() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS photo_library_meta (username TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+        conn.execute("INSERT INTO photo_library_meta(username,payload) VALUES(?,?) ON CONFLICT(username) DO UPDATE SET payload=excluded.payload", (username, payload))
+        conn.commit()
+
+
 def workspace_base(username, area):
     if area == "shared":
         ensure_workspace(username)
@@ -3379,6 +3413,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(payload, 200 if payload.get("stations") else 503)
             return
 
+        if path == "/photos/metadata":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(photogalery_metadata(session["username"]))
+            return
+
         if path == "/workspace":
             session = self.require_auth()
             if not session:
@@ -3478,6 +3519,17 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+
+        if path == "/photos/metadata":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            try:
+                save_photogalery_metadata(session["username"], self.read_json())
+                self.send_json({"ok": True})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
 
         if path == "/setup":
             if is_configured():
