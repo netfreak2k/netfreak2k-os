@@ -315,3 +315,5 @@
   body.n2k-mobile-menu-open .side-nav .nav-item{min-height:68px!important;padding:7px 4px!important}
   body.n2k-mobile-menu-open .sidebar{max-height:calc(100dvh - 210px)!important}
 }
+
+@media screen and (max-width:620px){#dashboard-top .mini-metric:has(#overview-uptime)>.mini-icon{display:none!important}}
