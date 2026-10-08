@@ -3621,6 +3621,35 @@ def ollama_local_status():
     except (OSError, ValueError, urllib.error.URLError):
         return {"running":False,"models":[],"model":"qwen2.5:0.5b","ready":False,"setup":setup}
 
+def n2k_online_weather(question):
+    # Explicit, narrowly-scoped HTTPS weather lookup; no arbitrary URLs or model tool execution.
+    import urllib.parse
+    if not isinstance(question,str) or len(question)>2000 or not re.search(r"\\b(wetter|temperatur|regen|sonne|wind|vorhersage)\\b",question,re.I):
+        return None
+    match=re.search(r"\\bin\\s+([A-Za-zÄÖÜäöüß\\- ]{2,45}?)(?=[?.!,;]|\\s+(?:heute|morgen|jetzt|aktuell|für|am|wie|ist|wird)\\b|$)",question,re.I)
+    if not match:
+        return {"error":"weather_location_missing","message":"Für welchen Ort soll ich das Wetter abrufen? Beispiel: Wie ist das Wetter in Aken?"}
+    city=match.group(1).strip()
+    if not city:
+        return {"error":"weather_location_missing","message":"Bitte einen Ort nennen."}
+    try:
+        qs=urllib.parse.urlencode({"name":city,"count":1,"language":"de","format":"json"})
+        with urllib.request.urlopen("https://geocoding-api.open-meteo.com/v1/search?"+qs,timeout=7) as response:
+            places=json.load(response).get("results",[])
+        if not places:
+            return {"error":"weather_location_not_found","message":"Ort nicht gefunden: "+city}
+        place=places[0]
+        qs=urllib.parse.urlencode({"latitude":place["latitude"],"longitude":place["longitude"],
+          "current":"temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
+          "timezone":"auto"})
+        with urllib.request.urlopen("https://api.open-meteo.com/v1/forecast?"+qs,timeout=7) as response:
+            current=json.load(response).get("current",{})
+        return {"place":place.get("name",city),"country":place.get("country",""),
+          "current":{k:current.get(k) for k in ("time","temperature_2m","relative_humidity_2m","precipitation","weather_code","wind_speed_10m")},
+          "source":"Open-Meteo","url":"https://open-meteo.com/"}
+    except (OSError,ValueError,KeyError,TypeError,urllib.error.URLError):
+        return {"error":"weather_unavailable","message":"Online-Wetterdaten sind derzeit nicht erreichbar."}
+
 def ollama_local_chat(messages, system_context=False):
     if not isinstance(messages,list) or not 1 <= len(messages) <= 12:
         return {"error":"invalid_messages"}
@@ -3640,6 +3669,17 @@ def ollama_local_chat(messages, system_context=False):
             "Fehlende Informationen als unbekannt kennzeichnen. Keine Befehle ausführen. Daten: "
             + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:1500])
         safe=[{"role":"system","content":instruction}]+safe[-4:]
+    weather=n2k_online_weather(safe[-1]["content"])
+    if weather is not None:
+        if "error" in weather:
+            return {"reply":weather["message"],"model":"weather-direct","online":True}
+        # Do not ask a small model to invent or reinterpret measurements.
+        w=weather["current"]
+        reply=("Live-Wetter für "+weather["place"]+" ("+weather["country"]+"), Stand "+str(w["time"])+
+          ": Temperatur "+str(w["temperature_2m"])+" °C, Luftfeuchte "+str(w["relative_humidity_2m"])+
+          " %, Niederschlag "+str(w["precipitation"])+" mm, Wind "+str(w["wind_speed_10m"])+
+          " km/h. Wettercode "+str(w["weather_code"])+". Quelle: Open-Meteo.")
+        return {"reply":reply,"model":"weather-direct","online":True,"source":"https://open-meteo.com/"}
     data={"model":"qwen2.5:0.5b","messages":safe,"stream":False,
           "think":False,"keep_alive":0,
           "options":{"num_ctx":1024,"num_predict":96,"temperature":0.5}}
