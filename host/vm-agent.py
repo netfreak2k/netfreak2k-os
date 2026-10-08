@@ -12,6 +12,8 @@ import socket
 import subprocess
 import shutil
 import time
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 SOCKET_PATH = Path("/run/netfreak2k/vm-agent.sock")
@@ -21,7 +23,7 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
@@ -3606,7 +3608,49 @@ def start_linux_upgrade():
         return {"error":"linux_upgrade_start_failed","detail":result.stderr.strip()[:300]}
     return {"accepted":True,"state":"running"}
 
+def ollama_local_status():
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=3) as resp:
+            data=json.load(resp)
+        models=[m.get("name","") for m in data.get("models",[])]
+        return {"running":True,"models":models,"model":"qwen3.5:0.8b"}
+    except (OSError, ValueError, urllib.error.URLError):
+        return {"running":False,"models":[],"model":"qwen3.5:0.8b"}
+
+def ollama_local_chat(messages):
+    if not isinstance(messages,list) or not 1 <= len(messages) <= 12:
+        return {"error":"invalid_messages"}
+    safe=[]
+    for item in messages:
+        if not isinstance(item,dict) or item.get("role") not in ("user","assistant"):
+            return {"error":"invalid_message_role"}
+        content=item.get("content")
+        if not isinstance(content,str) or not 1 <= len(content) <= 2000:
+            return {"error":"invalid_message_content"}
+        safe.append({"role":item["role"],"content":content})
+    if safe[-1]["role"]!="user": return {"error":"last_message_must_be_user"}
+    data={"model":"qwen3.5:0.8b","messages":safe,"stream":False,
+          "think":False,"keep_alive":0,
+          "options":{"num_ctx":2048,"num_predict":192,"temperature":0.5}}
+    request=urllib.request.Request("http://127.0.0.1:11434/api/chat",
+        data=json.dumps(data).encode(),headers={"Content-Type":"application/json"},method="POST")
+    try:
+        with urllib.request.urlopen(request,timeout=90) as response:
+            result=json.load(response)
+        return {"reply":str(result.get("message",{}).get("content",""))[:6000],
+                "model":"qwen3.5:0.8b"}
+    except urllib.error.HTTPError as exc:
+        return {"error":"ollama_http_error","detail":str(exc.code)}
+    except (OSError,ValueError,urllib.error.URLError):
+        return {"error":"ollama_unavailable_or_timeout"}
+
 def execute(action, request):
+    if action == "ollama_local_status":
+        return ollama_local_status()
+
+    if action == "ollama_local_chat":
+        return ollama_local_chat(request.get("messages"))
+
     if action == "status":
         return payload()
 
