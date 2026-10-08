@@ -3638,7 +3638,7 @@ def ollama_local_chat(messages, system_context=False):
         instruction=("Du bist der lokale N2K Server-Assistent. Antworte knapp auf Deutsch. "
             "Nutze nur die folgenden echten Messdaten; erfinde keine Zahlen. "
             "Fehlende Informationen als unbekannt kennzeichnen. Keine Befehle ausführen. Daten: "
-            + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:2100])
+            + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:1100])
         safe=[{"role":"system","content":instruction}]+safe[-4:]
     data={"model":"qwen2.5:0.5b","messages":safe,"stream":False,
           "think":False,"keep_alive":0,
