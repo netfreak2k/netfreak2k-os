@@ -42,3 +42,13 @@ Die unterstützte Server-Laufzeit ist weiterhin **Ubuntu/Linux Mint amd64**. Win
 `multipass list` zeigt virtuelle Maschinen. `multipass shell netfreak2k-os` öffnet die Linux-Gastkonsole. `multipass stop netfreak2k-os` schaltet den Server ab, `multipass start netfreak2k-os` startet ihn. Die Serveradresse kann sich verändern.
 
 **Keine Garantie für vollständige Funktionsgleichheit.** Für ein vollständiges Netfreak2k Server-OS mit KVM/HAOS und direktem Zugriff auf Hardware wird weiterhin ein unterstützter, direkt installierter Linux-Host benötigt.
+
+## Automatische Kompatibilitätsprüfung (GitHub Actions)
+
+Der Workflow [Platform compatibility checks](../.github/workflows/platform-compatibility.yml) läuft bei Pull Requests, Pushes auf `main` und kann manuell über **Actions → Platform compatibility checks → Run workflow** gestartet werden.
+
+Die Matrix prüft Ubuntu, Windows und macOS: Python-/JavaScript-/PowerShell-/Shell-Syntax, Dashboard-Dateiverweise und zentrale Installationsvoraussetzungen. Zusätzlich wird ein Linux-API-Syntax-Smoke-Test durchgeführt.
+
+**Grün bedeutet nur, dass diese begrenzten Prüfungen bestanden wurden.** Die Tests installieren keinen vollständigen Server, prüfen keine Windows-/macOS-Host-Integration und können KVM/HAOS, Nested Virtualization oder Geräte-Passthrough nicht nachweisen. Solange diese Bereiche nicht praktisch getestet wurden, bleiben die zusätzlichen Plattformen experimentell.
+
+Bei einem roten Lauf: In GitHub **Actions** den fehlgeschlagenen Workflow öffnen, den betroffenen Job wählen und die erste fehlgeschlagene Prüfung ansehen.
