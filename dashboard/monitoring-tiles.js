@@ -40,7 +40,7 @@ function setMetric(type,value,info,detail,max=100){
      if(type==="cpu"||type==="ram"||type==="storage"){number=Math.round(value)+"%";unit=""; }
      else if(type==="temperature"){number=Math.round(value)+"°";unit="CPU";}
      else if(type==="fan"){number=Math.round(value).toLocaleString("de-DE");unit="RPM";}
-     else if(type==="uptime"){number="Online";unit="Uptime";}
+     else if(type==="uptime"){const days=Math.floor(Number(value)/86400),hours=Math.floor((Number(value)%86400)/3600);number=days>0?days+" T":hours+" Std";unit=days>0?hours+" Std":"Online";}
    }
    if(display){
      display.replaceChildren();
@@ -48,7 +48,7 @@ function setMetric(type,value,info,detail,max=100){
      const u=document.createElement("small");u.className="ring-unit";u.textContent=unit;
      display.append(n,u);
    }
-   ring.style.setProperty("--n2k-fill",ok?Math.min(100,Math.max(0,Number(value)/max*100))+"%":"0%");
+   ring.style.setProperty("--n2k-fill",ok?(type==="uptime"?"100%":Math.min(100,Math.max(0,Number(value)/max*100))+"%"):"0%");
  }
  if(ok){const items=history[type]||(history[type]=[]);items.push(Math.max(0,Number(value)));if(items.length>50)items.shift();}
  draw(card.querySelector("canvas"),history[type]||[],max);
@@ -79,7 +79,7 @@ const d=await res.json(),m=d.memory||{},s=d.storage||{},cpu=d.cpu||{};
 setMetric("cpu",val(d.cpu_percent),cpu.logical_cores?cpu.logical_cores+" Threads":"CPU",cpu.physical_cores?cpu.physical_cores+" Kerne":"");
 setMetric("ram",val(m.used_percent),valid(m.used_bytes)?(Number(m.used_bytes)/1073741824).toFixed(1)+" GB belegt":"RAM",valid(m.total_bytes)?(Number(m.total_bytes)/1073741824).toFixed(1)+" GB gesamt":"");
 setMetric("storage",val(s.used_percent),valid(s.free_bytes)?(Number(s.free_bytes)/1073741824).toFixed(1)+" GB frei":"Datenträger",valid(s.total_bytes)?(Number(s.total_bytes)/1073741824).toFixed(1)+" GB gesamt":"");
-const uptime=document.getElementById("overview-uptime")?.textContent||"–";setMetric("uptime",valid(d.uptime_seconds)?Math.min(100,d.uptime_seconds/86400):null,uptime,"Seit letztem Neustart",100);
+const uptime=document.getElementById("overview-uptime")?.textContent||"–";setMetric("uptime",valid(d.uptime_seconds)?Number(d.uptime_seconds):null,uptime,"Seit letztem Neustart",Math.max(86400,Number(d.uptime_seconds)||86400));
 }catch(e){console.debug("N2K tiles overview:",e.message)}
 try{
 const res=await fetch("/api/health?range=1h",{credentials:"same-origin",cache:"no-store"});if(!res.ok)return;
