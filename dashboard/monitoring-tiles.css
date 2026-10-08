@@ -215,3 +215,32 @@
 #dashboard-top .n2k-uptime-fan .n2k-combined-fan-data strong{font-size:clamp(11px,1vw,15px);font-weight:700;color:#f1f8ff}
 #dashboard-top .n2k-uptime-fan .n2k-combined-fan-data small{font-size:9px;color:#91a9bf}
 @media(max-width:460px){#dashboard-top .n2k-uptime-fan .n2k-monitor-body{gap:6px}#dashboard-top .n2k-uptime-fan .n2k-combined-fan{padding-top:4px}}
+
+/* V11: stable typography independent of changing telemetry text */
+#dashboard-top .mini-metrics,
+#dashboard-top .widget-grid{font-size:12px;font-variant-numeric:tabular-nums}
+#dashboard-top .mini-metrics *,
+#dashboard-top .widget-grid *{font-size-adjust:none}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title{font-size:11px!important;line-height:15px!important;min-height:15px;flex-shrink:0}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title .n2k-health{font-size:9px!important;line-height:12px!important;flex-shrink:0}
+#dashboard-top .n2k-monitor-card .metric-ring .ring-value{font-size:18px!important;line-height:20px!important;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;white-space:nowrap}
+#dashboard-top .n2k-monitor-card .metric-ring .ring-unit{font-size:9px!important;line-height:11px!important}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy small{font-size:10px!important;line-height:13px!important}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy strong{font-size:11px!important;line-height:14px!important}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy span{font-size:10px!important;line-height:13px!important}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-data strong{font-size:14px!important;line-height:17px!important;font-variant-numeric:tabular-nums}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-data small{font-size:10px!important;line-height:13px!important}
+#dashboard-top .widget-grid>.widget .widget-head small{font-size:9px!important;line-height:12px!important}
+#dashboard-top .widget-grid>.widget .widget-head h3{font-size:12px!important;line-height:16px!important}
+#dashboard-top .widget-grid>.widget strong,
+#dashboard-top .widget-grid>.widget b{font-variant-numeric:tabular-nums}
+#dashboard-top .widget-grid .network-values strong{font-size:12px!important;line-height:16px!important}
+#dashboard-top .widget-grid .widget-stat-copy strong{font-size:11px!important;line-height:15px!important}
+#dashboard-top .widget-grid .overview-list{font-size:10px!important;line-height:14px!important}
+#dashboard-top .mini-metrics .n2k-monitor-card,
+#dashboard-top .widget-grid>.widget{font-synthesis:none}
+@media(max-width:620px){
+ #dashboard-top .n2k-monitor-card .metric-ring .ring-value{font-size:16px!important;line-height:18px!important}
+ #dashboard-top .n2k-monitor-card .n2k-monitor-title{font-size:10px!important}
+ #dashboard-top .widget-grid>.widget .widget-head h3{font-size:11px!important}
+}
