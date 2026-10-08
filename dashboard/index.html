@@ -1646,6 +1646,19 @@
               </section>
             </div>
 
+            <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
+              <div class="tor-browser-toolbar">
+                <div><small>OPTIONALES TOR-NETZWERK</small><strong>Tor-Knotenpunkt (Non-Exit-Relay)</strong><span id="tor-relay-status">Status wird geladen …</span></div>
+                <div class="tor-browser-actions">
+                  <button type="button" id="tor-relay-enable" class="primary compact" disabled>Aktivieren</button>
+                  <button type="button" id="tor-relay-disable" class="secondary compact" disabled>Deaktivieren</button>
+                  <button type="button" id="tor-relay-refresh" class="secondary compact">Aktualisieren</button>
+                </div>
+              </div>
+              <p style="margin:0;line-height:1.55">Ein Tor-Relay leitet verschlüsselten Datenverkehr für andere Tor-Nutzer weiter und stärkt damit das Netzwerk. Dieser Server wird <strong>kein Exit-Knoten</strong>: Über ihn werden keine Verbindungen aus Tor ins normale Internet freigegeben. Der Tor Browser funktioniert unabhängig davon.</p>
+              <p style="margin:0;opacity:.8;font-size:.91em">Hinweis: Der Relay nutzt deine Upload-Bandbreite und macht deine öffentliche IP als Tor-Knoten sichtbar. Für Erreichbarkeit kann eine Portfreigabe TCP 9001 nötig sein. Standardmäßig ist die Funktion aus; nur Administratoren dürfen sie einschalten.</p>
+            </section>
+
             <section class="tor-browser-shell">
               <div class="tor-browser-toolbar">
                 <div>
