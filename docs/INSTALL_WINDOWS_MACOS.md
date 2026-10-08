@@ -16,14 +16,14 @@ Die unterstützte Server-Laufzeit ist weiterhin **Ubuntu/Linux Mint amd64**. Win
 
 1. Multipass von https://canonical.com/multipass/install installieren.
 2. PowerShell öffnen und im heruntergeladenen Repository ausführen: `powershell -ExecutionPolicy Bypass -File .\install-windows.ps1`
-3. Bei fehlender Nested Virtualization wird vor einem eingeschränkten Betrieb ausdrücklich gefragt. Ohne Zustimmung endet das Skript.
+3. Fehlt Nested Virtualization, wird die Installation vorzeitig und mit einer verständlichen Meldung gestoppt.
 4. Nach dem Start die ausgegebene VM-Adresse im Browser öffnen. Die VM muss für den Browser erreichbar sein; lokale Firewall-/Hypervisor-Regeln können Zugriffe verhindern.
 
 ## macOS (Intel)
 
 1. Multipass von https://canonical.com/multipass/install installieren.
 2. Im Terminal aus dem Repo: `bash install-macos.sh`
-3. Bei fehlender Nested Virtualization muss ein eingeschränkter Betrieb bestätigt werden.
+3. Fehlt Nested Virtualization, bricht das Skript sicher ab; es wird kein nicht funktionsfähiges System installiert.
 4. Die im Installer ausgegebene Adresse im Browser öffnen.
 
 ## Einschränkungen
