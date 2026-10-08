@@ -509,3 +509,56 @@
  .topbar .topbar-title-line .n2k-top-weather{font-size:10px}
  .widget,.panel{min-width:0}
 }
+
+/* iPhone 15 Pro / iOS Safari refinement: 393 CSS px portrait, safe areas. */
+@supports (padding: env(safe-area-inset-bottom)){
+ @media(max-width:620px){
+  html{scroll-padding-top:calc(66px + env(safe-area-inset-top));scroll-padding-bottom:calc(95px + env(safe-area-inset-bottom))}
+  body{width:100%;max-width:100%;overscroll-behavior-x:none;-webkit-tap-highlight-color:transparent}
+  input,textarea,select{font-size:16px!important}
+  button,a,input,select,textarea{-webkit-touch-callout:default;touch-action:manipulation}
+  .app-shell,.workspace,.workspace main{width:100%;max-width:100%;min-width:0}
+  .topbar.topbar-desktop{padding:calc(7px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));min-height:calc(54px + env(safe-area-inset-top));gap:5px;overflow:visible}
+  .topbar .topbar-title-line{gap:4px!important;min-width:0}
+  .topbar .topbar-title-line h1{font-size:clamp(11px,3.15vw,14px)!important;letter-spacing:-.025em;line-height:1.15}
+  .topbar .topbar-title-line .n2k-top-weather:not([hidden]){padding:3px 5px!important;font-size:9px!important;max-width:55px!important}
+  .topbar .topbar-title-line #top-update-status{height:23px;min-height:23px;flex-basis:23px;max-width:23px}
+  .topbar .topbar-right .icon-button{width:30px;height:30px;min-width:30px}
+  .topbar .topbar-welcome{min-width:47px!important}
+  .topbar .topbar-welcome>strong{font-size:15px!important}
+  .topbar .topbar-welcome>small{font-size:8px}
+  .topbar .topbar-title-line .overview-warning.n2k-top-alert{max-width:72px;flex:0 1 72px}
+  .topbar .n2k-status-alert-button{max-width:72px;overflow:hidden;text-overflow:ellipsis}
+  .sidebar{height:calc(68px + env(safe-area-inset-bottom))!important;padding:4px max(9px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(9px,env(safe-area-inset-left))!important}
+  .side-nav{height:58px!important;min-height:58px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .side-nav::-webkit-scrollbar,.n2k-help-nav::-webkit-scrollbar{display:none}
+  .side-nav .nav-item{min-height:54px;flex:0 0 57px;width:57px;padding:5px 3px;font-size:9px!important}
+  .side-nav .nav-item span{font-size:19px}
+  .workspace{padding-bottom:calc(78px + env(safe-area-inset-bottom))!important}
+  main{padding:11px max(10px,env(safe-area-inset-right)) 22px max(10px,env(safe-area-inset-left))}
+  .section-anchor{scroll-margin-top:calc(70px + env(safe-area-inset-top))}
+  .panel,.widget{max-width:100%;min-width:0}
+  .panel{padding:12px!important}
+  .overview-screen .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .overview-screen .mini-metric{min-height:74px}
+  .overview-widgets,.dashboard-grid,.module-grid{grid-template-columns:minmax(0,1fr)}
+  .widget{width:100%;max-width:100%}
+  .widget .widget-head h3{font-size:14px!important}
+  #overview-media-widget .overview-media-now{gap:10px}
+  #overview-media-widget #overview-media-art{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;flex-basis:52px!important}
+  .n2k-location-suggestions{max-height:36dvh}
+  .notification-panel{top:calc(60px + env(safe-area-inset-top))!important;max-height:min(70dvh,610px)}
+  .n2k-photo-top-actions button,.n2k-photo-controls button,.n2k-editor-buttons button{min-height:38px}
+  #n2k-photo-viewer{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  .n2k-editor-shell{max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 22px)}
+  .n2k-ai-compose textarea{font-size:16px!important}
+  .n2k-help-nav{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .n2k-help-nav a{scroll-snap-align:start}
+ }
+}
+@media(max-width:360px){
+ .topbar .topbar-title-line h1{font-size:11px!important}
+ .topbar .topbar-title-line .overview-warning.n2k-top-alert{max-width:48px;flex-basis:48px}
+ .topbar .topbar-right .icon-button{width:26px;height:28px;min-width:26px}
+ .sidebar .side-nav .nav-item{flex-basis:53px;width:53px}
+}
