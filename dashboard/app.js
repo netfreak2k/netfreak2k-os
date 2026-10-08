@@ -6276,7 +6276,7 @@ function n2kOverviewLastArtwork(item) {
   let saved=null;
   try{saved=JSON.parse(localStorage.getItem(storageKey)||"null");}catch(_){}
   const url=(incoming?String(item.artwork_url||item.favicon||""):String(saved?.artwork||""));
-  const safe=/^(https?:\\/\\/|blob:|data:image\\/|\\/)/i.test(url)?url:"";
+  const safe=(url.startsWith("https://")||url.startsWith("http://")||url.startsWith("/")||url.startsWith("blob:")||url.startsWith("data:image/"))?url:"";
   cover.style.backgroundImage=safe?"url("+JSON.stringify(safe)+")":"";
   cover.classList.toggle("has-artwork",Boolean(safe));
   cover.textContent=safe?"":"♪";
