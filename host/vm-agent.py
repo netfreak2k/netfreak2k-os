@@ -786,12 +786,12 @@ def tor_relay_set(enabled):
             raise RuntimeError("relay_port_in_use")
         # Only the ORPort is exposed; SOCKS, control and DNS listeners stay disabled.
         # ExitPolicy enforces that user traffic NEVER exits to the clearnet.
-        torrc = ("SocksPort 0\\nControlPort 0\\nDNSPort 0\\n"
-                 "ORPort 9001\\nExitRelay 0\\nExitPolicy reject *:*\\n"
-                 "Nickname Netfreak2kRelay\\n"
-                 "DataDirectory /var/lib/tor\\n"
-                 "RelayBandwidthRate 512 KB\\nRelayBandwidthBurst 1 MB\\n"
-                 "Log notice stdout\\n")
+        torrc = ("SocksPort 0\nControlPort 0\nDNSPort 0\n"
+                 "ORPort 9001\nExitRelay 0\nExitPolicy reject *:*\n"
+                 "Nickname Netfreak2kRelay\n"
+                 "DataDirectory /var/lib/tor\n"
+                 "RelayBandwidthRate 512 KB\nRelayBandwidthBurst 1 MB\n"
+                 "Log notice stdout\n")
         # Alpine installs Tor on start; no host-level Tor changes.
         run("docker", "volume", "create", "netfreak2k-tor-relay-data", check=True)
         cmd = ["docker", "run", "-d", "--name", TOR_RELAY_CONTAINER,
