@@ -72,3 +72,18 @@
 #photos-panel .n2k-photo-cell{content-visibility:auto;contain-intrinsic-size:auto 230px}
 #photos-panel .n2k-photo-item img{display:block;aspect-ratio:1 / 1;object-fit:cover;image-rendering:auto}
 @media(max-width:600px){#photos-panel .n2k-photos-toolbar button{flex-grow:1}#photos-panel .n2k-photo-cell{contain-intrinsic-size:auto 190px}}
+
+/* v1.0 final: mobile friendly backup restore and touch targets */
+#photos-panel #n2k-photo-restore{background:linear-gradient(135deg,#1c5d67,#18465e);border-color:rgba(116,211,220,.55);font-weight:700}
+#photos-panel .n2k-photos-toolbar button,#photos-panel .n2k-photo-tabs button,#photos-panel .n2k-photo-bulk button{min-height:42px}
+#photos-panel .n2k-photo-item-actions button{min-height:38px}
+@media(max-width:650px){
+ #photos-panel .n2k-photos-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #photos-panel .n2k-photos-toolbar input[type="search"]{grid-column:1/-1;width:100%;min-width:0;box-sizing:border-box}
+ #photos-panel .n2k-photos-toolbar strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:center}
+ #photos-panel .n2k-photo-tabs{gap:6px}
+ #photos-panel .n2k-photo-tabs button{flex:1 1 auto}
+ #photos-panel #n2k-photo-year{width:100%}
+ #n2k-photo-viewer .n2k-photo-controls{max-width:100%;min-width:0;gap:8px}
+ #n2k-photo-caption{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:58vw}
+}
