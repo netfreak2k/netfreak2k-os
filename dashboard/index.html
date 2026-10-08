@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261008-weatherupdates1">
+  <link rel="stylesheet" href="styles.css?v=20261008-help1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile4">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-15">
@@ -112,6 +112,7 @@
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
         <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
+        <button class="nav-item" data-target="help-panel"><span>?</span>FAQ &amp; Handbuch</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -125,10 +126,10 @@
         <div class="topbar-brand">
           <p class="eyebrow">N2K CONTROL CENTER</p>
           <div class="topbar-title-line">
-            <h1>Netfreak2k Server-OS</h1>
+            <h1>Netfreak2k Server-OS</h1><span id="n2k-top-weather" class="n2k-top-weather" hidden></span>
             <button id="top-update-status" class="top-update-status" data-target-view="updates-panel">
               <span class="health-dot"></span><strong>Update wird geprüft</strong>
-            </button><span id="n2k-top-weather" class="n2k-top-weather" hidden></span>
+            </button>
           </div>
           <p class="subtitle">Private Cloud · Server · Home Assistant · Arbeitsplatz</p>
         </div>
@@ -1669,6 +1670,52 @@
             </div>
           </article>
 
+<article id="help-panel" class="panel n2k-help-panel section-anchor">
+ <div class="panel-head"><div><p class="eyebrow">N2K HILFECENTER</p><h2>FAQ &amp; Handbuch</h2><p>Dein Einstieg in Netfreak2k Server-OS – ohne Terminalkenntnisse.</p></div><span class="state-pill">LOKAL</span></div>
+ <nav class="n2k-help-nav" aria-label="Handbuch Kapitel">
+  <a href="#n2k-help-start">Erste Schritte</a><a href="#n2k-help-navigation">Oberfläche</a><a href="#n2k-help-features">Funktionen</a><a href="#n2k-help-safety">Sicherheit &amp; Updates</a><a href="#n2k-help-faq">Häufige Fragen</a>
+ </nav>
+ <section id="n2k-help-start" class="n2k-help-section"><h3>1. In fünf Minuten startklar</h3>
+ <ol><li><strong>OS im Browser öffnen.</strong> Rufe die bei der Installation angezeigte lokale Serveradresse auf. Beim ersten Aufruf legst du deinen Administratorzugang an.</li>
+ <li><strong>Übersicht prüfen.</strong> CPU, RAM, Speicher, Uptime und Systemstatus zeigen den aktuellen Zustand deines Geräts.</li>
+ <li><strong>Einstellungen öffnen.</strong> Wähle dein Wallpaper per seitlichem Scrollen. Unter <em>Standort &amp; Wetter</em> kannst du optional einen Ort aus den Vorschlägen auswählen und speichern.</li>
+ <li><strong>Updates prüfen.</strong> Die obere Update-Anzeige führt zur Updateverwaltung. Vor größeren Änderungen ist ein Backup sinnvoll.</li>
+ <li><strong>KI testen.</strong> Unter <em>KI</em> startet der lokale Assistent. Die Schaltfläche <em>Systemcheck</em> erklärt aktuelle Serverwerte.</li></ol>
+ <p class="n2k-help-tip">Tipp: Netfreak2k Server-OS ist eine zentrale Weboberfläche für bestehende Serverdienste. Die Linux-Installation auf dem Gerät bleibt bestehen.</p></section>
+ <section id="n2k-help-navigation" class="n2k-help-section"><h3>2. Orientierung in der Oberfläche</h3>
+ <p>Links findest du die Modulnavigation. Auf schmalen Geräten wird sie zu einer unteren, horizontal scrollbaren Leiste. Wähle ein Modul, um seine eigene Seite zu öffnen. Die obere Statusleiste enthält Updatehinweise, Mediensteuerung, Uhrzeit und – bei eingerichtetem Ort – eine kompakte Wetteranzeige.</p>
+ <div class="n2k-help-grid">
+ <div><strong>Übersicht</strong><p>Live-Systemwerte, kurze Statuskarten, Aktivitäten und die Medien-Schnellsteuerung.</p></div>
+ <div><strong>Arbeitsplatz &amp; Office</strong><p>Dateiverwaltung und unterstützte Dokumentfunktionen im Browser.</p></div>
+ <div><strong>Kalender</strong><p>Termine und kommende Ereignisse verwalten.</p></div>
+ <div><strong>System</strong><p>Unterseiten für Status, virtuelle Maschinen, Speicher, Backups, Netzwerk, Sicherheit und Ereignisse.</p></div>
+ <div><strong>Apps</strong><p>Verfügbare Anwendungen ansehen und – soweit unterstützt – verwalten.</p></div>
+ <div><strong>Einstellungen</strong><p>Updates, Personalisierung, Wetterstandort und weitere Konfigurationen.</p></div>
+ </div></section>
+ <section id="n2k-help-features" class="n2k-help-section"><h3>3. Die wichtigsten Funktionen</h3>
+ <details><summary>Lokale KI – Netfreak2k Offgrid Mesh Local Intelligence</summary><p>Im KI-Fenster kannst du Fragen eingeben oder Systemcheck, CPU &amp; RAM, Docker, Netzwerk und Updates auswählen. Der Assistent nutzt Ollama und lokale, lesbare Diagnosedaten. Die Antworten sind Hilfestellungen und sollten bei kritischen Entscheidungen überprüft werden. Wetterfragen mit benanntem Ort können über eine Online-Wetterquelle beantwortet werden; dafür ist Internet nötig. Die KI führt keine freien Serverbefehle aus.</p></details>
+ <details><summary>Media Center &amp; Schnellsteuerung</summary><p>Wähle im Media Center Radiosender oder lokale Musik. Die obere Steuerung bleibt beim Seitenwechsel erreichbar. In der Übersicht kann die Schnellsteuerung das Cover des zuletzt verwendeten Mediums anzeigen, sofern ein Bild verfügbar ist. Die Wiedergabe benötigt je nach Quelle eine lokale Datei oder Internet.</p></details>
+ <details><summary>Fotogalery</summary><p>Fotos über die Galerie verwalten, anzeigen und vorhandene Bearbeitungsfunktionen benutzen. Gelöschte Bilder können über den Papierkorb wiederhergestellt werden, solange sie noch nicht endgültig entfernt wurden.</p></details>
+ <details><summary>Home Assistant, Docker und virtuelle Maschinen</summary><p>Home Assistant OS wird als virtuelle Maschine vorgesehen. Unter Apps und System kannst du verfügbare Dienste und VMs prüfen. Das Starten oder Stoppen kann Auswirkungen auf laufende Anwendungen haben.</p></details>
+ <details><summary>Wallpaper und Standortwetter</summary><p>In den Einstellungen durch die Wallpaper horizontal blättern und ein Motiv anklicken. Für Wetter den Ort eingeben, den passenden Vorschlag auswählen und speichern. Ohne gespeicherten Standort bleibt das Wetter in der Statusleiste unsichtbar. Eine Auswahl speichert den Ort und seine Koordinaten für verlässliche Wetterabfragen.</p></details>
+ </section>
+ <section id="n2k-help-safety" class="n2k-help-section"><h3>4. Sicherheit, Updates und Datensicherung</h3>
+ <ul><li><strong>Anmeldung:</strong> Verwende ein starkes lokales Administratorpasswort und melde dich auf fremden Geräten ab.</li>
+ <li><strong>Updates:</strong> Prüfe neue OS- und Linux-Updates über die Einstellungen. Aktualisierungen können Dienste kurz unterbrechen.</li>
+ <li><strong>Backups:</strong> Lege vor wichtigen Änderungen eine Sicherung an und prüfe regelmäßig, ob sie wiederherstellbar ist.</li>
+ <li><strong>Internetzugriff:</strong> Lokale Funktionen bleiben grundsätzlich lokal. Radio, Wetter, Downloads und Updates können externe Verbindungen benötigen.</li>
+ <li><strong>Fernzugriff:</strong> Veröffentliche die Verwaltungsoberfläche nicht ungeprüft direkt im Internet. Nutze einen abgesicherten Zugang.</li></ul></section>
+ <section id="n2k-help-faq" class="n2k-help-section"><h3>5. Häufige Fragen (FAQ)</h3>
+ <details><summary>Brauche ich Linux- oder Terminalkenntnisse?</summary><p>Für die tägliche Nutzung ist die Weboberfläche vorgesehen. Installation und fortgeschrittene Fehlerbehebung können je nach System Terminalzugriff erfordern.</p></details>
+ <details><summary>Warum zeigt das Wetter nichts an?</summary><p>Unter Einstellungen den Ort aus der Vorschlagsliste auswählen und speichern. Ohne Standort ist die Anzeige absichtlich ausgeblendet. Bei fehlendem Internet können Wetterdaten zeitweise nicht erreichbar sein.</p></details>
+ <details><summary>Warum wird „Aken Elbe“ nicht direkt erkannt?</summary><p>Die Ortssuche unterstützt Vorschläge. Gib zum Beispiel „Aken“ ein und wähle die passende Region in Deutschland aus. Für Wetter werden anschließend die gewählten Koordinaten verwendet.</p></details>
+ <details><summary>Warum sehe ich kein Mediencover?</summary><p>Nicht jeder Radiosender und nicht jede Audiodatei liefert ein Bild. Spiele ein Medium mit Cover ab. Prüfe, ob das Bild im Media Center selbst erscheint, und lade die Übersicht neu.</p></details>
+ <details><summary>Funktioniert die KI ohne Internet?</summary><p>Lokaler Ollama-Chat und Diagnosefunktionen können offline funktionieren, wenn Modell und Dienst installiert sind. Online-Wetter und Downloads benötigen Internet. Die erstmalige Modellinstallation benötigt eine Internetverbindung.</p></details>
+ <details><summary>Warum antwortet die KI langsam?</summary><p>Das kompakte Modell läuft auf schwächerer Hardware und wird zum Speichersparen nach Antworten entladen. Der erste Aufruf kann deshalb länger dauern. Bei hoher RAM- oder CPU-Auslastung hilft es, andere anspruchsvolle Anwendungen zu schließen.</p></details>
+ <details><summary>Was tun, wenn ein Update Probleme macht?</summary><p>Prüfe Systemstatus und Ereignisprotokolle. Starte betroffene Dienste nur, wenn du die Auswirkungen kennst, und verwende bei Bedarf eine zuvor geprüfte Sicherung.</p></details>
+ <details><summary>Wo finde ich das Projekt und den Quellcode?</summary><p>Das Projekt wird auf <a href="https://github.com/netfreak2k/netfreak2k-os" target="_blank" rel="noopener noreferrer">GitHub</a> dokumentiert. Diese Hilfe ist auch innerhalb der lokalen OS-Oberfläche verfügbar.</p></details>
+ </section>
+</article>
           <article id="ai-panel" class="panel ai-workspace-panel section-anchor">
  
  <section class="n2k-ollama-panel" aria-label="N2K Server-Assistent">
@@ -1703,7 +1750,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261008-weatherupdates1"></script>
+  <script src="app.js?v=20261008-help1"></script>
   <script defer src="monitoring-tiles.js?v=20261008-15"></script>
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
