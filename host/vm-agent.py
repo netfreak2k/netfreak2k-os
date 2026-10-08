@@ -3638,7 +3638,7 @@ def ollama_local_chat(messages, system_context=False):
         instruction=("Du bist der lokale N2K Server-Assistent. Antworte knapp auf Deutsch. "
             "Nutze nur die folgenden echten Messdaten; erfinde keine Zahlen. "
             "Fehlende Informationen als unbekannt kennzeichnen. Keine Befehle ausführen. Daten: "
-            + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:1100])
+            + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:1500])
         safe=[{"role":"system","content":instruction}]+safe[-4:]
     data={"model":"qwen2.5:0.5b","messages":safe,"stream":False,
           "think":False,"keep_alive":0,
@@ -3656,7 +3656,7 @@ def ollama_local_chat(messages, system_context=False):
         return {"error":"ollama_unavailable_or_timeout"}
 
 def n2k_ai_context():
-    # Bounded read-only system snapshot, no secrets, no shell execution by LLM.
+    # Small, read-only snapshot with deterministic checks. Never run model-generated commands.
     mem={}
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -3670,22 +3670,54 @@ def n2k_ai_context():
     except (OSError,ValueError,IndexError):
         up=None
     try:
-        load=list(os.getloadavg())
+        load=[round(x,2) for x in os.getloadavg()]
     except OSError:
         load=[]
     containers=[]
     try:
         p=subprocess.run(["docker","ps","--format","{{.Names}}|{{.Status}}"],capture_output=True,text=True,timeout=4,check=False)
         if p.returncode==0:
-            containers=[{"name":parts[0][:60],"status":parts[1][:100]} for line in p.stdout.splitlines()[:15] if len(parts:=line.split("|",1))==2]
+            for line in p.stdout.splitlines()[:15]:
+                parts=line.split("|",1)
+                if len(parts)==2:
+                    containers.append({"name":parts[0][:50],"status":parts[1][:70]})
     except (OSError,subprocess.TimeoutExpired):
         pass
     try:
         updates=json.loads(Path("/var/lib/netfreak2k/host-update-status.json").read_text())
     except (OSError,ValueError):
         updates={}
+    network={}
+    try:
+        for line in Path("/proc/net/route").read_text().splitlines()[1:]:
+            parts=line.split()
+            if len(parts)>=4 and parts[1]=="00000000" and int(parts[3],16)&1:
+                network["default_interface"]=parts[0][:25]
+                break
+    except (OSError,ValueError):
+        pass
+    try:
+        n=subprocess.run(["ip","-brief","link"],capture_output=True,text=True,timeout=3,check=False)
+        if n.returncode==0:
+            network["interfaces"]=[{"name":line.split()[0][:25],"state":line.split()[1][:20]}
+                                   for line in n.stdout.splitlines()[:12] if len(line.split())>=2]
+    except (OSError,subprocess.TimeoutExpired):
+        pass
+    warnings=[]
+    total=mem.get("MemTotal",0)
+    available=mem.get("MemAvailable",0)
+    if total and available/total<0.15:
+        warnings.append("Arbeitsspeicher knapp: unter 15 Prozent verfügbar")
+    if load and load[0]>max(1,os.cpu_count() or 1)*1.5:
+        warnings.append("Hohe Systemlast gegenüber CPU-Kernzahl")
+    unhealthy=[c["name"] for c in containers if "unhealthy" in c["status"].lower() or "restarting" in c["status"].lower()]
+    if unhealthy:
+        warnings.append("Auffällige Container: "+", ".join(unhealthy[:4]))
+    if not network.get("default_interface"):
+        warnings.append("Keine Standardroute in /proc/net/route erkannt")
     return {"ram_mb":mem,"uptime_seconds":up,"load_averages":load,
-            "containers":containers,"updates":{"packages":updates.get("packages"),"security":updates.get("security")},
+            "containers":containers,"network":network,"warnings":warnings,
+            "updates":{"packages":updates.get("packages"),"security":updates.get("security")},
             "source":"local_live_readonly"}
 
 def execute(action, request):
