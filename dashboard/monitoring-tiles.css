@@ -244,3 +244,58 @@
  #dashboard-top .mini-metrics .n2k-monitor-card .metric-ring{width:66px!important;height:66px!important;min-width:66px!important;min-height:66px!important}
  #dashboard-top .mini-metrics .n2k-monitor-card .metric-ring .ring-value{font-size:22px!important;line-height:24px!important}
 }
+
+/* V13: overview layout, clear drive/network values, two-column activity */
+#dashboard-top .widget-grid>.recent-widget,
+#dashboard-top .widget-grid>.activity-widget{
+ grid-column:span 2!important;aspect-ratio:2 / 1!important;
+ width:100%;min-height:0!important;max-height:none!important
+}
+#dashboard-top .widget-grid>.drive-widget,
+#dashboard-top .widget-grid>.network-widget{
+ background:linear-gradient(145deg,rgba(12,35,54,.98),rgba(7,20,35,.97));
+ border:1px solid rgba(75,154,208,.28);
+ box-shadow:inset 0 1px rgba(255,255,255,.05)
+}
+#dashboard-top .widget-grid>.drive-widget .widget-head,
+#dashboard-top .widget-grid>.network-widget .widget-head{flex-shrink:0}
+#dashboard-top .widget-grid>.drive-widget .drive-widget-body{
+ display:flex;align-items:center;justify-content:flex-start;gap:10px;min-width:0
+}
+#dashboard-top .widget-grid>.drive-widget .drive-donut{
+ width:76px!important;height:76px!important;min-width:76px!important;min-height:76px!important;
+ flex-shrink:0;display:grid;place-items:center
+}
+#dashboard-top .widget-grid>.drive-widget #drive-storage-percent{
+ font-size:22px!important;line-height:24px!important;font-weight:750!important;
+ font-variant-numeric:tabular-nums!important;white-space:nowrap
+}
+#dashboard-top .widget-grid>.drive-widget #drive-storage-copy{
+ display:block;font-size:15px!important;line-height:18px!important;font-weight:700!important;
+ font-variant-numeric:tabular-nums!important;overflow-wrap:normal;word-break:normal
+}
+#dashboard-top .widget-grid>.drive-widget #drive-meta{
+ display:block;font-size:10px!important;line-height:13px!important;color:#a0bad1
+}
+#dashboard-top .widget-grid>.network-widget .network-values{
+ display:grid;grid-template-columns:1fr;gap:5px;min-width:0
+}
+#dashboard-top .widget-grid>.network-widget .network-values>div{min-width:0;display:flex;flex-direction:column;gap:1px}
+#dashboard-top .widget-grid>.network-widget .network-values span{font-size:10px!important;line-height:13px!important;color:#a7c2d8}
+#dashboard-top .widget-grid>.network-widget .network-values strong{
+ font-size:22px!important;line-height:25px!important;font-weight:750!important;
+ font-variant-numeric:tabular-nums!important;letter-spacing:-.035em;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#dashboard-top .widget-grid>.recent-widget .overview-list,
+#dashboard-top .widget-grid>.activity-widget .overview-list{
+ overflow:auto;min-height:0;flex:1;font-size:12px!important;line-height:16px!important
+}
+@media(max-width:620px){
+ #dashboard-top .widget-grid>.recent-widget,
+ #dashboard-top .widget-grid>.activity-widget{grid-column:span 2!important;aspect-ratio:auto!important;min-height:190px!important}
+ #dashboard-top .widget-grid>.drive-widget .drive-donut{width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important}
+ #dashboard-top .widget-grid>.drive-widget #drive-storage-percent{font-size:18px!important}
+ #dashboard-top .widget-grid>.drive-widget #drive-storage-copy{font-size:13px!important}
+ #dashboard-top .widget-grid>.network-widget .network-values strong{font-size:18px!important}
+}
