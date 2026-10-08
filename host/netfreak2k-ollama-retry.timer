@@ -1,0 +1,10 @@
+[Unit]
+Description=Retry incomplete local AI setup without user terminal actions
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
