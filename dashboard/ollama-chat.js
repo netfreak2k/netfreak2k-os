@@ -24,7 +24,7 @@ async function send(){
    body:JSON.stringify({messages,system_context:true})});
   const d=await r.json();if(!r.ok||d.error)throw Error(d.error||"HTTP "+r.status);
   messages.push({role:"assistant",content:d.reply||"Keine Antwort erhalten"});render();
-  $("n2k-ollama-note").textContent="Antwort abgeschlossen · Ollama bleibt lokal";
+  $("n2k-ollama-note").textContent=d.online?"Online-Wetterdaten · Open-Meteo":"Antwort abgeschlossen · Ollama bleibt lokal";
  }catch(e){$("n2k-ollama-note").textContent="Anfrage fehlgeschlagen: "+e.message;}
  finally{busy=false;sendButton.disabled=false;}
 }
