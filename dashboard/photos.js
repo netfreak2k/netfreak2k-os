@@ -1,7 +1,7 @@
 /* Netfreak2k Fotogalery v0.6 — local, no AI */
 (()=>{"use strict";
 const $=id=>document.getElementById(id), imageExt=/\.(jpe?g|png|gif|webp|bmp|avif)$/i;
-let items=[],shown=[],selected=new Set(),tab="timeline",year="all",album="",search="",cursor=0,active=null,rotation=0,image=null,slide=null;
+let trashItems=[],items=[],shown=[],selected=new Set(),tab="timeline",year="all",album="",search="",cursor=0,active=null,rotation=0,image=null,slide=null;
 let metadata={favorites:[],albums:{}},saveQueue=Promise.resolve();
 const url=(item)=>"/api/workspace/file?"+new URLSearchParams({area:"media",path:item.path||"",name:item.name});
 const key=i=>i.key||[i.path,i.name].filter(Boolean).join("/");
@@ -31,7 +31,25 @@ function filters(){
  if(tab==="timeline"&&year!=="all")results=results.filter(i=>String(date(i)?.getFullYear())===year);
  return results;
 }
+async function showTrash(){
+ const grid=$("n2k-photos-grid");if(!grid)return;grid.replaceChildren();notify("Papierkorb wird geladen …");
+ try{const response=await fetch("/api/photos/trash",{credentials:"same-origin",cache:"no-store"});if(!response.ok)throw Error("HTTP "+response.status);
+ const data=await response.json();trashItems=data.items||[];notify(trashItems.length+" Fotos im Papierkorb");
+ trashItems.forEach(item=>{
+ const row=el("div","n2k-photo-folder"),title=el("strong",null,item.original_name),detail=el("small",null,item.origin==="unknown"?"Ältere Datei · Herkunft unbekannt":("Ursprung: "+(item.path||"Medien")));
+ const button=el("button",null,"↶ Wiederherstellen");button.type="button";button.onclick=async()=>{
+ button.disabled=true;
+ try{const res=await fetch("/api/workspace/restore",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":typeof csrfToken!=="undefined"?csrfToken:""},body:JSON.stringify({name:item.name})});
+ if(!res.ok){const d=await res.json().catch(()=>({}));throw Error(d.error||"HTTP "+res.status)}
+ await load();tab="trash";await showTrash();notify(item.original_name+" wiederhergestellt");
+ }catch(e){notify("Wiederherstellung fehlgeschlagen: "+e.message);button.disabled=false}
+ };row.append(title,detail,button);grid.append(row);
+ });
+ if(!trashItems.length)grid.append(el("p",null,"Papierkorb ist leer."));
+ }catch(e){notify("Papierkorb nicht erreichbar: "+e.message)}
+}
 function render(){
+ if(tab==="trash"){showTrash();return}
  const grid=$("n2k-photos-grid");if(!grid)return;grid.replaceChildren();
  const years=[...new Set(items.map(i=>date(i)?.getFullYear()).filter(Boolean))].sort((a,b)=>b-a);
  const pick=$("n2k-photo-year");if(pick){pick.replaceChildren(new Option("Alle Jahre","all"),...years.map(y=>new Option(String(y),String(y))));pick.value=year;pick.hidden=tab!=="timeline";}
@@ -129,7 +147,7 @@ async function trashSelected(){
  }catch(e){notify("Nach "+moved+" Dateien abgebrochen: "+e.message)}finally{b.disabled=false}
 }
 function init(){
- $("n2k-photos-refresh")?.addEventListener("click",load);
+ $("n2k-photos-refresh")?.addEventListener("click",()=>tab==="trash"?showTrash():load());
  $("n2k-photos-search")?.addEventListener("input",e=>{search=e.target.value.toLocaleLowerCase("de");render()});
  $("n2k-photo-year")?.addEventListener("change",e=>{year=e.target.value;render()});
  document.querySelectorAll("[data-photo-view]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.photoView;album="";render()}));
