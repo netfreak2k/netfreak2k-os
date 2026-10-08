@@ -37,6 +37,8 @@ services:
       N2K_WORKSPACE_ROOT: "/workspace"
     volumes:
       - /proc:/host/proc:ro
+      # Read-only host hardware monitoring: hwmon fan tachometers across vendors
+      - /sys:/host/sys:ro
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/hostname:/host/etc/hostname:ro
       - /run/netfreak2k:/run/netfreak2k
