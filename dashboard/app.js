@@ -6247,6 +6247,7 @@ function updateMediaPlaybackUi() {
       : (station.now_playing?.artist ? `${station.now_playing.artist} · ${station.name}` : `${station.genre || "Radio"} · ${station.country || "Internet"}`))
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
+  if(station)n2kOverviewLastArtwork(station);
   if (liveDot) liveDot.classList.toggle("active", playing);
   if (visualizer) visualizer.classList.toggle("has-signal", playing);
 
@@ -6262,18 +6263,31 @@ function updateMediaPlaybackUi() {
   }
 }
 
+function n2kOverviewLastArtwork(item) {
+  const cover=document.getElementById("overview-media-art");
+  if(!cover)return;
+  const storageKey="n2k-media-last-artwork-v2";
+  const incoming=item && typeof item==="object";
+  if(incoming){
+    const data={title:String(item.title||item.name||"Zuletzt gespielt").slice(0,120),
+      artwork:String(item.artwork_url||item.favicon||"").slice(0,1500)};
+    try{localStorage.setItem(storageKey,JSON.stringify(data));}catch(_){}
+  }
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(storageKey)||"null");}catch(_){}
+  const url=(incoming?String(item.artwork_url||item.favicon||""):String(saved?.artwork||""));
+  const safe=/^(https?:\\/\\/|blob:|data:image\\/|\\/)/i.test(url)?url:"";
+  cover.style.backgroundImage=safe?"url("+JSON.stringify(safe)+")":"";
+  cover.classList.toggle("has-artwork",Boolean(safe));
+  cover.textContent=safe?"":"♪";
+  cover.title=incoming?String(item.title||item.name||"Zuletzt gespielt"):String(saved?.title||"Zuletzt gespielt");
+  const tileTitle=document.getElementById("overview-media-title");
+  if(!incoming&&saved?.title&&tileTitle&&["Bereit","Noch kein Titel"].includes(tileTitle.textContent.trim()))tileTitle.textContent=saved.title;
+}
 function updateMediaArtwork(item) {
   const cover = document.getElementById("media-cover");
   const topArt = document.getElementById("top-media-art");
-  const overviewArt = document.getElementById("overview-media-art");
-  if (overviewArt) {
-    const url = item?.artwork_url || item?.favicon || "";
-    const safe = typeof url==="string" && (/^https:\/\//i.test(url) || /^http:\/\//i.test(url) || /^blob:/i.test(url) || /^data:image\//i.test(url) || url.startsWith("/")) ? url : "";
-    overviewArt.style.backgroundImage = safe ? 'url('+JSON.stringify(safe)+')' : "";
-    overviewArt.classList.toggle("has-artwork",Boolean(safe));
-    overviewArt.textContent = safe ? "" : "♪";
-    overviewArt.title = item?.title || item?.name || "Zuletzt gespielt";
-  }
+  n2kOverviewLastArtwork(item);
 
   const artwork = item?.artwork_url || item?.favicon || "";
   const safeArtwork = artwork ? artwork.replace(/"/g, "%22") : "";
@@ -7334,7 +7348,7 @@ function stopMediaPlayback() {
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Noch nichts ausgewählt";
   if (subtitle) subtitle.textContent = "Wähle Radio, eigene Musik oder einen Streaming-Dienst.";
-  updateMediaArtwork(null);
+  n2kOverviewLastArtwork(null);
   clearSpectrumUi();
   updateMediaPlaybackUi();
   updateMediaFavoriteButton();
@@ -7486,3 +7500,5 @@ function initWeatherSettings(){
  setInterval(()=>{const badge=document.getElementById("n2k-top-weather");if(badge&&!badge.hidden)updateTopWeather(true);},15*60*1000);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
+
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>n2kOverviewLastArtwork(null));else n2kOverviewLastArtwork(null);
