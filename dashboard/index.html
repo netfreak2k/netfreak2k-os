@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile4">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-15">
   <link rel="stylesheet" href="photos.css?v=20261008-10">
-  <link rel="stylesheet" href="ollama-chat.css?v=20261008-2">
+  <link rel="stylesheet" href="ollama-chat.css?v=20261008-3">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -1669,25 +1669,27 @@
           </article>
 
           <article id="ai-panel" class="panel ai-workspace-panel section-anchor">
-            <div class="panel-head">
-              <div><p class="eyebrow">N2K AI WORKSPACE</p><h2>KI-Arbeitsplatz</h2><p>Direkter lokaler Chat mit Ollama – ohne Cloud und externe Anmeldung.</p></div>
-              <span class="state-pill">LOCAL AI</span>
-            </div>
-<section class="n2k-ollama-panel" aria-label="Lokaler Ollama Chat">
-  <div class="n2k-ollama-head"><div><p class="eyebrow">N2K LOCAL AI</p><h3>N2K Server-Assistent</h3><p>Qwen2.5 0.5B · CPU · 1K Kontext · Schnellmodus</p></div><span id="n2k-ollama-state" class="state-pill">Prüfe …</span></div>
-  <div class="n2k-ai-quick-actions" aria-label="Serveranalyse">
-    <button type="button" data-n2k-ai-prompt="Wie ist der aktuelle Zustand meines Servers? Nutze die vorhandenen Systemdaten.">Systemcheck</button>
-    <button type="button" data-n2k-ai-prompt="Bewerte den Arbeitsspeicher und die aktuelle CPU-Last anhand der vorhandenen Werte.">CPU &amp; RAM</button>
-    <button type="button" data-n2k-ai-prompt="Sind Docker-Container gestört oder auffällig? Nenne nur belegte Fakten.">Docker</button>
-    <button type="button" data-n2k-ai-prompt="Welche Linux-Paketupdates sind erkannt und was bedeutet das?">Updates</button>
-  </div>
-  <div id="n2k-ollama-history" class="n2k-ollama-history" role="log" aria-live="polite"><p class="n2k-ollama-empty">Frage den Assistenten nach dem Zustand deines Servers.</p></div>
-  <label for="n2k-ollama-input">Deine Nachricht</label>
-  <textarea id="n2k-ollama-input" rows="3" maxlength="2000" placeholder="Frage an die lokale KI …"></textarea>
-  <div class="n2k-ollama-actions"><button type="button" id="n2k-ollama-send">Senden</button><button type="button" id="n2k-ollama-new" class="secondary">Neuer Chat</button><button type="button" id="n2k-ollama-refresh" class="secondary">Status prüfen</button></div>
-  <p class="n2k-ollama-hint" id="n2k-ollama-note">Alles lokal. Modell wird nach jeder Antwort entladen. Bestehende Ollama-RAM-Grenze bleibt aktiv.</p>
-</section>
-            </article>
+ <header class="n2k-ai-page-head"><div><p class="eyebrow">KI · LOCAL INTELLIGENCE</p><h2>Dein lokaler Server-Assistent</h2></div></header>
+ <section class="n2k-ollama-panel" aria-label="N2K Server-Assistent">
+   <div class="n2k-ollama-head">
+     <div class="n2k-ai-identity"><span class="n2k-ai-symbol" aria-hidden="true">✦</span><div><h3>N2K Server-Assistent</h3><p>Lokal · Ollama · Qwen2.5 0.5B</p></div></div>
+     <div class="n2k-ai-compact-status"><span class="n2k-ai-status-led" id="n2k-ai-status-led"></span><strong id="n2k-ollama-state">Prüfe …</strong><small>RAM-Limit 1,5 GB · Lokal</small><button type="button" id="n2k-ollama-refresh" aria-label="KI-Status aktualisieren" title="Status aktualisieren">↻</button></div>
+   </div>
+   <div class="n2k-ai-quick-actions" aria-label="Schnellaktionen">
+     <button type="button" data-n2k-ai-prompt="Wie ist der aktuelle Zustand meines Servers? Nutze die vorhandenen Systemdaten."><span aria-hidden="true">⌁</span> Systemcheck</button>
+     <button type="button" data-n2k-ai-prompt="Bewerte den Arbeitsspeicher und die aktuelle CPU-Last anhand der vorhandenen Werte."><span aria-hidden="true">▦</span> CPU &amp; RAM</button>
+     <button type="button" data-n2k-ai-prompt="Sind Docker-Container gestört oder auffällig? Nenne nur belegte Fakten."><span aria-hidden="true">⬡</span> Docker</button>
+     <button type="button" data-n2k-ai-prompt="Welche Linux-Paketupdates sind erkannt und was bedeutet das?"><span aria-hidden="true">↻</span> Updates</button>
+   </div>
+   <div id="n2k-ollama-history" class="n2k-ollama-history" role="log" aria-live="polite"></div>
+   <div class="n2k-ai-compose">
+     <label class="n2k-ai-visually-hidden" for="n2k-ollama-input">Nachricht an den Server-Assistenten</label>
+     <textarea id="n2k-ollama-input" rows="1" maxlength="2000" placeholder="Frage an deinen Server …"></textarea>
+     <button type="button" id="n2k-ollama-send" aria-label="Nachricht senden" title="Nachricht senden">➤</button>
+   </div>
+   <div class="n2k-ai-footer"><span id="n2k-ollama-note">Nur lokal · Keine Befehlsausführung</span><button type="button" id="n2k-ollama-new">Neuer Chat</button></div>
+ </section>
+</article>
 
         </section>
         <div class="n2k-legal-notice">
@@ -1704,6 +1706,6 @@
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
 <div id="n2k-photo-editor" class="n2k-photo-editor" role="dialog" aria-modal="true" aria-label="Bildeditor" hidden><div class="n2k-editor-shell"><h2>Foto bearbeiten</h2><canvas id="n2k-editor-preview"></canvas><div class="n2k-editor-controls"><button id="n2k-editor-rotate">↻ 90° drehen</button><label>Helligkeit <input id="n2k-editor-brightness" type="range" min="30" max="170" value="100"></label><label>Kontrast <input id="n2k-editor-contrast" type="range" min="30" max="170" value="100"></label><label><input id="n2k-editor-crop" type="checkbox"> Quadratisch zuschneiden</label></div><div class="n2k-editor-buttons"><button id="n2k-editor-cancel">Abbrechen</button><button id="n2k-editor-save">Als neue Datei speichern</button></div></div></div>
-  <script src="ollama-chat.js?v=20261008-2"></script>
+  <script src="ollama-chat.js?v=20261008-3"></script>
 </body>
 </html>
