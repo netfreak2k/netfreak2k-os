@@ -1189,17 +1189,25 @@ def preferences_payload(username):
     wallpaper = prefs.get("wallpaper", "01-night-bay")
     if wallpaper not in WALLPAPER_IDS:
         wallpaper = "01-night-bay"
-    return {"wallpaper": wallpaper, "weather_location": prefs.get("weather_location", "")}
+    return {"wallpaper": wallpaper, "weather_location": prefs.get("weather_location", ""), "weather_coordinates": prefs.get("weather_coordinates", "")}
 
 
 def set_preference(username, key, value):
-    if key not in ("wallpaper", "weather_location"):
+    if key not in ("wallpaper", "weather_location", "weather_coordinates"):
         raise ValueError("invalid_preference")
     value = str(value or "").strip()
     if key == "wallpaper" and value not in WALLPAPER_IDS:
         raise ValueError("invalid_wallpaper")
     if key == "weather_location" and (len(value) > 75 or (value and not re.fullmatch(r"[\wÄÖÜäöüß .,-]+", value, re.UNICODE))):
         raise ValueError("invalid_weather_location")
+    if key == "weather_coordinates":
+        if value:
+            try:
+                lat,lon=map(float,value.split(","))
+                if not (-90<=lat<=90 and -180<=lon<=180):
+                    raise ValueError()
+            except (ValueError,TypeError):
+                raise ValueError("invalid_weather_coordinates")
     now = int(time.time())
     with db_connect() as conn:
         conn.execute(
@@ -3814,6 +3822,44 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(payload)
             return
 
+        if path == "/preferences/locations":
+            session = self.require_auth()
+            if not session:
+                return
+            from urllib.parse import urlencode
+            typed = (query.get("q", [""])[0] or "").strip()[:75]
+            if len(typed) < 2:
+                self.send_json({"results":[]})
+                return
+            candidates = [typed]
+            short = re.sub(r"\\s*\\([^)]*\\)", "", typed).strip()
+            if short != typed:
+                candidates.append(short)
+            first = re.split(r"[, ]", short, maxsplit=1)[0]
+            if first and first not in candidates:
+                candidates.append(first)
+            if typed.lower() in ("aken elbe", "aken (elbe)", "aken an der elbe"):
+                candidates = ["Aken", "Aken (Elbe)"]
+            results = []
+            try:
+                for name in candidates[:3]:
+                    req = Request("https://geocoding-api.open-meteo.com/v1/search?" +
+                        urlencode({"name":name,"count":10,"language":"de","format":"json"}),
+                        headers={"User-Agent":"Netfreak2k-OS/1.0"})
+                    with urlopen(req,timeout=5) as resp:
+                        found=json.load(resp).get("results",[])
+                    if found:
+                        for loc in found:
+                            if not isinstance(loc.get("latitude"), (int,float)) or not isinstance(loc.get("longitude"), (int,float)):
+                                continue
+                            label=", ".join(str(v) for v in (loc.get("name"),loc.get("admin2") or loc.get("admin1"),loc.get("country")) if v)
+                            results.append({"label":label,"name":loc.get("name",""),"latitude":loc["latitude"],"longitude":loc["longitude"]})
+                        break
+                self.send_json({"results":results[:10]})
+            except (OSError,ValueError,KeyError,TimeoutError):
+                self.send_json({"results":[],"error":"lookup_unavailable"})
+            return
+
         if path == "/preferences/weather":
             session = self.require_auth()
             if not session:
@@ -3824,13 +3870,20 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 from urllib.parse import urlencode
-                req = Request("https://geocoding-api.open-meteo.com/v1/search?" + urlencode({"name":place,"count":1,"language":"de","format":"json"}),headers={"User-Agent":"Netfreak2k-OS/1.0"})
-                with urlopen(req, timeout=6) as resp:
-                    places = json.load(resp).get("results",[])
-                if not places:
-                    self.send_json({"configured": True, "error":"location_not_found"})
-                    return
-                found=places[0]
+                coordinates=preferences_payload(session["username"]).get("weather_coordinates","")
+                if coordinates:
+                    lat,lon=map(float,coordinates.split(","))
+                    found={"latitude":lat,"longitude":lon,"name":place}
+                else:
+                    search=re.sub(r"\\s*\\([^)]*\\)","",place).strip()
+                    search=re.split(r"[, ]",search,maxsplit=1)[0]
+                    req=Request("https://geocoding-api.open-meteo.com/v1/search?"+urlencode({"name":search,"count":1,"language":"de","format":"json"}),headers={"User-Agent":"Netfreak2k-OS/1.0"})
+                    with urlopen(req,timeout=6) as resp:
+                        places=json.load(resp).get("results",[])
+                    if not places:
+                        self.send_json({"configured":True,"error":"location_not_found"})
+                        return
+                    found=places[0]
                 query=urlencode({"latitude":found["latitude"],"longitude":found["longitude"],"current":"temperature_2m,weather_code","timezone":"auto"})
                 with urlopen(Request("https://api.open-meteo.com/v1/forecast?"+query,headers={"User-Agent":"Netfreak2k-OS/1.0"}),timeout=6) as resp:
                     current=json.load(resp).get("current",{})
