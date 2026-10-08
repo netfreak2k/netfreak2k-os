@@ -3705,6 +3705,25 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(photogalery_trash(session["username"]))
             return
 
+        if path == "/hermes/status":
+            session = self.require_auth()
+            if not session:
+                return
+            address = os.environ.get("N2K_HERMES_URL", "").strip()
+            parsed_hermes = urlparse(address)
+            configured = parsed_hermes.scheme in ("http", "https") and bool(parsed_hermes.hostname)
+            reachable = False
+            if configured:
+                try:
+                    port = parsed_hermes.port or (443 if parsed_hermes.scheme == "https" else 80)
+                    with socket.create_connection((parsed_hermes.hostname, port), timeout=0.7):
+                        reachable = True
+                except (OSError, ValueError):
+                    pass
+            self.send_json({"configured":configured, "available":reachable,
+                            "launch_url":address if configured and not parsed_hermes.username and not parsed_hermes.password else None})
+            return
+
         if path == "/photos/library":
             session = self.require_auth()
             if not session:
