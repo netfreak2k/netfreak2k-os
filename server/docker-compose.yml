@@ -19,6 +19,23 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - netfreak2k-inventory:/state
 
+  netfreak2k-messenger:
+    build:
+      context: ..
+      dockerfile: server/messenger/Dockerfile
+    container_name: netfreak2k-messenger
+    labels:
+      netfreak2k.core: "true"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - netfreak2k-messenger-data:/state
+    networks:
+      - netfreak2k
+
   netfreak2k-api:
     build:
       context: ..
@@ -80,6 +97,8 @@ networks:
     name: netfreak2k
 
 volumes:
+  netfreak2k-messenger-data:
+    name: netfreak2k-messenger-data
   netfreak2k-data:
     name: netfreak2k-data
   netfreak2k-inventory:
