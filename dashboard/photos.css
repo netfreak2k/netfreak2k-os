@@ -60,3 +60,9 @@
 /* v0.7 additional safety actions */
 #photos-panel #n2k-photo-bulk-trash{background:rgba(120,38,51,.38);border-color:rgba(225,112,122,.48);color:#ffd6da}
 #photos-panel #n2k-photo-duplicates{border-color:rgba(89,178,204,.48)}
+
+/* v0.8 restored photographs */
+#photos-panel .n2k-photo-folder:has(button){padding:14px;gap:8px;cursor:default;align-items:flex-start}
+#photos-panel .n2k-photo-folder:has(button) strong{font-size:14px;overflow-wrap:anywhere}
+#photos-panel .n2k-photo-folder:has(button) small{color:#aac8da;font-size:11px}
+#photos-panel .n2k-photo-folder button{padding:9px 12px;background:#1c5b74;border:1px solid #468fb1;border-radius:8px;color:#fff;cursor:pointer}
