@@ -44,3 +44,56 @@
  #ai-panel .n2k-ollama-message{max-width:96%}
  #ai-panel .n2k-ollama-message.user{max-width:88%}
 }
+
+/* Terminal-style conversation: fixed workspace size, independently scrolling transcript */
+#ai-panel .n2k-ollama-panel{
+  box-sizing:border-box;
+  height:clamp(480px,calc(100dvh - 175px),760px);
+  min-height:0;max-height:none;overflow:hidden;
+}
+#ai-panel .n2k-ollama-head,#ai-panel .n2k-ai-quick-actions,
+#ai-panel .n2k-ai-compose,#ai-panel .n2k-ai-footer{flex-shrink:0}
+#ai-panel .n2k-ollama-history{
+  box-sizing:border-box;flex:1 1 0;min-height:0;max-height:none;
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  border-radius:10px;background:#061424;border:1px solid rgba(93,147,181,.26);
+  padding:8px 16px;font-family:"Cascadia Code","JetBrains Mono","Fira Code",ui-monospace,SFMono-Regular,Consolas,monospace;
+  scrollbar-color:#2a5977 #091d30;
+}
+#ai-panel .n2k-ollama-message,#ai-panel .n2k-ollama-message.user{
+  display:grid;grid-template-columns:108px minmax(0,1fr);
+  align-items:start;gap:14px;max-width:none;width:100%;
+  box-sizing:border-box;margin:0;padding:13px 0;
+  border:0;border-bottom:1px solid rgba(100,149,181,.13);
+  border-radius:0;background:none;box-shadow:none;
+}
+#ai-panel .n2k-ollama-message strong{
+  display:block;font-family:inherit;font-size:12px;font-weight:750;
+  color:#5ed5aa;letter-spacing:0;white-space:nowrap;
+}
+#ai-panel .n2k-ollama-message strong::before{content:"> ";color:#4e9fbb}
+#ai-panel .n2k-ollama-message.user strong{color:#8bbfff}
+#ai-panel .n2k-ollama-message p{
+  margin:0;font-family:inherit;font-size:13px;line-height:1.7;
+  color:#d9e8f4;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+#ai-panel .n2k-ollama-message.user p{color:#f1f6fc}
+#ai-panel .n2k-ollama-empty{
+  display:flex;min-height:0;height:100%;justify-content:flex-start;
+  align-items:center;text-align:left;padding:0 4px;
+  font-family:inherit;font-size:13px;color:#84a9c5;
+}
+#ai-panel .n2k-ai-compose{border-radius:11px;background:#0b2239}
+#ai-panel #n2k-ollama-input{resize:none;max-height:70px}
+@media(max-width:720px){
+  #ai-panel .n2k-ollama-panel{
+    height:clamp(440px,calc(100dvh - 125px),700px);
+    min-height:0;max-height:none;overflow:hidden;
+  }
+  #ai-panel .n2k-ollama-history{min-height:0;max-height:none;padding:8px 10px}
+  #ai-panel .n2k-ollama-message,#ai-panel .n2k-ollama-message.user{
+    display:block;max-width:none;width:100%;padding:10px 0;
+  }
+  #ai-panel .n2k-ollama-message strong{margin-bottom:5px}
+  #ai-panel .n2k-ollama-message p{font-size:12px;line-height:1.6}
+}
