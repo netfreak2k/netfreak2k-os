@@ -44,3 +44,12 @@
  #dashboard-top .n2k-monitor-card .n2k-monitor-copy strong{font-size:10px}
 }
 @media(max-width:380px){#dashboard-top .mini-metrics{grid-template-columns:1fr}}
+
+/* Monitoring V3: charts must be readable even when browser is half-width. */
+#dashboard-top .mini-metrics{grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr))}
+#dashboard-top .mini-metric.n2k-monitor-card{min-height:230px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:64px;min-height:64px;background:rgba(0,15,28,.25);border-radius:7px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-body{min-height:105px}
+#dashboard-top .n2k-monitor-card .metric-ring{background-color:rgba(5,17,28,.85);position:relative}
+@media(max-width:760px){#dashboard-top .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#dashboard-top .mini-metric.n2k-monitor-card{min-height:200px}#dashboard-top .n2k-monitor-card .n2k-monitor-body{min-height:95px}}
+@media(max-width:420px){#dashboard-top .mini-metrics{grid-template-columns:1fr}#dashboard-top .mini-metric.n2k-monitor-card{min-height:205px}}
