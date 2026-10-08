@@ -40,7 +40,7 @@ function setMetric(type,value,info,detail,max=100){
      if(type==="cpu"||type==="ram"||type==="storage"){number=Math.round(value)+"%";unit=""; }
      else if(type==="temperature"){number=Math.round(value)+"°";unit="CPU";}
      else if(type==="fan"){number=Math.round(value).toLocaleString("de-DE");unit="RPM";}
-     else if(type==="uptime"){const days=Math.floor(Number(value)/86400),hours=Math.floor((Number(value)%86400)/3600);number=days>0?days+" T":hours+" Std";unit=days>0?hours+" Std":"Online";}
+     else if(type==="uptime"){const days=Math.floor(Number(value)/86400),hours=Math.floor((Number(value)%86400)/3600),minutes=Math.floor((Number(value)%3600)/60);number=days>0?String(days):String(hours);unit=days>0?"TAGE":"STD";if(infoNode)infoNode.textContent=days>0?hours+" Std · "+minutes+" Min":minutes+" Min";if(detailNode)detailNode.textContent="Seit Neustart";}
    }
    if(display){
      display.replaceChildren();
@@ -51,7 +51,7 @@ function setMetric(type,value,info,detail,max=100){
    ring.style.setProperty("--n2k-fill",ok?(type==="uptime"?"100%":Math.min(100,Math.max(0,Number(value)/max*100))+"%"):"0%");
  }
  if(ok){const items=history[type]||(history[type]=[]);items.push(Math.max(0,Number(value)));if(items.length>50)items.shift();}
- draw(card.querySelector("canvas"),history[type]||[],max);
+ if(type!=="uptime")draw(card.querySelector("canvas"),history[type]||[],max);
 }
 function draw(canvas,values,max){
  if(!canvas||!canvas.isConnected)return;
