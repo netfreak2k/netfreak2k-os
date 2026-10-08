@@ -135,3 +135,154 @@
 @media screen and (max-width:620px) and (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
+
+
+/* Mobile full-surface pass — 2026-10-08. Phone-only; no backend or player changes. */
+@media screen and (max-width:620px){
+  /* Prevent clipping and oversized empty panels throughout every module. */
+  .workspace main,.dashboard-grid,.module-grid,.panel,.panel-head,
+  .media-center-grid,.media-now-playing,.workspace-panel,
+  #photos-panel,.network-device-card{min-width:0!important}
+  .workspace main{padding:10px 10px 22px!important}
+  .panel{padding:12px!important;border-radius:17px!important}
+  .panel-head{margin-bottom:10px!important;gap:6px!important}
+  .panel-head .eyebrow{font-size:10px!important;letter-spacing:.13em!important}
+  .panel-head h2{font-size:21px!important;line-height:1.2!important;margin:3px 0!important}
+  .panel-head p:not(.eyebrow){font-size:12px!important;line-height:1.4!important;margin:4px 0 0!important}
+  .panel :is(button,input,select,textarea){min-width:0;max-width:100%}
+  .panel :is(input,select,textarea){font-size:16px!important}
+  .panel :is(button,[role="button"]){touch-action:manipulation}
+  .panel :is(h1,h2,h3,strong,small,p,span){overflow-wrap:anywhere}
+
+  /* Compact header; server warning stays visible without taking a whole row. */
+  .topbar.topbar-desktop{gap:5px!important;padding:9px 10px!important}
+  .topbar .topbar-title-line{gap:5px!important}
+  .topbar .topbar-title-line h1{font-size:17px!important;line-height:1.15!important}
+  .topbar .topbar-title-line .n2k-top-weather:not([hidden]){min-height:28px!important;padding:4px 7px!important}
+  .topbar .topbar-title-line .overview-warning.n2k-top-alert:not([hidden]):not(.hidden){
+    min-height:28px!important;padding:4px 8px!important;font-size:11px!important;
+    white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important
+  }
+  .topbar .topbar-right{gap:5px!important}
+  .topbar .topbar-right :is(button,.icon-button){min-height:36px}
+  .topbar-welcome small{font-size:10px!important}
+
+  /* More menu: compact, consistently aligned and scrollable on iPhone. */
+  body.n2k-mobile-menu-open .sidebar{
+    left:8px!important;right:8px!important;
+    bottom:calc(76px + env(safe-area-inset-bottom))!important;
+    height:auto!important;max-height:min(74dvh,640px)!important;
+    padding:12px 10px!important;overflow-y:auto!important;
+    overscroll-behavior:contain!important
+  }
+  body.n2k-mobile-menu-open .sidebar .brand,
+  body.n2k-mobile-menu-open .sidebar .sidebar-footer{display:none!important}
+  body.n2k-mobile-menu-open .side-nav{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-auto-flow:row!important;grid-auto-rows:minmax(74px,auto)!important;
+    align-items:stretch!important;justify-items:stretch!important;
+    column-gap:6px!important;row-gap:6px!important;padding:0!important;margin:0!important
+  }
+  body.n2k-mobile-menu-open .side-nav :is(.nav-group,.nav-submenu){display:contents!important}
+  body.n2k-mobile-menu-open .side-nav .nav-item{
+    display:flex!important;flex-direction:column!important;align-items:center!important;
+    justify-content:center!important;gap:6px!important;text-align:center!important;
+    width:100%!important;min-width:0!important;min-height:74px!important;
+    height:auto!important;margin:0!important;padding:9px 4px!important;
+    border-radius:12px!important;font-size:11px!important;line-height:1.2!important;
+    white-space:normal!important;word-break:normal!important;overflow-wrap:anywhere!important;
+    box-sizing:border-box!important
+  }
+  body.n2k-mobile-menu-open .side-nav .nav-item>span{font-size:19px!important;line-height:1!important}
+  body.n2k-mobile-menu-open .side-nav .nav-item b{font-size:inherit!important;font-weight:600}
+  body.n2k-mobile-menu-open .side-nav .nav-group-toggle i{display:none!important}
+
+  /* Gallery: show photos promptly; keep backups and imports accessible. */
+  #photos-panel .panel-head{margin-bottom:8px!important}
+  #photos-panel .n2k-photos-toolbar{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:6px!important;margin:8px 0 10px!important;align-items:stretch!important
+  }
+  #photos-panel #n2k-photos-search{grid-column:1/-1!important;order:-2!important;min-width:0!important;width:100%!important}
+  #photos-panel #n2k-photos-path{grid-column:2/-1!important;align-self:center!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;font-size:12px!important}
+  #photos-panel #n2k-photos-back{grid-column:1!important;min-width:0!important}
+  #photos-panel .n2k-photos-toolbar button{
+    padding:8px 5px!important;min-height:40px!important;font-size:11px!important;
+    line-height:1.2!important;white-space:normal!important
+  }
+  #photos-panel .n2k-photo-tabs{
+    display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;
+    scrollbar-width:none;gap:5px!important;margin:4px 0 9px!important;
+    -webkit-overflow-scrolling:touch
+  }
+  #photos-panel .n2k-photo-tabs button{
+    flex:0 0 auto!important;white-space:nowrap!important;
+    min-height:38px!important;padding:7px 10px!important;font-size:12px!important
+  }
+  #photos-panel #n2k-photo-year{flex:0 0 110px!important;width:110px!important;min-height:38px!important;font-size:12px!important}
+  #photos-panel #n2k-photos-grid{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:5px!important;margin-top:7px!important
+  }
+  #photos-panel .n2k-photo-item span{padding:5px!important;font-size:10px!important}
+  #photos-panel .n2k-photo-folder{min-height:84px!important;padding:9px!important;font-size:12px!important}
+  #photos-panel .n2k-photo-bulk{gap:5px!important;margin:6px 0!important}
+  #photos-panel .n2k-photo-bulk button{min-height:36px!important;padding:5px!important;font-size:11px!important}
+  #n2k-photo-viewer{padding:calc(12px + env(safe-area-inset-top)) 8px calc(12px + env(safe-area-inset-bottom))!important}
+  #n2k-photo-full{max-height:72dvh!important;max-width:96vw!important}
+
+  /* Media: player first, controls retain usable touch targets. */
+  #media-center-panel{padding:0!important}
+  .media-center-hero{padding:10px!important;margin:0 8px 7px!important;gap:5px!important}
+  .media-center-hero h2{font-size:18px!important;line-height:1.22!important;margin:4px 0!important}
+  .media-center-hero p:not(.eyebrow){font-size:11px!important;line-height:1.4!important;margin:4px 0!important}
+  .media-hero-badge{padding:7px!important;min-height:0!important}
+  .media-section-tabs{margin:0 8px 7px!important;gap:5px!important;-webkit-overflow-scrolling:touch}
+  .media-section-tabs button{padding:8px 12px!important;min-height:39px!important;font-size:12px!important;flex:0 0 auto!important}
+  .media-now-playing{margin:0 8px 8px!important;padding:10px!important;gap:9px!important;grid-template-columns:76px minmax(0,1fr)!important}
+  .media-cover{width:76px!important;height:76px!important;min-width:0!important}
+  .media-now-copy h3{font-size:18px!important;line-height:1.2!important}
+  .media-now-copy p{font-size:11px!important;line-height:1.4!important}
+  .media-transport{display:flex!important;align-items:center!important;gap:7px!important;flex-wrap:wrap!important}
+  .media-transport button{min-width:39px!important;min-height:39px!important}
+  .media-volume{max-width:100%!important;min-width:0!important}
+  .media-center-grid{grid-template-columns:minmax(0,1fr)!important;padding:0 8px 8px!important}
+  .media-center-grid>*,.media-center-grid .media-card{min-width:0!important;max-width:100%!important}
+
+  /* Drive/file management: compact category tabs with horizontal scrolling. */
+  #workspace-panel .panel-head{margin-bottom:10px!important}
+  #workspace-panel :is(.drive-tabs,.drive-categories,.workspace-tabs,.drive-quick-tabs){
+    display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch;gap:5px!important;max-width:100%!important
+  }
+  #workspace-panel :is(.drive-tabs,.drive-categories,.workspace-tabs,.drive-quick-tabs)>button{
+    flex:0 0 auto!important;white-space:nowrap!important;min-height:42px!important;
+    padding:8px 11px!important;font-size:12px!important
+  }
+  #workspace-panel :is(.drive-empty,.workspace-empty){min-height:130px!important;padding:16px!important}
+  #workspace-panel :is(.drive-file,.file-row,.drive-item){min-width:0!important;max-width:100%!important}
+  #workspace-panel :is(.drive-file,.file-row,.drive-item) strong{min-width:0;overflow-wrap:anywhere}
+  #workspace-panel .panel-head button{min-height:42px}
+
+  /* Network and general system panels: information density and readable values. */
+  #network-panel :is(.network-device-card,.network-device-row,.network-client-card){
+    padding:11px!important;margin-bottom:8px!important;min-height:0!important;
+    gap:8px!important;border-radius:14px!important
+  }
+  #network-panel :is(.network-device-card,.network-client-card) :is(h3,h4,strong){overflow-wrap:anywhere}
+  #network-panel :is(.network-device-card,.network-client-card) :is(small,.muted){font-size:11px!important}
+  #network-panel :is(.network-device-card,.network-client-card) button{min-height:38px!important}
+  :is(#health-panel,#network-panel,#vms-panel,#backup-panel,#settings-panel,#updates-panel,#apps-panel,#ai-panel,#calendar-panel) :is(.panel-grid,.status-grid,.settings-grid,.detail-grid){
+    grid-template-columns:minmax(0,1fr)!important
+  }
+  .n2k-mobile-dock{
+    padding-top:7px!important;padding-left:6px!important;padding-right:6px!important;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom))!important
+  }
+  .n2k-mobile-dock button{font-size:11px!important;min-height:49px!important;gap:3px!important}
+  .n2k-mobile-dock button span{font-size:20px!important}
+}
+@media screen and (max-width:350px){
+  body.n2k-mobile-menu-open .side-nav{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #photos-panel #n2k-photos-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
