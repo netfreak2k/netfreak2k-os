@@ -299,3 +299,53 @@
  #dashboard-top .widget-grid>.drive-widget #drive-storage-copy{font-size:13px!important}
  #dashboard-top .widget-grid>.network-widget .network-values strong{font-size:18px!important}
 }
+
+/* V14: uniform large, stable typography across every overview card */
+#dashboard-top .mini-metrics .n2k-monitor-card .metric-ring .ring-value,
+#dashboard-top .widget-grid .drive-widget #drive-storage-percent,
+#dashboard-top .widget-grid .network-widget .network-values strong{
+ font-size:22px!important;line-height:26px!important;font-weight:750!important;
+ font-variant-numeric:tabular-nums!important;letter-spacing:-.025em!important;
+}
+#dashboard-top .widget-grid>.widget .widget-head h3{
+ font-size:14px!important;line-height:18px!important;font-weight:700!important;
+}
+#dashboard-top .widget-grid>.widget .widget-head small{
+ font-size:11px!important;line-height:14px!important;
+}
+#dashboard-top .widget-grid>.widget .overview-list,
+#dashboard-top .widget-grid>.widget .overview-list strong,
+#dashboard-top .widget-grid>.widget .overview-list small,
+#dashboard-top .widget-grid>.widget .widget-empty{
+ font-size:13px!important;line-height:18px!important;
+}
+#dashboard-top .widget-grid>.ha-widget #overview-ha,
+#dashboard-top .widget-grid>.overview-media-widget #overview-media-title,
+#dashboard-top .widget-grid>.matrix-widget .matrix-overlay strong{
+ font-size:20px!important;line-height:24px!important;font-weight:750!important;
+}
+#dashboard-top .widget-grid>.ha-widget #overview-ha-detail,
+#dashboard-top .widget-grid>.overview-media-widget #overview-media-subtitle,
+#dashboard-top .widget-grid>.matrix-widget .matrix-overlay span{
+ font-size:12px!important;line-height:16px!important;
+}
+#dashboard-top .widget-grid>.drive-widget #drive-storage-copy{
+ font-size:16px!important;line-height:20px!important;
+}
+#dashboard-top .widget-grid>.widget strong,
+#dashboard-top .widget-grid>.widget small,
+#dashboard-top .widget-grid>.widget span{
+ font-variant-numeric:tabular-nums;
+}
+#dashboard-top .widget-grid>.widget{min-width:0}
+#dashboard-top .widget-grid>.widget :is(strong,span,small){
+ overflow-wrap:break-word;
+}
+@media(max-width:620px){
+ #dashboard-top .widget-grid>.widget .widget-head h3{font-size:13px!important;line-height:17px!important}
+ #dashboard-top .widget-grid>.widget .overview-list,
+ #dashboard-top .widget-grid>.widget .overview-list strong,
+ #dashboard-top .widget-grid>.widget .overview-list small{font-size:12px!important;line-height:17px!important}
+ #dashboard-top .widget-grid>.ha-widget #overview-ha,
+ #dashboard-top .widget-grid>.overview-media-widget #overview-media-title{font-size:17px!important;line-height:21px!important}
+}
