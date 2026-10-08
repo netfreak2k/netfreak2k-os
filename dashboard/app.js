@@ -4218,6 +4218,40 @@ async function loadUpdates() {
     const progress = data.progress || {};
     const installed = data.installed || {};
 
+    // Host OS updates are separate from Netfreak2k's GitHub update.
+    let hostBox = document.getElementById("n2k-host-updates");
+    if (!hostBox) {
+      hostBox = document.createElement("section");
+      hostBox.id = "n2k-host-updates";
+      hostBox.style.cssText = "margin:16px 0;padding:16px;border:1px solid #476477;border-radius:14px";
+      detail.insertAdjacentElement("afterend", hostBox);
+    }
+    const host = data.host_updates || {};
+    hostBox.replaceChildren();
+    const heading = document.createElement("h3");
+    heading.textContent = "Linux · Kernel · Docker";
+    hostBox.append(heading);
+    const rows = [
+      ["Paketupdates", host.packages == null ? "Noch nicht geprüft" : host.packages + " verfügbar"],
+      ["Sicherheitsupdates", host.security == null ? "Nicht ermittelt" : host.security + " (APT-Indikator)"],
+      ["Kernel", host.kernel?.running || "Unbekannt"],
+      ["Neustart", host.kernel?.reboot_required ? "Erforderlich" : "Kein Neustart-Marker"],
+      ["Docker", host.docker?.installed ? host.docker.version : "Nicht erkannt"],
+      ["Prüfung", host.checked_at ? new Date(host.checked_at * 1000).toLocaleString("de-DE") : "Noch nicht eingerichtet"]
+    ];
+    for (const [key, value] of rows) {
+      const row = document.createElement("p");
+      row.style.cssText = "margin:7px 0;font-size:14px";
+      const label = document.createElement("strong");
+      label.textContent = key + ": ";
+      row.append(label, document.createTextNode(value));
+      hostBox.append(row);
+    }
+    const notice = document.createElement("small");
+    notice.textContent = "Nur Anzeige. Keine automatischen Linux- oder Docker-Updates. Docker-Image-Updates werden nicht geprüft.";
+    hostBox.append(notice);
+
+
     const setText = (id, value) => {
       const node = document.getElementById(id);
       if (node) node.textContent = value;
