@@ -50,6 +50,11 @@ if ! command -v hermes >/dev/null; then
   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 fi
 
+sudo install -d -m 0755 /etc/systemd/system/netfreak2k-vm-agent.service.d
+printf '[Service]\nEnvironment="N2K_HERMES_USER=%s"\nProtectHome=read-only\n' "$(id -un)" | sudo tee /etc/systemd/system/netfreak2k-vm-agent.service.d/90-local-hermes.conf >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl try-restart netfreak2k-vm-agent.service || true
+
 export PATH="$HOME/.local/bin:$HOME/.hermes/bin:$PATH"
 cat <<'NEXT'
 
