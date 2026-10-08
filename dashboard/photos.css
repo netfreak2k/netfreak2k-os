@@ -56,3 +56,7 @@
 #photos-panel #n2k-photo-more{grid-column:1/-1;min-height:48px;text-align:center;align-items:center}
 #n2k-photo-viewer .n2k-photo-top-actions{flex-wrap:wrap;justify-content:center}
 @media(max-width:600px){#photos-panel .n2k-photo-bulk{gap:6px}#photos-panel .n2k-photo-bulk strong{flex-basis:100%}#photos-panel .n2k-photo-bulk button{flex:1}#photos-panel .n2k-photo-month{font-size:16px}#n2k-photo-viewer{padding:12px}#n2k-photo-full{max-width:96vw}}
+
+/* v0.7 additional safety actions */
+#photos-panel #n2k-photo-bulk-trash{background:rgba(120,38,51,.38);border-color:rgba(225,112,122,.48);color:#ffd6da}
+#photos-panel #n2k-photo-duplicates{border-color:rgba(89,178,204,.48)}
