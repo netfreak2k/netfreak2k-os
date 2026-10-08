@@ -111,3 +111,25 @@
 @media(max-width:1750px){#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .widget-grid>.widget{min-height:145px;max-height:185px;padding:9px 8px}}
+
+/* V6 — compact square overview widgets, uniform across all sections */
+#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+#dashboard-top .mini-metric.n2k-monitor-card,
+#dashboard-top .widget-grid>.widget{
+ aspect-ratio:1/1;min-height:0;max-height:none;height:auto;
+ width:100%;min-width:0;padding:9px;border-radius:10px;
+ overflow:hidden
+}
+#dashboard-top .n2k-monitor-card .n2k-monitor-body{min-height:0;gap:7px;padding:4px 0}
+#dashboard-top .n2k-monitor-card .metric-ring{width:60px;height:60px;min-width:60px;min-height:60px}
+#dashboard-top .n2k-monitor-card .metric-ring .ring-value{font-size:15px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:26px;min-height:26px}
+#dashboard-top .widget-grid>.widget{overflow:hidden;min-height:0}
+#dashboard-top .widget-grid .overview-list,
+#dashboard-top .widget-grid .widget-detail-lines{overflow:auto;min-height:0}
+#dashboard-top .widget-grid .network-widget{gap:3px}
+#dashboard-top .widget-grid .network-widget canvas{height:25px}
+#dashboard-top .n2k-network-alert:not([hidden]){display:block;max-height:28px;overflow:auto;border-radius:5px;padding:4px 6px;background:rgba(255,174,65,.09);color:#f4c581;font-size:9px;line-height:1.2;text-align:left}
+@media(max-width:1750px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .mini-metric.n2k-monitor-card,#dashboard-top .widget-grid>.widget{padding:7px}#dashboard-top .n2k-monitor-card .metric-ring{width:53px;height:53px;min-width:53px;min-height:53px}#dashboard-top .n2k-monitor-card .n2k-monitor-copy{gap:1px}}
