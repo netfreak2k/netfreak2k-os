@@ -6271,11 +6271,11 @@ function n2kOverviewLastArtwork(item) {
   if(incoming){
     const data={title:String(item.title||item.name||"Zuletzt gespielt").slice(0,120),
       artwork:String(item.artwork_url||item.favicon||"").slice(0,1500)};
-    try{localStorage.setItem(storageKey,JSON.stringify(data));}catch(_){}
+    if(data.artwork){try{localStorage.setItem(storageKey,JSON.stringify(data));}catch(_){}}
   }
   let saved=null;
   try{saved=JSON.parse(localStorage.getItem(storageKey)||"null");}catch(_){}
-  const url=(incoming?String(item.artwork_url||item.favicon||""):String(saved?.artwork||""));
+  const url=(incoming?String(item.artwork_url||item.favicon||saved?.artwork||""):String(saved?.artwork||""));
   const safe=(url.startsWith("https://")||url.startsWith("http://")||url.startsWith("/")||url.startsWith("blob:")||url.startsWith("data:image/"))?url:"";
   cover.style.backgroundImage=safe?"url("+JSON.stringify(safe)+")":"";
   cover.classList.toggle("has-artwork",Boolean(safe));
@@ -7465,21 +7465,22 @@ function initMediaCenter() {
 
 
 async function updateTopWeather(enabled=true){
- const badge=document.getElementById("n2k-top-weather");
+ const badge=document.getElementById("overview-inline-weather");
  if(!badge)return;
  if(!enabled){badge.hidden=true;badge.textContent="";return;}
  try{
   const response=await request("/api/preferences/weather",{headers:{}});
   if(!response.configured){badge.hidden=true;badge.textContent="";return;}
   badge.hidden=false;
-  if(response.error){badge.textContent="Wetter nicht verfügbar";badge.title="Standort prüfen oder Onlineverbindung abwarten";return;}
+  if(response.error){badge.textContent="Wetter nicht verfügbar";badge.title="Standort oder Onlineverbindung prüfen";return;}
   const code=Number(response.weather_code);
   const icon=code===0?"☀":code<=3?"⛅":code>=51&&code<=67?"🌧":code>=71&&code<=86?"❄":"☁";
-  const temp=Number.isFinite(Number(response.temperature_c))?Math.round(Number(response.temperature_c))+"°C":"–";
+  const temp=response.temperature_c!==null&&Number.isFinite(Number(response.temperature_c))?Math.round(Number(response.temperature_c))+"°C":"–";
   badge.textContent=icon+" "+temp+" · "+response.location;
   badge.title="Aktuelles Wetter in "+response.location+" · Quelle: Open-Meteo";
  }catch(e){badge.hidden=false;badge.textContent="Wetter nicht verfügbar";}
 }
+
 let n2kSelectedWeatherPlace=null;
 let n2kLocationTimer=null;
 let n2kLocationSeq=0;
