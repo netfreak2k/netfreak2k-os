@@ -1562,6 +1562,44 @@ def workspace_mkdir(username, area, rel, name):
     return {"created": True, "name": name}
 
 
+
+def photogalery_archive(username, album=None):
+    import zipfile
+    import tempfile
+    library = photogalery_library(username, limit=12000)
+    if library.get("truncated"):
+        raise ValueError("library_too_large_for_export")
+    entries = library["items"]
+    if album is not None:
+        meta = photogalery_metadata(username)
+        if album not in meta.get("albums", {}):
+            raise ValueError("album_not_found")
+        allowed = set(meta["albums"][album])
+        entries = [item for item in entries if item["key"] in allowed]
+    if len(entries) > 12000 or sum(item["size_bytes"] for item in entries) > 8 * 1024**3:
+        raise ValueError("export_limit_exceeded")
+    export_dir = DATA_DIR / "photo_exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix="fotogalery-", suffix=".zip", dir=export_dir)
+    os.close(fd)
+    target = Path(temp_name)
+    try:
+        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
+            for item in entries:
+                try:
+                    source = photogalery_file(username, item["key"])
+                    archive.write(source, arcname="Fotos/" + item["key"])
+                except (OSError, ValueError):
+                    continue
+            # Always save album and favorites references alongside the originals.
+            archive.writestr("fotogalery-metadata.json", json.dumps(photogalery_metadata(username), ensure_ascii=False, indent=2))
+            archive.writestr("fotogalery-export.json", json.dumps({"exported_at": int(time.time()), "album":album, "files":len(entries)}, ensure_ascii=False))
+        return target
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+
+
 def photogalery_trash(username):
     trash = workspace_base(username, "trash")
     with db_connect() as conn:
@@ -3567,6 +3605,23 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             self.send_json(photogalery_duplicates(session["username"]))
+            return
+
+        if path == "/photos/export":
+            session = self.require_auth()
+            if not session:
+                return
+            album = (query.get("album") or [None])[0]
+            try:
+                archive = photogalery_archive(session["username"], album)
+                try:
+                    self.send_file(archive, download=True)
+                finally:
+                    archive.unlink(missing_ok=True)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            except (OSError, RuntimeError):
+                self.send_json({"error": "export_failed"}, 500)
             return
 
         if path == "/photos/trash":
