@@ -349,3 +349,12 @@
  #dashboard-top .widget-grid>.ha-widget #overview-ha,
  #dashboard-top .widget-grid>.overview-media-widget #overview-media-title{font-size:17px!important;line-height:21px!important}
 }
+
+/* Local AI availability inside the combined Uptime / Fan tile */
+.n2k-monitor-card.n2k-uptime-fan .n2k-combined-ai{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-top:7px;border-top:1px solid rgba(130,177,201,.18);min-width:0}
+.n2k-combined-ai-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#8997a5;box-shadow:0 0 0 3px rgba(137,151,165,.14)}
+.n2k-combined-ai-dot[data-state="ready"]{background:#3ccc97;box-shadow:0 0 0 3px rgba(60,204,151,.15)}
+.n2k-combined-ai-dot[data-state="warning"]{background:#e4b15c;box-shadow:0 0 0 3px rgba(228,177,92,.15)}
+.n2k-combined-ai-data{display:flex;flex-direction:column;min-width:0;gap:3px;text-align:left}
+.n2k-combined-ai-data strong{font-size:14px;line-height:1.2;font-weight:750;color:inherit}
+.n2k-combined-ai-data small{font-size:12px;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
