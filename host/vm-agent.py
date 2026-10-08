@@ -3621,7 +3621,7 @@ def ollama_local_status():
     except (OSError, ValueError, urllib.error.URLError):
         return {"running":False,"models":[],"model":"qwen2.5:0.5b","ready":False,"setup":setup}
 
-def ollama_local_chat(messages):
+def ollama_local_chat(messages, system_context=False):
     if not isinstance(messages,list) or not 1 <= len(messages) <= 12:
         return {"error":"invalid_messages"}
     safe=[]
@@ -3633,6 +3633,13 @@ def ollama_local_chat(messages):
             return {"error":"invalid_message_content"}
         safe.append({"role":item["role"],"content":content})
     if safe[-1]["role"]!="user": return {"error":"last_message_must_be_user"}
+    if system_context:
+        snapshot=n2k_ai_context()
+        instruction=("Du bist der lokale N2K Server-Assistent. Antworte knapp auf Deutsch. "
+            "Nutze nur die folgenden echten Messdaten; erfinde keine Zahlen. "
+            "Fehlende Informationen als unbekannt kennzeichnen. Keine Befehle ausführen. Daten: "
+            + json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))[:2100])
+        safe=[{"role":"system","content":instruction}]+safe[-4:]
     data={"model":"qwen2.5:0.5b","messages":safe,"stream":False,
           "think":False,"keep_alive":0,
           "options":{"num_ctx":1024,"num_predict":96,"temperature":0.5}}
@@ -3689,7 +3696,7 @@ def execute(action, request):
         return ollama_local_status()
 
     if action == "ollama_local_chat":
-        return ollama_local_chat(request.get("messages"))
+        return ollama_local_chat(request.get("messages"),request.get("system_context") is True)
 
     if action == "status":
         return payload()
