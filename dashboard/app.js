@@ -4074,6 +4074,33 @@ async function copyText(text) {
   }
 }
 
+// The Messenger runs inside the Home Assistant add-on; do not request or expose HA tokens.
+async function refreshN2KRnsStatus() {
+  const node = document.getElementById("n2k-rns-ha-status");
+  const open = document.getElementById("n2k-rns-open");
+  if (!node) return;
+  try {
+    const result = await request("/api/homeassistant", {headers:{}});
+    const ready = Boolean(result.available && result.reachable && result.state === "running");
+    node.textContent = ready ? "Home Assistant erreichbar · Add-on-Status separat prüfen" :
+      result.installed ? "Home Assistant zurzeit nicht erreichbar" : "Home Assistant OS nicht installiert";
+    if (open) open.disabled = !ready;
+  } catch (_) {
+    node.textContent = "Home Assistant Status nicht verfügbar";
+    if (open) open.disabled = true;
+  }
+}
+document.getElementById("n2k-rns-open")?.addEventListener("click", () => {
+  window.open(`${window.location.protocol}//${window.location.hostname}:8123/`, "_blank", "noopener,noreferrer");
+});
+document.getElementById("n2k-rns-refresh")?.addEventListener("click", refreshN2KRnsStatus);
+document.getElementById("n2k-rns-install-guide")?.addEventListener("click", () => {
+  const guide = document.getElementById("n2k-rns-guide");
+  if (!guide) return;
+  guide.hidden = !guide.hidden;
+});
+refreshN2KRnsStatus();
+
 async function loadHomeAssistant() {
   const state = document.getElementById("ha-state");
   const detail = document.getElementById("ha-detail");
