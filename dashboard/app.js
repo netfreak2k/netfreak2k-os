@@ -6240,14 +6240,14 @@ function updateMediaPlaybackUi() {
   const overviewTitle = document.getElementById("overview-media-title");
   const overviewSubtitle = document.getElementById("overview-media-subtitle");
   const overviewPlay = document.getElementById("overview-media-play");
-  if (overviewTitle) overviewTitle.textContent = station ? mediaDisplayTitle(station) : "Bereit";
-  if (overviewSubtitle) overviewSubtitle.textContent = station
+  if (overviewTitle && station) overviewTitle.textContent = mediaDisplayTitle(station);
+  if (overviewSubtitle && station) overviewSubtitle.textContent = station
     ? (station.source === "local"
       ? [station.artist || "Eigene Musik", station.album].filter(Boolean).join(" · ")
       : (station.now_playing?.artist ? `${station.now_playing.artist} · ${station.name}` : `${station.genre || "Radio"} · ${station.country || "Internet"}`))
     : "Radio & Streaming";
   if (overviewPlay) overviewPlay.textContent = playing ? "Ⅱ" : "▶";
-  if(station)n2kOverviewLastArtwork(station);
+  if(station)n2kBridgeMediaToOverview(station);
   if (liveDot) liveDot.classList.toggle("active", playing);
   if (visualizer) visualizer.classList.toggle("has-signal", playing);
 
@@ -6271,6 +6271,24 @@ function n2kSafeMediaArtwork(item) {
   return "";
 }
 
+function n2kPlayerArtworkFromDom() {
+  const node=document.getElementById("top-media-art");
+  if(!node)return "";
+  const value=node.style.backgroundImage||getComputedStyle(node).backgroundImage||"";
+  if(!value.startsWith("url("))return "";
+  const raw=value.slice(4,-1).trim().replace(/^["']|["']$/g,"");
+  return n2kSafeMediaArtwork({artwork_url:raw});
+}
+function n2kBridgeMediaToOverview(item) {
+  const playerImage=n2kPlayerArtworkFromDom();
+  const art=n2kSafeMediaArtwork(item)||playerImage;
+  const station=item||mediaCurrentStation();
+  if(station&&art){
+    n2kOverviewLastArtwork({...station,artwork_url:art});
+  }else{
+    n2kOverviewLastArtwork(null);
+  }
+}
 function n2kOverviewLastArtwork(item) {
   const cover=document.getElementById("overview-media-art");
   if(!cover)return;
@@ -6329,8 +6347,6 @@ function n2kOverviewLastArtwork(item) {
 function updateMediaArtwork(item) {
   const cover = document.getElementById("media-cover");
   const topArt = document.getElementById("top-media-art");
-  n2kOverviewLastArtwork(item);
-
   const artwork = item?.artwork_url || item?.favicon || "";
   const safeArtwork = artwork ? artwork.replace(/"/g, "%22") : "";
 
@@ -6352,6 +6368,7 @@ function updateMediaArtwork(item) {
       ? (item?.album || item?.artist || "Lokale Musik")
       : (item?.name || "Radiosender");
   }
+  n2kBridgeMediaToOverview(item);
 }
 
 function updateMediaProgress() {
@@ -7390,7 +7407,7 @@ function stopMediaPlayback() {
   const subtitle = document.getElementById("media-subtitle");
   if (title) title.textContent = "Noch nichts ausgewählt";
   if (subtitle) subtitle.textContent = "Wähle Radio, eigene Musik oder einen Streaming-Dienst.";
-  n2kOverviewLastArtwork(null);
+  n2kBridgeMediaToOverview(null);
   clearSpectrumUi();
   updateMediaPlaybackUi();
   updateMediaFavoriteButton();
