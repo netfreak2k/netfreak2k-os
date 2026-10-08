@@ -5220,6 +5220,8 @@ async function runRecoveryAction(operation, button) {
 
 function switchView(targetId) {
   activeView = targetId || "dashboard-top";
+  n2kMobileMenu(false);
+  n2kSyncMobileDock();
   const overview = document.getElementById("dashboard-top");
   const grid = document.getElementById("module-grid");
 
@@ -5245,6 +5247,31 @@ function switchView(targetId) {
   window.scrollTo({top: 0, behavior: "smooth"});
 }
 
+function n2kMobileMenu(open) {
+  const enabled = window.matchMedia("(max-width:620px)").matches;
+  document.body.classList.toggle("n2k-mobile-menu-open", enabled && open);
+  const shade = document.getElementById("n2k-mobile-nav-shade");
+  if (shade) shade.hidden = !(enabled && open);
+  document.getElementById("n2k-mobile-more")?.setAttribute("aria-expanded", String(enabled && open));
+}
+function n2kSyncMobileDock(){
+  document.querySelectorAll("[data-mobile-view]").forEach(button=>{
+    button.classList.toggle("active",button.dataset.mobileView===activeView);
+    if(button.dataset.mobileView===activeView)button.setAttribute("aria-current","page");
+    else button.removeAttribute("aria-current");
+  });
+  const more = document.getElementById("n2k-mobile-more");
+  if(more)more.classList.toggle("active", !["dashboard-top","workspace-panel","media-center-panel","photos-panel"].includes(activeView));
+}
+document.getElementById("n2k-mobile-dock")?.addEventListener("click", event=>{
+  const btn=event.target.closest("button");
+  if(!btn)return;
+  if(btn.id==="n2k-mobile-more"){n2kMobileMenu(!document.body.classList.contains("n2k-mobile-menu-open"));return}
+  if(btn.dataset.mobileView){n2kMobileMenu(false);switchView(btn.dataset.mobileView)}
+});
+document.getElementById("n2k-mobile-nav-shade")?.addEventListener("click",()=>n2kMobileMenu(false));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")n2kMobileMenu(false)});
+window.addEventListener("resize",()=>{if(window.innerWidth>620)n2kMobileMenu(false)});
 document.querySelector(".side-nav")?.addEventListener("click", event => {
   const button = event.target.closest(".nav-item[data-target]");
   if (!button) return;
