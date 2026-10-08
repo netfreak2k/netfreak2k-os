@@ -92,7 +92,24 @@ const rpm=numbers.length?numbers[0]:val(c.fan_rpm);
 setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Echter Tachometerwert":"Kein RPM-Sensor vom Host gemeldet",5000);
 }catch(e){console.debug("N2K tiles sensors:",e.message)}
 }
+function wireUpdateShortcut(){
+ const top=document.getElementById("top-update-status");
+ if(!top||top.dataset.n2kShortcut)return;
+ top.dataset.n2kShortcut="1";
+ top.addEventListener("click",event=>{
+   event.preventDefault();
+   event.stopImmediatePropagation();
+   if(typeof switchView==="function")switchView("updates-panel");
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{
+     const target=document.getElementById("install-update");
+     if(!target)return;
+     target.scrollIntoView({behavior:"smooth",block:"center"});
+     target.focus({preventScroll:true});
+   }));
+ },true);
+}
 function start(){
+wireUpdateShortcut();
 const grid=document.querySelector("#dashboard-top .mini-metrics");if(!grid||grid.dataset.n2kReady)return;grid.dataset.n2kReady="1";
 for(const [i,type] of ["cpu","ram","storage","uptime"].entries())if(grid.children[i])decorate(grid.children[i],type);
 grid.append(makeCard("temperature","n2k-temperature","CPU"),makeCard("fan","n2k-fan","Lüfterdrehzahl"));
