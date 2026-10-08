@@ -6281,7 +6281,7 @@ function n2kPlayerArtworkFromDom() {
 }
 function n2kBridgeMediaToOverview(item) {
   const playerImage=n2kPlayerArtworkFromDom();
-  const art=n2kSafeMediaArtwork(item)||playerImage;
+  const art=playerImage||n2kSafeMediaArtwork(item);
   const station=item||mediaCurrentStation();
   if(station&&art){
     n2kOverviewLastArtwork({...station,artwork_url:art});
@@ -7602,7 +7602,26 @@ function initWeatherSettings(){
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
 
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>n2kOverviewLastArtwork(null));else n2kOverviewLastArtwork(null);
+function n2kConnectPlayerCover(){
+  n2kOverviewLastArtwork(null);
+  const art=document.getElementById("top-media-art");
+  const title=document.getElementById("top-media-title");
+  const sync=()=>{
+    const item=mediaCurrentStation();
+    n2kBridgeMediaToOverview(item);
+    if(item)return;
+    const last=document.getElementById("overview-media-title");
+    if(last&&["Bereit","Noch kein Titel"].includes(last.textContent.trim())){
+      const saved=(()=>{try{return JSON.parse(localStorage.getItem("n2k-media-last-artwork-v3")||"null");}catch(_){return null;}})();
+      if(saved?.title)last.textContent=saved.title;
+    }
+  };
+  if(art)new MutationObserver(sync).observe(art,{attributes:true,attributeFilter:["style","class"]});
+  if(title)new MutationObserver(sync).observe(title,{childList:true,characterData:true,subtree:true});
+  sync();
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",n2kConnectPlayerCover);
+else n2kConnectPlayerCover();
 
 /* Read-only status-strip resource widgets. */
 (function(){
