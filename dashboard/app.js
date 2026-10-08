@@ -7480,11 +7480,18 @@ async function updateTopWeather(enabled=true){
   badge.title="Aktuelles Wetter in "+response.location+" · Quelle: Open-Meteo";
  }catch(e){badge.hidden=false;badge.textContent="Wetter nicht verfügbar";}
 }
+let n2kSelectedWeatherPlace=null;
+let n2kLocationTimer=null;
+let n2kLocationSeq=0;
 async function saveWeatherLocation(location){
  const feedback=document.getElementById("n2k-location-feedback");
+ const selection=n2kSelectedWeatherPlace;
+ if(location&&!selection){if(feedback)feedback.textContent="Bitte zuerst einen passenden Ort aus der Vorschlagsliste auswählen.";return;}
  try{
+  const coordinateValue=location&&selection?selection.latitude+","+selection.longitude:"";
+  await request("/api/preferences",{method:"POST",body:JSON.stringify({key:"weather_coordinates",value:coordinateValue}),headers:{"X-CSRF-Token":csrfToken}});
   await request("/api/preferences",{method:"POST",body:JSON.stringify({key:"weather_location",value:location}),headers:{"X-CSRF-Token":csrfToken}});
-  if(feedback)feedback.textContent=location?"Standort gespeichert. Wetter wird geladen.":"Standort entfernt. Wetteranzeige ausgeschaltet.";
+  if(feedback)feedback.textContent=location?"Standort gespeichert · aktuelle Wetterdaten werden geladen.":"Standort entfernt. Wetteranzeige ausgeschaltet.";
   await updateTopWeather(Boolean(location));
  }catch(e){if(feedback)feedback.textContent="Standort konnte nicht gespeichert werden.";}
 }
@@ -7494,11 +7501,45 @@ function initWeatherSettings(){
   document.getElementById(id)?.addEventListener("click",()=>gallery?.scrollBy({left:delta*(gallery.clientWidth*.78),behavior:"smooth"}));
  }
  const input=document.getElementById("n2k-location-input");
- document.getElementById("n2k-location-save")?.addEventListener("click",()=>saveWeatherLocation(input?.value.trim()||""));
- document.getElementById("n2k-location-clear")?.addEventListener("click",()=>{if(input)input.value="";saveWeatherLocation("");});
- input?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveWeatherLocation(input.value.trim());}});
+ const suggestions=document.getElementById("n2k-location-suggestions");
+ const feedback=document.getElementById("n2k-location-feedback");
+ if(!input)return;
+ input.addEventListener("input",()=>{
+  n2kSelectedWeatherPlace=null;
+  if(feedback)feedback.textContent="Bitte einen Ort aus der Liste auswählen.";
+  const q=input.value.trim();clearTimeout(n2kLocationTimer);n2kLocationSeq++;
+  const seq=n2kLocationSeq;
+  suggestions.replaceChildren();suggestions.hidden=true;
+  if(q.length<2)return;
+  n2kLocationTimer=setTimeout(async()=>{
+   try{
+    const data=await request("/api/preferences/locations?q="+encodeURIComponent(q),{headers:{}});
+    if(seq!==n2kLocationSeq)return;
+    suggestions.replaceChildren();
+    for(const place of data.results||[]){
+     const option=document.createElement("button");
+     option.type="button";option.className="n2k-location-option";option.textContent=place.label;option.setAttribute("role","option");
+     option.addEventListener("click",()=>{
+      n2kLocationSeq++;n2kSelectedWeatherPlace=place;input.value=place.label;
+      suggestions.hidden=true;suggestions.replaceChildren();
+      if(feedback)feedback.textContent="Ort ausgewählt. Jetzt Speichern drücken.";
+     });
+     suggestions.appendChild(option);
+    }
+    suggestions.hidden=!suggestions.children.length;
+    if(!suggestions.children.length&&feedback)feedback.textContent="Kein Ort gefunden. Versuche nur den Ortsnamen, z. B. Aken.";
+   }catch(e){if(feedback)feedback.textContent="Ortssuche momentan nicht erreichbar.";}
+  },350);
+ });
+ document.getElementById("n2k-location-save")?.addEventListener("click",()=>saveWeatherLocation(input.value.trim()));
+ document.getElementById("n2k-location-clear")?.addEventListener("click",()=>{
+  n2kSelectedWeatherPlace=null;n2kLocationSeq++;clearTimeout(n2kLocationTimer);
+  input.value="";suggestions.hidden=true;saveWeatherLocation("");
+ });
+ input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveWeatherLocation(input.value.trim());}});
  setInterval(()=>{const badge=document.getElementById("n2k-top-weather");if(badge&&!badge.hidden)updateTopWeather(true);},15*60*1000);
 }
+
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>n2kOverviewLastArtwork(null));else n2kOverviewLastArtwork(null);
