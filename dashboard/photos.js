@@ -38,7 +38,33 @@ function init(){
  $("n2k-photos-refresh")?.addEventListener("click",load);
  $("n2k-photos-search")?.addEventListener("input",load);
  $("n2k-photos-back")?.addEventListener("click",()=>{path=path.split("/").slice(0,-1).join("/");load()});
- $("n2k-photos-import")?.addEventListener("click",()=>{if(typeof switchView==="function")switchView("workspace-panel");if(typeof workspaceArea!=="undefined"){workspaceArea="media";workspacePath=path;}document.querySelector('.drive-area[data-area="media"]')?.click();});
+ $("n2k-photos-import")?.addEventListener("click",()=>$("n2k-photos-files")?.click());
+ $("n2k-photos-files")?.addEventListener("change",async event=>{
+   const files=Array.from(event.target.files||[]);event.target.value="";
+   if(!files.length)return;
+   const status=$("n2k-photos-status"),button=$("n2k-photos-import");
+   button.disabled=true;
+   try{
+     for(let i=0;i<files.length;i++){
+       const file=files[i];
+       if(!supported.test(file.name)){status.textContent="Übersprungen: "+file.name+" (kein unterstütztes Bildformat)";continue;}
+       status.textContent="Import "+(i+1)+" / "+files.length+": "+file.name;
+       async function send(replace){
+         const url="/api/workspace/upload?"+query({name:file.name,replace:replace?"1":"0"});
+         const response=await fetch(url,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/octet-stream","X-CSRF-Token":typeof csrfToken!=="undefined"?csrfToken:""},body:file});
+         const data=await response.json().catch(()=>({}));
+         if(!response.ok){const e=new Error(data.error||"HTTP "+response.status);e.code=data.error;throw e;}
+       }
+       try{await send(false);}
+       catch(e){
+         if(e.code==="already_exists"&&confirm(file.name+" ist vorhanden. Bestehendes Foto versioniert ersetzen?"))await send(true);
+         else if(e.code!=="already_exists")throw e;
+       }
+     }
+     await load();
+   }catch(e){status.textContent="Fotoimport fehlgeschlagen: "+e.message;}
+   finally{button.disabled=false;}
+ });
  $("n2k-photo-close")?.addEventListener("click",()=>{$("n2k-photo-viewer").hidden=true});
  $("n2k-photo-prev")?.addEventListener("click",()=>{index=(index-1+photos.length)%photos.length;showPhoto()});
  $("n2k-photo-next")?.addEventListener("click",()=>{index=(index+1)%photos.length;showPhoto()});
