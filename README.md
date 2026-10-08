@@ -33,7 +33,7 @@ Netfreak2k does **not** replace the host OS, repartition disks, install a bootlo
 - safe system update preflight with a verified pre-update recovery point
 - LAN inventory with device history, service analysis and Wake-on-LAN
 - host/network health monitoring and configurable alert policies
-- users, roles, TOTP 2FA, sessions and audit log
+- users, roles, password-based local login, sessions and audit log
 - host security hardening diagnostics
 - HTTPS gateway, domain/TLS status and connectivity diagnostics
 - Jobs & Scheduler view for N2K jobs and read-only systemd timers
@@ -88,7 +88,7 @@ Local HTTPS is provided through the managed Nginx gateway. Optional domain mode 
 
 ## Security
 
-Netfreak2k includes local authentication, roles, TOTP 2FA, CSRF protection for mutations, audit events, session management and read-only host attack-surface diagnostics.
+Netfreak2k includes local password authentication, roles, CSRF protection for mutations, audit events, session management and read-only host attack-surface diagnostics.
 
 Credentials, Wi-Fi secrets, authentication keys, API keys and private user data must never be committed to this repository. Telemetry is disabled by default.
 
