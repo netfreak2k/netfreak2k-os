@@ -9,7 +9,7 @@ function render(){
  history.scrollTop=history.scrollHeight;
 }
 async function status(){
- try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ollama-state").textContent=d.running?"Bereit":"Offline";$("n2k-ollama-note").textContent=d.running?"Lokal verbunden · Qwen3.5 0.8B · Modell wird nach jeder Anfrage entladen.":"Ollama nicht erreichbar. Prüfe systemctl status ollama.";}
+ try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ollama-state").textContent=d.running?"Bereit":"Offline";$("n2k-ollama-note").textContent=d.running?"Lokal verbunden · Qwen2.5 0.5B · Modell wird nach jeder Anfrage entladen.":"Ollama nicht erreichbar. Prüfe systemctl status ollama.";}
  catch(e){$("n2k-ollama-state").textContent="Status unbekannt";}
 }
 async function send(){
