@@ -45,7 +45,22 @@ systemctl daemon-reload
 systemctl enable --now ollama.service
 systemctl restart ollama.service
 status downloading "Lade Qwen2.5 0.5B (nur beim ersten Mal)"
-if ! ollama list | grep -Fq "$MODEL"; then
+if ! ollama list | awk 'NR>1 {print $1}' | grep -Fxq "$MODEL"; then
   timeout 600 ollama pull "$MODEL" || fail "Modell konnte nicht heruntergeladen werden"
 fi
-status ready "Ollama und Qwen2.5 0.5B lokal bereit"
+status verifying "Prüfe das lokale Modell"
+# A downloaded model is not sufficient: verify the generation API is usable.
+if ! timeout 100 python3 - <<'PY'
+import json,urllib.request
+payload={"model":"qwen2.5:0.5b","prompt":"Antworte nur mit OK.","stream":False,
+         "keep_alive":0,"options":{"num_ctx":1024,"num_predict":5}}
+req=urllib.request.Request("http://127.0.0.1:11434/api/generate",
+    data=json.dumps(payload).encode(),headers={"Content-Type":"application/json"})
+with urllib.request.urlopen(req,timeout=90) as response:
+    result=json.load(response)
+assert result.get("done") is True and isinstance(result.get("response"),str)
+PY
+then
+  fail "Modell installiert, aber Inferenz-Test fehlgeschlagen. KI ist noch nicht bereit."
+fi
+status ready "Ollama und Qwen2.5 0.5B getestet und startbereit"
