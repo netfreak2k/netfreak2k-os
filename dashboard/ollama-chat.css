@@ -1,0 +1,17 @@
+#ai-panel .n2k-ollama-panel{padding:18px;margin:14px 0 22px;border:1px solid rgba(112,182,211,.3);border-radius:17px;background:linear-gradient(125deg,rgba(10,38,57,.94),rgba(7,22,37,.94));color:#eef8ff}
+#ai-panel .n2k-ollama-head{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:start}
+#ai-panel .n2k-ollama-head h3{font-size:22px;margin:3px 0 8px}
+#ai-panel .n2k-ollama-head p{font-size:13px;color:#b8d5e3}
+#ai-panel .n2k-ollama-history{min-height:200px;max-height:460px;overflow-y:auto;margin:16px 0;padding:14px;border:1px solid #315065;border-radius:12px;background:rgba(2,14,25,.65)}
+#ai-panel .n2k-ollama-message{padding:12px 4px;border-bottom:1px solid rgba(128,183,209,.15)}
+#ai-panel .n2k-ollama-message strong{font-size:13px;color:#7fe0ec}
+#ai-panel .n2k-ollama-message.user strong{color:#f4dc9c}
+#ai-panel .n2k-ollama-message p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;margin:7px 0 0;font-size:15px}
+#ai-panel .n2k-ollama-empty{color:#b1cddd}
+#ai-panel .n2k-ollama-panel label{font-size:14px;font-weight:700}
+#ai-panel #n2k-ollama-input{display:block;box-sizing:border-box;width:100%;margin-top:9px;background:#0a2234;color:#f0fcff;border:1px solid #426b7e;border-radius:11px;padding:13px;font:inherit;font-size:15px;resize:vertical}
+#ai-panel .n2k-ollama-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+#ai-panel .n2k-ollama-actions button{padding:10px 15px;border-radius:9px;background:#17627b;color:white;border:1px solid #4894ad;cursor:pointer;font-size:14px}
+#ai-panel .n2k-ollama-actions button:disabled{opacity:.55;cursor:wait}
+#ai-panel .n2k-ollama-hint{margin-top:12px;color:#b9d4e0;font-size:13px;line-height:1.5}
+@media(max-width:640px){#ai-panel .n2k-ollama-panel{padding:13px}#ai-panel .n2k-ollama-history{min-height:170px;max-height:350px}}
