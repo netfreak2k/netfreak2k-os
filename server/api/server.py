@@ -2148,7 +2148,7 @@ def vm_agent(action, extra=None):
         if not token:
             return {"available": False, "error": "agent_token_unavailable"}
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 45 if action == "recovery_action" else 15 if action in {"event_logs","recovery_status","release_readiness"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
+        client.settimeout(120 if action == "hermes_local_chat" else 900 if action == "app_install" else 600 if action == "update_safe_netfreak2k" else 360 if action in {"backup_create","backup_verify","backup_test_restore","backup_restore","backup_scheduled_tick"} else 180 if action in {"remote_access_configure","remote_access_renew"} else 150 if action in {"network_scan","network_device_analyze"} else 120 if action == "vm_snapshot_create" else 45 if action in {"service_action","host_power_action","storage_mount","storage_unmount","vm_action"} else 30 if action == "app_update_check" else 150 if action == "scheduler_run" else 15 if action in {"app_diagnostics","vm_list","remote_connectivity_status","scheduler_status"} else 45 if action == "recovery_action" else 15 if action in {"event_logs","recovery_status","release_readiness"} else 12 if action in {"service_logs","hardware_status","storage_status","app_logs","update_preflight","security_status"} else 8)
         client.connect(VM_AGENT_SOCKET)
         request = {"action": action, "token": token}
         if extra:
@@ -3708,22 +3708,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/hermes/status":
-            session = self.require_auth()
-            if not session:
+            if not self.require_auth():
                 return
-            address = os.environ.get("N2K_HERMES_URL", "").strip()
-            parsed_hermes = urlparse(address)
-            configured = parsed_hermes.scheme in ("http", "https") and bool(parsed_hermes.hostname)
-            reachable = False
-            if configured:
-                try:
-                    port = parsed_hermes.port or (443 if parsed_hermes.scheme == "https" else 80)
-                    with socket.create_connection((parsed_hermes.hostname, port), timeout=0.7):
-                        reachable = True
-                except (OSError, ValueError):
-                    pass
-            self.send_json({"configured":configured, "available":reachable,
-                            "launch_url":address if configured and not parsed_hermes.username and not parsed_hermes.password else None})
+            self.send_json(vm_agent("hermes_local_status"))
             return
 
         if path == "/photos/library":
@@ -4867,6 +4854,30 @@ class Handler(BaseHTTPRequestHandler):
             result = vm_agent("check_updates")
             if not result.get("available"):
                 self.send_json(result, 503)
+                return
+            self.send_json(result)
+            return
+
+        if path == "/hermes/chat":
+            session = self.require_auth()
+            if not session or not self.require_csrf(session):
+                return
+            size = int(self.headers.get("Content-Length", "0") or 0)
+            if size < 2 or size > 12000:
+                self.send_json({"error":"invalid_message_size"},400)
+                return
+            try:
+                body = json.loads(self.rfile.read(size))
+                prompt = body.get("prompt", "")
+            except (ValueError, AttributeError):
+                self.send_json({"error":"invalid_json"},400)
+                return
+            if not isinstance(prompt,str) or not 1 <= len(prompt.strip()) <= 3000:
+                self.send_json({"error":"invalid_prompt"},400)
+                return
+            result = vm_agent("hermes_local_chat",{"prompt":prompt})
+            if not result.get("available") or result.get("error"):
+                self.send_json(result,503)
                 return
             self.send_json(result)
             return
