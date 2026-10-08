@@ -7,6 +7,7 @@ N2K_DIR="${N2K_DIR:-/opt/netfreak2k}"
 N2K_PUBLIC_HTTP_PORT="${N2K_PUBLIC_HTTP_PORT:-${N2K_HTTP_PORT:-}}"
 N2K_PUBLIC_HTTPS_PORT="${N2K_PUBLIC_HTTPS_PORT:-}"
 N2K_BACKEND_PORT="${N2K_BACKEND_PORT:-18080}"
+COMMIT_API="https://api.github.com/repos/${N2K_REPO}/commits/${N2K_REF}"
 ARCHIVE_URL="https://github.com/${N2K_REPO}/archive/refs/heads/${N2K_REF}.tar.gz"
 
 log(){ printf '\n[Netfreak2k] %s\n' "$*"; }
@@ -95,10 +96,17 @@ if command -v ss >/dev/null 2>&1 && ss -H -ltn | awk '{print $4}' | grep -Eq '(^
 fi
 
 log "Lade aktuellen Netfreak2k-Stand direkt aus GitHub (${N2K_REF})."
+revision="$(curl -fsSL --connect-timeout 8 --max-time 30 --retry 2 -H 'Accept: application/vnd.github+json' -H 'User-Agent: netfreak2k-installer' "${COMMIT_API}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha",""))' 2>/dev/null || true)"
+archive_url="${ARCHIVE_URL}"
+if [[ "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
+  archive_url="https://github.com/${N2K_REPO}/archive/${revision}.tar.gz"
+else
+  revision=""
+fi
 tmp="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap "rm -rf '${tmp}'" EXIT
-curl -fL --connect-timeout 8 --max-time 120 --retry 3 "${ARCHIVE_URL}" -o "${tmp}/netfreak2k.tar.gz"
+curl -fL --connect-timeout 8 --max-time 120 --retry 3 "${archive_url}" -o "${tmp}/netfreak2k.tar.gz"
 archive_fingerprint="$(sha256sum "${tmp}/netfreak2k.tar.gz" | awk '{print $1}')"
 mkdir -p "${tmp}/src"
 tar -xzf "${tmp}/netfreak2k.tar.gz" -C "${tmp}/src" --strip-components=1
@@ -159,7 +167,7 @@ log "Aktiviere lokalen HTTP/HTTPS-Gateway."
 
 mkdir -p /var/lib/netfreak2k
 product_version="$(tr -d '\\r\\n' < "${N2K_DIR}/VERSION" 2>/dev/null || true)"
-printf '{"repo":"%s","ref":"%s","version":"%s","fingerprint":"%s","installed_at":%s}\\n'   "${N2K_REPO}" "${N2K_REF}" "${product_version}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
+printf '{"repo":"%s","ref":"%s","version":"%s","revision":"%s","fingerprint":"%s","installed_at":%s}\\n'   "${N2K_REPO}" "${N2K_REF}" "${product_version}" "${revision}" "${archive_fingerprint}" "$(date +%s)" > /var/lib/netfreak2k/version.json
 "${N2K_DIR}/scripts/check-updates.sh" || true
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
