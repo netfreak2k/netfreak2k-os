@@ -1,0 +1,67 @@
+/* N2K live hardware tiles. Read-only, no simulated data. */
+(function(){
+"use strict";
+const names={cpu:"CPU Load",ram:"Memory Usage",storage:"Storage Usage",uptime:"Uptime",temperature:"Temperature",fan:"Fan Speed"};
+const history={};
+const valid=x=>x!==null&&x!==undefined&&x!==""&&Number.isFinite(Number(x));
+const val=x=>valid(x)?Number(x):null;
+const esc=s=>String(s??"–").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function makeCard(type,id,caption){
+const b=document.createElement("button");b.type="button";b.className="mini-metric n2k-monitor-card";b.dataset.metric=type;b.dataset.view="system";
+b.innerHTML='<div class="n2k-monitor-title"><span>'+names[type]+'</span><span class="n2k-health"><i></i><span id="n2k-'+type+'-status">Warte auf Daten</span></span></div><div class="n2k-monitor-body"><div class="metric-ring"><span id="'+id+'">–</span></div><div class="n2k-monitor-copy"><small>'+caption+'</small><strong id="n2k-'+type+'-info">Nicht verfügbar</strong><span id="n2k-'+type+'-detail">Hardware-Sensor wird geprüft</span></div></div><canvas class="n2k-monitor-spark" data-spark="'+type+'" aria-label="'+names[type]+' Verlauf"></canvas>';
+return b;
+}
+function decorate(card,type){
+card.classList.add("n2k-monitor-card");card.dataset.metric=type;
+const ring=card.querySelector(".metric-ring");if(!ring)return;
+const other=Array.from(card.children).filter(x=>x!==ring);
+const title=document.createElement("div");title.className="n2k-monitor-title";title.innerHTML='<span>'+names[type]+'</span><span class="n2k-health"><i></i><span id="n2k-'+type+'-status">Warte auf Daten</span></span>';
+const body=document.createElement("div");body.className="n2k-monitor-body";
+const copy=document.createElement("div");copy.className="n2k-monitor-copy";other.forEach(x=>copy.appendChild(x));body.append(ring,copy);
+const spark=document.createElement("canvas");spark.className="n2k-monitor-spark";spark.dataset.spark=type;spark.setAttribute("aria-label",names[type]+" Verlauf");
+card.replaceChildren(title,body,spark);
+}
+function setMetric(type,value,info,detail,max=100){
+const status=document.getElementById("n2k-"+type+"-status"),text=document.getElementById("n2k-"+type+"-info"),extra=document.getElementById("n2k-"+type+"-detail");
+if(!status)return;
+const ok=valid(value);status.textContent=ok?"Live":"Nicht verfügbar";
+if(text&&info!==undefined)text.textContent=info;
+if(extra&&detail!==undefined)extra.textContent=detail;
+if(ok){const a=history[type]||(history[type]=[]);a.push(Math.min(max,Math.max(0,Number(value))));if(a.length>50)a.shift();}
+const card=document.querySelector('.n2k-monitor-card[data-metric="'+type+'"]');if(!card)return;
+if(type==="temperature"||type==="fan"){
+ const center=card.querySelector(".metric-ring");center.style.background=ok?'conic-gradient(var(--n2k-accent) '+(Math.max(0,Math.min(100,Number(value)/max*100)))+'%, rgba(37,66,89,.4) 0)':'rgba(37,66,89,.4)';
+ center.querySelector("span").textContent=ok?(type==="temperature"?Math.round(value)+" °C":Math.round(value)+" RPM"):"–";
+}
+draw(card.querySelector("canvas"),history[type]||[],max);
+}
+function draw(canvas,values,max){if(!canvas||!canvas.isConnected)return;const w=canvas.clientWidth||200,h=31,dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=h*dpr;const ctx=canvas.getContext("2d");if(!ctx)return;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(values.length<2)return;const color=getComputedStyle(canvas.parentElement).getPropertyValue("--n2k-accent").trim()||"#3af";ctx.beginPath();values.forEach((v,i)=>{const x=i/(values.length-1)*w,y=h-3-Math.max(0,Math.min(1,v/max))*(h-8);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.lineWidth=1.8;ctx.strokeStyle=color;ctx.stroke();}
+async function poll(){
+if(document.getElementById("app-shell")?.classList.contains("hidden"))return;
+try{
+const res=await fetch("/api/overview",{credentials:"same-origin",cache:"no-store"});if(!res.ok)return;
+const d=await res.json(),m=d.memory||{},s=d.storage||{},cpu=d.cpu||{};
+setMetric("cpu",val(d.cpu_percent),cpu.logical_cores?cpu.logical_cores+" Threads":"CPU",cpu.physical_cores?cpu.physical_cores+" Kerne":"");
+setMetric("ram",val(m.used_percent),valid(m.used_bytes)?(Number(m.used_bytes)/1073741824).toFixed(1)+" GB belegt":"RAM",valid(m.total_bytes)?(Number(m.total_bytes)/1073741824).toFixed(1)+" GB gesamt":"");
+setMetric("storage",val(s.used_percent),valid(s.free_bytes)?(Number(s.free_bytes)/1073741824).toFixed(1)+" GB frei":"Datenträger",valid(s.total_bytes)?(Number(s.total_bytes)/1073741824).toFixed(1)+" GB gesamt":"");
+const uptime=document.getElementById("overview-uptime")?.textContent||"–";setMetric("uptime",valid(d.uptime_seconds)?Math.min(100,d.uptime_seconds/86400):null,uptime,"Seit letztem Neustart",100);
+}catch(e){console.debug("N2K tiles overview:",e.message)}
+try{
+const res=await fetch("/api/health?range=1h",{credentials:"same-origin",cache:"no-store"});if(!res.ok)return;
+const d=await res.json(),c=d.current||{},t=c.cpu_temperature||{};
+const temp=val(t.current_c)??val(t.max_c);
+setMetric("temperature",temp,valid(t.max_c)?"Max "+Number(t.max_c).toFixed(0)+" °C":"CPU-Sensor",(t.sensors||[]).length+" Sensor(en)",100);
+const fans=c.fans||c.fan_speeds||d.fans||[];
+const numbers=Array.isArray(fans)?fans.map(f=>val(typeof f==="object"?(f.rpm??f.speed_rpm??f.current_rpm):f)).filter(v=>v!==null):[];
+const rpm=numbers.length?numbers[0]:val(c.fan_rpm);
+setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Hardwaremessung":"Kein Lüftersensor verfügbar",5000);
+}catch(e){console.debug("N2K tiles sensors:",e.message)}
+}
+function start(){
+const grid=document.querySelector("#dashboard-top .mini-metrics");if(!grid||grid.dataset.n2kReady)return;grid.dataset.n2kReady="1";
+for(const [i,type] of ["cpu","ram","storage","uptime"].entries())if(grid.children[i])decorate(grid.children[i],type);
+grid.append(makeCard("temperature","n2k-temperature","CPU"),makeCard("fan","n2k-fan","Lüfterdrehzahl"));
+poll();setInterval(poll,10000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
+})();
