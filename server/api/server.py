@@ -1234,6 +1234,44 @@ def safe_relative(value):
 
 
 
+
+def photogalery_library(username, limit=12000):
+    root = workspace_base(username, "media").resolve()
+    images = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"}
+    items = []
+    if not root.is_dir():
+        return {"items": [], "count": 0}
+    for folder, dirs, filenames in os.walk(root, followlinks=False):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and not (Path(folder) / d).is_symlink()]
+        for name in filenames:
+            file = Path(folder) / name
+            if name.startswith(".") or file.suffix.lower() not in images or file.is_symlink():
+                continue
+            try:
+                relative = file.relative_to(root)
+                stat = file.stat()
+            except (ValueError, OSError):
+                continue
+            taken = None
+            # Optional Pillow: read EXIF capture date without requiring AI or external services.
+            try:
+                from PIL import Image
+                from datetime import datetime
+                with Image.open(file) as picture:
+                    exif = picture.getexif()
+                    capture = exif.get(36867) or exif.get(306)
+                    if capture:
+                        taken = int(datetime.strptime(str(capture)[:19], "%Y:%m:%d %H:%M:%S").timestamp())
+            except (ImportError, OSError, ValueError, TypeError, KeyError):
+                pass
+            items.append({"name": name, "path": str(relative.parent) if str(relative.parent) != "." else "",
+                          "key":relative.as_posix(), "size_bytes":stat.st_size,
+                          "modified_at":int(stat.st_mtime), "taken_at":taken})
+            if len(items) >= limit:
+                return {"items": items, "count": len(items), "truncated": True}
+    return {"items": items, "count": len(items), "truncated": False}
+
+
 def photogalery_metadata(username):
     with db_connect() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS photo_library_meta (username TEXT PRIMARY KEY, payload TEXT NOT NULL)")
@@ -3411,6 +3449,13 @@ class Handler(BaseHTTPRequestHandler):
             limit = (query.get("limit") or ["60"])[0]
             payload = radio_browser_stations(country, search, limit)
             self.send_json(payload, 200 if payload.get("stations") else 503)
+            return
+
+        if path == "/photos/library":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(photogalery_library(session["username"]))
             return
 
         if path == "/photos/metadata":
