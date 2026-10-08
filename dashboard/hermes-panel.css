@@ -14,3 +14,9 @@
 #ai-panel .n2k-hermes-guide summary{cursor:pointer;color:#e5f5ff;font-weight:650}
 #ai-panel .n2k-hermes-guide code{font-size:12px;word-break:break-word;color:#96ebed}
 @media(max-width:640px){#ai-panel .n2k-hermes-stats{grid-template-columns:1fr}#ai-panel .n2k-hermes-head h3{font-size:19px}}
+
+#ai-panel .n2k-hermes-chat{margin-top:17px;display:grid;gap:10px}
+#ai-panel .n2k-hermes-chat label{font-size:14px;font-weight:750;color:#edf8ff}
+#ai-panel #n2k-hermes-prompt{width:100%;box-sizing:border-box;resize:vertical;min-height:86px;padding:13px;border-radius:11px;border:1px solid #39657b;background:#071e30;color:#effaff;font:inherit;font-size:15px}
+#ai-panel #n2k-hermes-response{min-height:48px;white-space:pre-wrap;overflow-wrap:anywhere;background:rgba(4,18,30,.7);padding:15px;border:1px solid rgba(130,191,221,.2);border-radius:12px;color:#e6f6ff;font-size:14px;line-height:1.55}
+#ai-panel #n2k-hermes-send:disabled{opacity:.55;cursor:wait}
