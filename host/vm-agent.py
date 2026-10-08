@@ -809,13 +809,13 @@ def tor_relay_set(enabled):
                "--label", "netfreak2k.managed=true",
                "--label", "netfreak2k.app=tor-relay",
                "--security-opt", "no-new-privileges:true",
-               "--cap-drop", "ALL",
+               "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "FOWNER",
                "-p", "9001:9001/tcp",
                "-v", "netfreak2k-tor-relay-data:/var/lib/tor",
                "alpine:3.20", "/bin/sh", "-c",
-               "apk add --no-cache tor >/dev/null && printf '%s' " +
+               "apk add --no-cache tor su-exec >/dev/null && chown -R tor:tor /var/lib/tor && printf '%s' " +
                __import__("shlex").quote(torrc) +
-               " > /tmp/torrc && exec tor -f /tmp/torrc"]
+               " > /tmp/torrc && exec su-exec tor tor -f /tmp/torrc"]
         run(*cmd, check=True, timeout=120)
     elif state != "running":
         run("docker", "start", TOR_RELAY_CONTAINER, check=True, timeout=60)
