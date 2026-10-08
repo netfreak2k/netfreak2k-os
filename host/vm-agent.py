@@ -23,7 +23,7 @@ HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
-    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat",
+    "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
     "app_catalog", "app_install", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
@@ -3648,7 +3648,43 @@ def ollama_local_chat(messages):
     except (OSError,ValueError,urllib.error.URLError):
         return {"error":"ollama_unavailable_or_timeout"}
 
+def n2k_ai_context():
+    # Bounded read-only system snapshot, no secrets, no shell execution by LLM.
+    mem={}
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            key,_,value=line.partition(":")
+            if key in ("MemTotal","MemAvailable","SwapTotal","SwapFree"):
+                mem[key]=int(value.strip().split()[0])//1024
+    except (OSError,ValueError,IndexError):
+        pass
+    try:
+        up=int(float(Path("/proc/uptime").read_text().split()[0]))
+    except (OSError,ValueError,IndexError):
+        up=None
+    try:
+        load=list(os.getloadavg())
+    except OSError:
+        load=[]
+    containers=[]
+    try:
+        p=subprocess.run(["docker","ps","--format","{{.Names}}|{{.Status}}"],capture_output=True,text=True,timeout=4,check=False)
+        if p.returncode==0:
+            containers=[{"name":parts[0][:60],"status":parts[1][:100]} for line in p.stdout.splitlines()[:15] if len(parts:=line.split("|",1))==2]
+    except (OSError,subprocess.TimeoutExpired):
+        pass
+    try:
+        updates=json.loads(Path("/var/lib/netfreak2k/host-update-status.json").read_text())
+    except (OSError,ValueError):
+        updates={}
+    return {"ram_mb":mem,"uptime_seconds":up,"load_averages":load,
+            "containers":containers,"updates":{"packages":updates.get("packages"),"security":updates.get("security")},
+            "source":"local_live_readonly"}
+
 def execute(action, request):
+    if action == "n2k_ai_context":
+        return n2k_ai_context()
+
     if action == "ollama_local_status":
         return ollama_local_status()
 
