@@ -562,3 +562,54 @@
  .topbar .topbar-right .icon-button{width:26px;height:28px;min-width:26px}
  .sidebar .side-nav .nav-item{flex-basis:53px;width:53px}
 }
+
+/* N2K mobile quick dock v1: iPhone safe area, other functions in More. */
+.n2k-mobile-dock,.n2k-mobile-nav-shade{display:none}
+@media(max-width:620px){
+  .n2k-mobile-dock{
+    position:fixed;z-index:61;bottom:0;left:0;right:0;
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:2px;padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    background:rgba(8,14,24,.97);border-top:1px solid rgba(145,178,213,.24);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  }
+  .n2k-mobile-dock button{
+    min-width:0;min-height:52px;padding:4px 2px;
+    background:transparent;border:0;border-radius:12px;color:#becbd9;
+    display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;
+    font-size:10px;line-height:1.2;font-weight:700;touch-action:manipulation
+  }
+  .n2k-mobile-dock button span{font-size:23px;line-height:1.05}
+  .n2k-mobile-dock button.active{background:rgba(42,122,208,.2);color:#fff}
+  .n2k-mobile-nav-shade:not([hidden]){
+    display:block;position:fixed;inset:0;z-index:58;background:rgba(0,0,0,.58)
+  }
+  .sidebar{
+    display:none!important;
+  }
+  body.n2k-mobile-menu-open .sidebar{
+    display:block!important;position:fixed!important;z-index:60!important;
+    left:10px!important;right:10px!important;top:auto!important;
+    bottom:calc(69px + env(safe-area-inset-bottom))!important;
+    width:auto!important;height:min(68dvh,540px)!important;
+    padding:12px!important;border:1px solid rgba(145,178,213,.28)!important;
+    border-radius:18px!important;overflow-y:auto!important;
+    background:#0a1422!important;box-shadow:0 12px 45px rgba(0,0,0,.5)
+  }
+  body.n2k-mobile-menu-open .side-nav{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    height:auto!important;max-height:none!important;overflow:visible!important;gap:7px!important
+  }
+  body.n2k-mobile-menu-open .side-nav .nav-item{
+    width:100%!important;flex:auto!important;min-height:58px!important;
+    font-size:10px!important;white-space:normal!important
+  }
+  body.n2k-mobile-menu-open .nav-group{display:contents!important}
+  body.n2k-mobile-menu-open .nav-submenu{display:contents!important}
+  .workspace{padding-bottom:calc(82px + env(safe-area-inset-bottom))!important}
+  .n2k-mobile-dock button:focus-visible,.side-nav .nav-item:focus-visible{
+    outline:2px solid #69b6ff;outline-offset:-2px
+  }
+  #n2k-mobile-dock~.workspace .panel{min-width:0}
+}
+@media(min-width:621px){.n2k-mobile-dock,.n2k-mobile-nav-shade{display:none!important}}
