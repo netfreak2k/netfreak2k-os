@@ -81,3 +81,33 @@
 @media(max-width:1750px){#dashboard-top .mini-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){#dashboard-top .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#dashboard-top .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .mini-metric.n2k-monitor-card{padding:9px 8px;min-height:145px}#dashboard-top .n2k-monitor-card .metric-ring{width:58px;height:58px;min-width:58px;min-height:58px}#dashboard-top .n2k-monitor-card .metric-ring::before{inset:5px}#dashboard-top .n2k-monitor-card .metric-ring .ring-value{font-size:15px}#dashboard-top .n2k-monitor-card .n2k-monitor-body{gap:6px}}
+
+/* V5: all overview widgets use the same compact tile footprint as monitoring. */
+#dashboard-top .widget-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:stretch}
+#dashboard-top .widget-grid>.widget{grid-column:span 1!important;grid-row:auto!important;min-width:0;width:100%;min-height:148px;max-height:180px;padding:10px 11px;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;gap:5px}
+#dashboard-top .widget-grid .widget-head{margin:0 0 3px;min-width:0}
+#dashboard-top .widget-grid .widget-head h3{font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+#dashboard-top .widget-grid .widget-head small{font-size:9px;letter-spacing:.03em}
+#dashboard-top .widget-grid .widget-head>span{font-size:16px}
+#dashboard-top .widget-grid .drive-donut{width:61px;height:61px;min-width:61px;min-height:61px}
+#dashboard-top .widget-grid .drive-widget-body{min-width:0;gap:7px;flex:1;align-items:center}
+#dashboard-top .widget-grid .widget-stat-copy{min-width:0;overflow:hidden}
+#dashboard-top .widget-grid .widget-stat-copy strong{font-size:10px;overflow-wrap:anywhere}
+#dashboard-top .widget-grid .widget-stat-copy span{font-size:9px}
+#dashboard-top .widget-grid .network-values{gap:4px}
+#dashboard-top .widget-grid .network-values strong{font-size:11px}
+#dashboard-top .widget-grid .network-widget canvas{max-width:100%;height:34px;flex-shrink:0}
+#dashboard-top .widget-grid .widget-detail-lines{font-size:9px;gap:2px;overflow:hidden}
+#dashboard-top .widget-grid .overview-list{min-height:0;overflow:auto;flex:1}
+#dashboard-top .widget-grid .overview-media-widget .overview-media-favorites{display:none}
+#dashboard-top .widget-grid .overview-media-widget .overview-media-now{min-height:0}
+#dashboard-top .widget-grid .overview-media-widget .overview-media-controls{margin-top:auto}
+#dashboard-top .widget-grid .quick-grid{gap:4px;grid-template-columns:repeat(2,minmax(0,1fr))}
+#dashboard-top .widget-grid .quick-grid button{font-size:9px;min-height:29px;padding:4px}
+#dashboard-top .widget-grid .matrix-widget canvas{height:100%;max-height:160px}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:15px}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{font-size:9px}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-spark{visibility:hidden}
+@media(max-width:1750px){#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .widget-grid>.widget{min-height:145px;max-height:185px;padding:9px 8px}}
