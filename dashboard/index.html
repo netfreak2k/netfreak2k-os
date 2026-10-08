@@ -7,7 +7,7 @@
   <title>Netfreak2k Server-OS</title>
   <link rel="stylesheet" href="styles.css?v=20261008-small-alert1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
-  <link rel="stylesheet" href="mobile.css?v=20261008-iphone15pro6">
+  <link rel="stylesheet" href="mobile.css?v=20261008-mobile-dock1">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-15">
   <link rel="stylesheet" href="photos.css?v=20261008-10">
   <link rel="stylesheet" href="ollama-chat.css?v=20261008-terminal1">
@@ -121,6 +121,14 @@
       </div>
     </aside>
 
+    <nav id="n2k-mobile-dock" class="n2k-mobile-dock" aria-label="Mobile Schnellnavigation">
+      <button type="button" data-mobile-view="dashboard-top"><span aria-hidden="true">⌂</span>Übersicht</button>
+      <button type="button" data-mobile-view="workspace-panel"><span aria-hidden="true">▤</span>Dateien</button>
+      <button type="button" data-mobile-view="media-center-panel"><span aria-hidden="true">♪</span>Medien</button>
+      <button type="button" data-mobile-view="photos-panel"><span aria-hidden="true">▧</span>Fotos</button>
+      <button type="button" id="n2k-mobile-more" aria-expanded="false" aria-controls="n2k-mobile-navigation"><span aria-hidden="true">☷</span>Mehr</button>
+    </nav>
+    <div id="n2k-mobile-nav-shade" class="n2k-mobile-nav-shade" hidden></div>
     <section class="workspace">
       <header class="topbar topbar-desktop">
         <div class="topbar-brand">
