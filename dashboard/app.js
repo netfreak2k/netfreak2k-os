@@ -6263,26 +6263,68 @@ function updateMediaPlaybackUi() {
   }
 }
 
+function n2kSafeMediaArtwork(item) {
+  for (const raw of [item?.artwork_url,item?.favicon,item?.artwork,item?.cover,item?.image,item?.logo]) {
+    const url=typeof raw==="string"?raw.trim():"";
+    if (url && (url.startsWith("/") || url.startsWith("https://") || url.startsWith("http://") || url.startsWith("blob:") || url.startsWith("data:image/"))) return url;
+  }
+  return "";
+}
+
 function n2kOverviewLastArtwork(item) {
   const cover=document.getElementById("overview-media-art");
   if(!cover)return;
-  const storageKey="n2k-media-last-artwork-v2";
-  const incoming=item && typeof item==="object";
-  if(incoming){
-    const data={title:String(item.title||item.name||"Zuletzt gespielt").slice(0,120),
-      artwork:String(item.artwork_url||item.favicon||"").slice(0,1500)};
-    if(data.artwork){try{localStorage.setItem(storageKey,JSON.stringify(data));}catch(_){}}
-  }
+  const key="n2k-media-last-artwork-v3";
   let saved=null;
-  try{saved=JSON.parse(localStorage.getItem(storageKey)||"null");}catch(_){}
-  const url=(incoming?String(item.artwork_url||item.favicon||saved?.artwork||""):String(saved?.artwork||""));
-  const safe=(url.startsWith("https://")||url.startsWith("http://")||url.startsWith("/")||url.startsWith("blob:")||url.startsWith("data:image/"))?url:"";
-  cover.style.backgroundImage=safe?"url("+JSON.stringify(safe)+")":"";
-  cover.classList.toggle("has-artwork",Boolean(safe));
-  cover.textContent=safe?"":"♪";
-  cover.title=incoming?String(item.title||item.name||"Zuletzt gespielt"):String(saved?.title||"Zuletzt gespielt");
-  const tileTitle=document.getElementById("overview-media-title");
-  if(!incoming&&saved?.title&&tileTitle&&["Bereit","Noch kein Titel"].includes(tileTitle.textContent.trim()))tileTitle.textContent=saved.title;
+  try { saved=JSON.parse(localStorage.getItem(key)||"null"); } catch(_) {}
+  if(!saved) {
+    try {
+      const legacy=JSON.parse(localStorage.getItem("n2k-media-last-artwork-v2")||"null");
+      if(legacy?.artwork)saved={title:legacy.title||"",artwork:legacy.artwork,subtitle:""};
+    } catch(_) {}
+  }
+  if(!saved){
+    const previous=loadMediaSession()?.current;
+    if(previous)saved={title:previous.title||previous.name||"",artwork:n2kSafeMediaArtwork(previous),subtitle:previous.artist||""};
+  }
+  const candidate=item?n2kSafeMediaArtwork(item):"";
+  if(item && candidate){
+    saved={artwork:candidate,title:String(item.title||item.name||"Zuletzt gespielt").slice(0,150),
+      subtitle:String(item.artist||item.album||item.genre||"").slice(0,150)};
+    try{localStorage.setItem(key,JSON.stringify(saved));}catch(_){}
+  }
+  const artwork=candidate||n2kSafeMediaArtwork({artwork_url:saved?.artwork})||"";
+  // Use an actual image element: stylesheet background declarations cannot hide it.
+  let image=cover.querySelector("img.n2k-last-cover");
+  if(artwork){
+    if(!image){
+      image=document.createElement("img");
+      image.className="n2k-last-cover";
+      image.alt="";
+      image.decoding="async";
+      image.addEventListener("load",()=>{cover.classList.add("has-artwork");});
+      image.addEventListener("error",()=>{
+        image.hidden=true;
+        cover.classList.remove("has-artwork");
+        cover.dataset.coverError="1";
+      });
+      cover.replaceChildren(image);
+    }
+    if(image.getAttribute("src")!==artwork){
+      image.hidden=false;
+      cover.dataset.coverError="";
+      image.src=artwork;
+    }
+    if(!image.hidden)cover.classList.add("has-artwork");
+  }else{
+    cover.replaceChildren(document.createTextNode("♪"));
+    cover.classList.remove("has-artwork");
+  }
+  cover.title=item?.title||item?.name||saved?.title||"Zuletzt gespielt";
+  const title=document.getElementById("overview-media-title");
+  const subtitle=document.getElementById("overview-media-subtitle");
+  if(!item && saved?.title && title && ["Bereit","Noch kein Titel"].includes(title.textContent.trim()))title.textContent=saved.title;
+  if(!item && saved?.subtitle && subtitle && ["Radio & Streaming","Radio · Eigene Musik · Streaming"].includes(subtitle.textContent.trim()))subtitle.textContent=saved.subtitle;
 }
 function updateMediaArtwork(item) {
   const cover = document.getElementById("media-cover");
