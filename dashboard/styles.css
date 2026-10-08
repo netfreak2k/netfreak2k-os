@@ -3290,3 +3290,11 @@ body::after{
 .n2k-top-weather[hidden]{display:none!important}
 .wallpaper-panel .wallpaper-note{font-size:11px;padding:7px 10px}
 @media(max-width:640px){.wallpaper-panel .wallpaper-card{flex-basis:190px}.n2k-wallpaper-arrow{width:28px;flex-basis:28px}.n2k-location-settings{padding:12px}.n2k-top-weather{font-size:11px}}
+
+/* Location suggestions */
+.n2k-location-form{position:relative}
+#n2k-location-input{flex-basis:100%}
+.n2k-location-suggestions{width:100%;order:1;display:flex;flex-direction:column;gap:3px;max-height:235px;overflow:auto;padding:5px;border:1px solid rgba(103,166,220,.4);border-radius:10px;background:#102a43;box-sizing:border-box}
+.n2k-location-suggestions[hidden]{display:none!important}
+.n2k-location-option{padding:10px 12px!important;width:100%;border:0!important;border-radius:7px!important;text-align:left;background:transparent!important;color:#ecf7ff!important;font-size:13px}
+.n2k-location-option:hover,.n2k-location-option:focus-visible{background:#224868!important;outline:1px solid #5ca7d7}
