@@ -7683,7 +7683,6 @@ else n2kConnectPlayerCover();
     img=document.createElement("img");
     img.className="n2k-mirror-cover";
     img.alt="Senderlogo oder Albumcover";
-    img.referrerPolicy="no-referrer";
     img.addEventListener("load",()=>{holder.dataset.imageState="ok"});
     img.addEventListener("error",()=>{
       holder.dataset.imageState="missing";
