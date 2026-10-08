@@ -4699,6 +4699,7 @@ document.addEventListener("keydown", event => {
 });
 
 const viewGroups = {
+  "photos-panel": ["photos-panel"],
   "workspace-panel": ["workspace-panel", "drive-management-panel"],
   "calendar-panel": ["calendar-panel"],
   "apps-panel": ["apps-panel", "app-store-panel"],
