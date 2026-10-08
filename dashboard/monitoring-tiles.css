@@ -1,0 +1,24 @@
+/* N2K monitoring cards — additive dashboard layout */
+#dashboard-top .mini-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+#dashboard-top .mini-metric.n2k-monitor-card{position:relative;display:flex;flex-direction:column;align-items:stretch;text-align:left;min-width:0;min-height:184px;padding:14px;border:1px solid rgba(79,166,230,.24);border-radius:14px;background:linear-gradient(145deg,rgba(11,35,56,.97),rgba(5,18,32,.98));color:#eaf5ff;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.04)}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;font-size:12px;font-weight:700;letter-spacing:.02em}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title i{width:7px;height:7px;border-radius:50%;background:#29e779;box-shadow:0 0 9px #29e779;display:inline-block;margin-right:5px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title .n2k-health{font-weight:500;font-size:10px;color:#46e994;white-space:nowrap}
+#dashboard-top .n2k-monitor-card .n2k-monitor-body{display:flex;align-items:center;gap:12px;flex:1;min-width:0;width:100%;padding:10px 0}
+#dashboard-top .n2k-monitor-card .metric-ring{flex:none;width:94px;height:94px;display:grid;place-items:center;border:10px solid rgba(50,83,113,.45);border-radius:50%;font-size:18px;line-height:1.1;color:white}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy{display:flex;flex-direction:column;gap:6px;min-width:0;overflow:hidden}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy small{color:#8fb3d3;font-size:11px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy strong{color:#eff7ff;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy span{font-size:10px;color:#9cb5d0;line-height:1.3}
+#dashboard-top .n2k-monitor-card .n2k-monitor-spark{display:block;width:100%;height:31px;flex:none;margin-top:auto}
+#dashboard-top .n2k-monitor-card[data-metric="cpu"]{--n2k-accent:#2caaff}
+#dashboard-top .n2k-monitor-card[data-metric="ram"]{--n2k-accent:#bb63f8}
+#dashboard-top .n2k-monitor-card[data-metric="storage"]{--n2k-accent:#218bff}
+#dashboard-top .n2k-monitor-card[data-metric="temperature"]{--n2k-accent:#35e478}
+#dashboard-top .n2k-monitor-card[data-metric="fan"]{--n2k-accent:#18d8eb}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"]{--n2k-accent:#ffbd55}
+#dashboard-top .n2k-monitor-card .metric-ring{border-color:rgba(52,87,118,.4);box-shadow:inset 0 0 18px rgba(0,0,0,.28)}
+@media(min-width:1600px){#dashboard-top .mini-metrics{grid-template-columns:repeat(6,minmax(0,1fr))}#dashboard-top .n2k-monitor-card .metric-ring{width:78px;height:78px;font-size:15px}}
+@media(min-width:1150px) and (max-width:1599px){#dashboard-top .mini-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){#dashboard-top .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}#dashboard-top .mini-metric.n2k-monitor-card{min-height:168px;padding:11px}#dashboard-top .n2k-monitor-card .metric-ring{width:70px;height:70px;border-width:7px;font-size:14px}#dashboard-top .n2k-monitor-card .n2k-monitor-body{gap:8px}#dashboard-top .n2k-monitor-card .n2k-monitor-copy strong{font-size:10px}}
+@media(max-width:380px){#dashboard-top .mini-metrics{grid-template-columns:1fr}}
