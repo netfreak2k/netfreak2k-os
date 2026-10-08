@@ -4251,6 +4251,32 @@ async function loadUpdates() {
     notice.textContent = "Nur Anzeige. Keine automatischen Linux- oder Docker-Updates. Docker-Image-Updates werden nicht geprüft.";
     hostBox.append(notice);
 
+    const job = data.linux_upgrade || {};
+    const jobInfo=document.createElement("p");
+    jobInfo.textContent=job.state === "running" ? "Installation läuft: " + (job.message || "") :
+      job.state === "completed" ? "Letzte Installation erfolgreich." :
+      job.state === "failed" ? "Letzte Installation fehlgeschlagen. Serverprotokoll prüfen." : "";
+    hostBox.append(jobInfo);
+    const upgradeButton=document.createElement("button");
+    upgradeButton.type="button";
+    upgradeButton.textContent=job.state === "running" ? "Linux-Update läuft …" : "Linux-Updates installieren";
+    upgradeButton.disabled=job.state === "running" || !Number.isFinite(host.packages) || host.packages < 1 || currentRole !== "admin";
+    upgradeButton.style.cssText="margin-top:10px;padding:11px 16px;border-radius:10px;cursor:pointer";
+    upgradeButton.addEventListener("click",async()=>{
+      if(!window.confirm("Linux-Paketupdates auf diesem Server jetzt installieren? Dienste können kurz unterbrochen werden. Kein automatischer Neustart. Vorher Backup prüfen.")) return;
+      upgradeButton.disabled=true;
+      try {
+        const response=await request("/api/updates/linux/install",{method:"POST"});
+        if(!response.accepted) throw Error(response.error || "Start abgelehnt");
+        alert("Linux-Update gestartet. Fortschritt erscheint nach Aktualisierung der Seite.");
+        loadUpdates();
+      } catch(error) {
+        alert("Linux-Update nicht gestartet: "+error.message);
+        upgradeButton.disabled=false;
+      }
+    });
+    hostBox.append(upgradeButton);
+
 
     const setText = (id, value) => {
       const node = document.getElementById(id);
