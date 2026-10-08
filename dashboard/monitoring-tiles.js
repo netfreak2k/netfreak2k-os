@@ -102,6 +102,26 @@ const rpm=numbers.length?numbers[0]:val(c.fan_rpm);
 setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Echter Tachometerwert":"Kein RPM-Sensor vom Host gemeldet",5000);
 }catch(e){console.debug("N2K tiles sensors:",e.message)}
 }
+async function pollLocalAi(){
+ const node=document.getElementById("n2k-combined-ai-status");
+ const model=document.getElementById("n2k-combined-ai-model");
+ const indicator=document.getElementById("n2k-combined-ai-dot");
+ if(!node||!model||!indicator)return;
+ try{
+   const res=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)throw Error("HTTP "+res.status);
+   const info=await res.json();
+   const available=info.running===true;
+   const ready=info.ready===true;
+   node.textContent=ready?"KI bereit":available?"Modell fehlt":"KI offline";
+   model.textContent=ready?(info.model||"Ollama"):available?"Ollama aktiv":"Ollama nicht erreichbar";
+   indicator.dataset.state=ready?"ready":available?"warning":"offline";
+ }catch(e){
+   node.textContent="KI-Status unbekannt";
+   model.textContent="Verbindung prüfen";
+   indicator.dataset.state="offline";
+ }
+}
 function wireUpdateShortcut(){
  const top=document.getElementById("top-update-status");
  if(!top||top.dataset.n2kShortcut)return;
@@ -132,9 +152,13 @@ if(combined){
  fanArea.className="n2k-combined-fan";
  fanArea.innerHTML='<span class="n2k-combined-fan-icon" aria-hidden="true">✣</span><div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">Sensor wird geprüft</small></div>';
  combined.appendChild(fanArea);
- combined.setAttribute("aria-label","Betriebsdauer und Lüfterdrehzahl");
+ const aiArea=document.createElement("div");
+ aiArea.className="n2k-combined-ai";
+ aiArea.innerHTML='<span class="n2k-combined-ai-dot" id="n2k-combined-ai-dot" data-state="offline" aria-hidden="true"></span><div class="n2k-combined-ai-data"><strong id="n2k-combined-ai-status">KI wird geprüft</strong><small id="n2k-combined-ai-model">Ollama · lokal</small></div>';
+ combined.appendChild(aiArea);
+ combined.setAttribute("aria-label","Betriebsdauer, Lüfterdrehzahl und lokaler KI-Status");
 }
-poll();setInterval(poll,10000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
+poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
 })();
