@@ -3270,3 +3270,23 @@ body::after{
 #overview-media-widget .overview-media-now{min-width:0}
 #overview-media-widget .overview-media-now>div{min-width:0}
 #overview-media-widget .overview-media-now strong,#overview-media-widget .overview-media-now small{overflow:hidden;text-overflow:ellipsis;display:block;white-space:nowrap}
+
+/* Settings: single-row, swipeable wallpaper gallery and optional weather location */
+.wallpaper-panel .panel-head{margin-bottom:8px}
+.n2k-wallpaper-scroller{display:flex;align-items:center;gap:8px;min-width:0}
+.wallpaper-panel .wallpaper-gallery{display:flex!important;flex:1;min-width:0;gap:12px;margin:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:thin;padding:12px 3px}
+.wallpaper-panel .wallpaper-card{flex:0 0 clamp(170px,24vw,260px);scroll-snap-align:start;min-width:0}
+.wallpaper-panel .wallpaper-copy strong{font-size:13px}
+.wallpaper-panel .wallpaper-copy small{font-size:11px}
+.n2k-wallpaper-arrow{width:32px;height:43px;flex:0 0 32px;cursor:pointer;border:1px solid rgba(117,165,217,.35);border-radius:10px;background:rgba(16,39,67,.7);color:#cde9ff;font-size:25px}
+.n2k-location-settings{margin-top:18px;padding:17px;border:1px solid rgba(117,165,217,.22);border-radius:14px;background:rgba(7,24,43,.65)}
+.n2k-location-settings strong{font-size:16px;color:#eff8ff}
+.n2k-location-settings p{font-size:13px;color:#a7bed1;margin:6px 0 15px}
+.n2k-location-form{display:flex;gap:8px;flex-wrap:wrap}
+#n2k-location-input{flex:1 1 200px;min-width:0;min-height:42px;border-radius:9px;padding:9px 12px;background:#0b2439;border:1px solid #41657b;color:#eefaff;font:inherit}
+.n2k-location-form button{border-radius:9px;padding:9px 13px;cursor:pointer;background:#16678a;color:#fff;border:1px solid #4c8ea9}
+#n2k-location-feedback{display:block;color:#a4d6e9;font-size:12px;margin-top:8px}
+.n2k-top-weather{display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;margin:4px 0;border-radius:9px;background:rgba(22,70,102,.7);color:#e0f3ff;border:1px solid rgba(104,169,210,.24);white-space:nowrap;font-size:12px;font-weight:650}
+.n2k-top-weather[hidden]{display:none!important}
+.wallpaper-panel .wallpaper-note{font-size:11px;padding:7px 10px}
+@media(max-width:640px){.wallpaper-panel .wallpaper-card{flex-basis:190px}.n2k-wallpaper-arrow{width:28px;flex-basis:28px}.n2k-location-settings{padding:12px}.n2k-top-weather{font-size:11px}}
