@@ -3969,6 +3969,9 @@ async function loadPreferences() {
   try {
     const prefs = await request("/api/preferences", {headers: {}});
     applyWallpaper(prefs.wallpaper || "01-night-bay");
+    const location = prefs.weather_location || "";
+    const input=document.getElementById("n2k-location-input");if(input)input.value=location;
+    updateTopWeather(Boolean(location));
   } catch (error) {
     console.error(error);
     applyWallpaper("01-night-bay");
@@ -7445,3 +7448,41 @@ function initMediaCenter() {
   document.getElementById("media-eq-reset")?.addEventListener("click", () => applyEqPreset("flat"));
   document.querySelectorAll("#media-equalizer input[data-eq]").forEach(input => input.addEventListener("input", applyMediaEq));
 }
+
+
+async function updateTopWeather(enabled=true){
+ const badge=document.getElementById("n2k-top-weather");
+ if(!badge)return;
+ if(!enabled){badge.hidden=true;badge.textContent="";return;}
+ try{
+  const response=await request("/api/preferences/weather",{headers:{}});
+  if(!response.configured){badge.hidden=true;badge.textContent="";return;}
+  badge.hidden=false;
+  if(response.error){badge.textContent="Wetter nicht verfügbar";badge.title="Standort prüfen oder Onlineverbindung abwarten";return;}
+  const code=Number(response.weather_code);
+  const icon=code===0?"☀":code<=3?"⛅":code>=51&&code<=67?"🌧":code>=71&&code<=86?"❄":"☁";
+  const temp=Number.isFinite(Number(response.temperature_c))?Math.round(Number(response.temperature_c))+"°C":"–";
+  badge.textContent=icon+" "+temp+" · "+response.location;
+  badge.title="Aktuelles Wetter in "+response.location+" · Quelle: Open-Meteo";
+ }catch(e){badge.hidden=false;badge.textContent="Wetter nicht verfügbar";}
+}
+async function saveWeatherLocation(location){
+ const feedback=document.getElementById("n2k-location-feedback");
+ try{
+  await request("/api/preferences",{method:"POST",body:JSON.stringify({key:"weather_location",value:location}),headers:{"X-CSRF-Token":csrfToken}});
+  if(feedback)feedback.textContent=location?"Standort gespeichert. Wetter wird geladen.":"Standort entfernt. Wetteranzeige ausgeschaltet.";
+  await updateTopWeather(Boolean(location));
+ }catch(e){if(feedback)feedback.textContent="Standort konnte nicht gespeichert werden.";}
+}
+function initWeatherSettings(){
+ const gallery=document.getElementById("wallpaper-gallery");
+ for(const [id,delta] of [["wallpaper-prev",-1],["wallpaper-next",1]]){
+  document.getElementById(id)?.addEventListener("click",()=>gallery?.scrollBy({left:delta*(gallery.clientWidth*.78),behavior:"smooth"}));
+ }
+ const input=document.getElementById("n2k-location-input");
+ document.getElementById("n2k-location-save")?.addEventListener("click",()=>saveWeatherLocation(input?.value.trim()||""));
+ document.getElementById("n2k-location-clear")?.addEventListener("click",()=>{if(input)input.value="";saveWeatherLocation("");});
+ input?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveWeatherLocation(input.value.trim());}});
+ setInterval(()=>{const badge=document.getElementById("n2k-top-weather");if(badge&&!badge.hidden)updateTopWeather(true);},15*60*1000);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
