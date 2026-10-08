@@ -5546,6 +5546,42 @@ document.getElementById("open-onion")?.addEventListener("click", () => {
 document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
+// Non-exit Tor relay: a separate service, never linked to browser controls.
+async function loadTorRelayStatus() {
+  const status = document.getElementById("tor-relay-status");
+  const enable = document.getElementById("tor-relay-enable");
+  const disable = document.getElementById("tor-relay-disable");
+  if (!status) return;
+  try {
+    const result = await request("/api/tor/relay");
+    if (!result.available) throw Error(result.error || "Host-Agent nicht erreichbar");
+    status.textContent = result.running ? "● Aktiv · TCP " + result.port : result.installed ? "○ Installiert · ausgeschaltet" : "○ Aus · nicht installiert";
+    enable.disabled = Boolean(result.running);
+    disable.disabled = !result.running;
+  } catch (error) {
+    status.textContent = "Status nicht verfügbar";
+    enable.disabled = true;
+    disable.disabled = true;
+  }
+}
+async function setTorRelay(enabled) {
+  if (enabled && !window.confirm("Tor-Relay aktivieren? Deine öffentliche IP wird als Tor-Relay sichtbar und dein Server stellt TCP-Port 9001 bereit. Upload-Bandbreite wird genutzt. Der Knoten ist KEIN Exit-Relay. Fortfahren?")) return;
+  const enable = document.getElementById("tor-relay-enable");
+  const disable = document.getElementById("tor-relay-disable");
+  enable.disabled = true;
+  disable.disabled = true;
+  try {
+    await request("/api/tor/relay", {method:"POST",body:JSON.stringify({enabled,acknowledged:enabled})});
+    showN2KToast(enabled ? "Tor-Relay wird gestartet" : "Tor-Relay ausgeschaltet");
+  } catch (error) {
+    showN2KToast("Tor-Relay: " + (error.message || "Aktion fehlgeschlagen"), "error");
+  } finally { await loadTorRelayStatus(); }
+}
+document.getElementById("tor-relay-enable")?.addEventListener("click", () => setTorRelay(true));
+document.getElementById("tor-relay-disable")?.addEventListener("click", () => setTorRelay(false));
+document.getElementById("tor-relay-refresh")?.addEventListener("click", loadTorRelayStatus);
+loadTorRelayStatus();
+
 function setTorControlState({installed=false, running=false, error=false} = {}) {
   const dot = document.getElementById("overview-tor-dot");
   const overviewState = document.getElementById("overview-tor-status");
