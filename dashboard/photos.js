@@ -165,9 +165,23 @@ async function exportPhotos(full=false){
  }catch(e){notify("Export fehlgeschlagen: "+e.message)}
  finally{b.disabled=false}
 }
+
+async function restoreZip(event){
+ const file=event.target.files?.[0];event.target.value="";if(!file)return;
+ if(file.size>250*1024*1024){notify("ZIP zu groß: höchstens 250 MB pro Wiederherstellung.");return}
+ if(!confirm("Fotogalery-Backup importieren? Bestehende Fotos werden nicht überschrieben; Albumdaten werden ergänzt."))return;
+ const b=$("n2k-photo-restore");b.disabled=true;notify("Fotogalery-Backup wird wiederhergestellt …");
+ try{
+ const res=await fetch("/api/photos/restore-zip",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/zip","X-CSRF-Token":typeof csrfToken!=="undefined"?csrfToken:""},body:file});
+ const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||"HTTP "+res.status);
+ await fetchMetadata();await load();notify(data.restored+" Fotos wiederhergestellt · "+data.skipped_existing+" bereits vorhanden"+(data.metadata_imported?" · Albumdaten importiert":""));
+ }catch(e){notify("Wiederherstellung fehlgeschlagen: "+e.message)}finally{b.disabled=false}
+}
 function init(){
  $("n2k-photos-refresh")?.addEventListener("click",()=>tab==="trash"?showTrash():load());
  $("n2k-photo-export-all")?.addEventListener("click",()=>exportPhotos(true));
+ $("n2k-photo-restore")?.addEventListener("click",()=>$("n2k-photo-restore-file")?.click());
+ $("n2k-photo-restore-file")?.addEventListener("change",restoreZip);
  $("n2k-photo-export-album")?.addEventListener("click",()=>exportPhotos(false));
  $("n2k-photos-search")?.addEventListener("input",e=>{search=e.target.value.toLocaleLowerCase("de");render()});
  $("n2k-photo-year")?.addEventListener("change",e=>{year=e.target.value;render()});
