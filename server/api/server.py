@@ -2199,6 +2199,7 @@ def update_payload():
         "installed_at": version.get("installed_at"),
     }
     status["host_updates"] = read_json_file(Path("/host/netfreak2k/host-update-status.json"))
+    status["linux_upgrade"] = read_json_file(Path("/host/netfreak2k/linux-upgrade-status.json"))
     status["progress"] = progress or {
         "state": "idle",
         "progress": 0,
@@ -4868,6 +4869,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result, 503)
                 return
             self.send_json(result)
+            return
+
+        if path == "/updates/linux/install":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            result = vm_agent("linux_upgrade_start")
+            if not result.get("available") or not result.get("accepted"):
+                self.send_json(result, 503 if not result.get("available") else 409)
+                return
+            audit_event(session["username"], "linux_upgrade_start", "manual_approval", self.client_ip())
+            self.send_json(result, 202)
             return
 
         if path == "/updates/install":
