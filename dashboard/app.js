@@ -7640,3 +7640,62 @@ else n2kConnectPlayerCover();
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",refresh);else refresh();
  setInterval(refresh,30000);
 })();
+
+/* N2K Media tile: independent mirror of the visible player */
+(function(){
+ const KEY="n2k-media-overview-v4";
+ function read(){
+  const current=typeof mediaCurrentStation==="function"?mediaCurrentStation():null;
+  const top=document.getElementById("top-media-art");
+  const topTitle=document.getElementById("top-media-title");
+  const topSubtitle=document.getElementById("top-media-subtitle");
+  const css=top?(top.style.backgroundImage||""):"";
+  let playerArt="";
+  if(css.startsWith("url("))playerArt=css.slice(4,-1).trim().replace(/^["']|["']$/g,"");
+  const validate=url=>typeof url==="string"&&/^(https?:\/\/|\/|blob:|data:image\/)/i.test(url);
+  const mediaArt=current?(current.artwork_url||current.favicon||current.cover||current.image||""):"";
+  const title=current?(current.now_playing?.title||current.title||current.name||""):"";
+  const meta=current?(current.artist||current.genre||current.country||""):"";
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){saved=null}
+  const oldTitle=topTitle?.textContent?.trim()||"";
+  if(current){
+   const art=validate(mediaArt)?mediaArt:(validate(playerArt)?playerArt:"");
+   saved={title:title||oldTitle,meta:meta||topSubtitle?.textContent||"",art:art||saved?.art||""};
+   try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(_){}
+  }else if(!saved){
+   let old;try{old=JSON.parse(localStorage.getItem("n2k-media-last-artwork-v3")||"null")}catch(_){}
+   if(old?.artwork)saved={title:old.title||"",meta:old.subtitle||"",art:old.artwork};
+   if(saved)try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(_){}
+  }
+  if(!saved)return;
+  const tile=document.getElementById("overview-media-widget");
+  const titleNode=document.getElementById("overview-media-title");
+  const subtitleNode=document.getElementById("overview-media-subtitle");
+  const holder=document.getElementById("overview-media-art");
+  if(!tile||!holder)return;
+  if(saved.title&&titleNode)titleNode.textContent=saved.title;
+  if(saved.meta&&subtitleNode)subtitleNode.textContent=saved.meta;
+  if(validate(saved.art)){
+   let img=holder.querySelector("img.n2k-mirror-cover");
+   if(!img){
+    holder.replaceChildren();
+    img=document.createElement("img");
+    img.className="n2k-mirror-cover";
+    img.alt="Senderlogo oder Albumcover";
+    img.referrerPolicy="no-referrer";
+    img.addEventListener("load",()=>{holder.dataset.imageState="ok"});
+    img.addEventListener("error",()=>{
+      holder.dataset.imageState="missing";
+      holder.title="Cover vom Anbieter nicht erreichbar";
+    });
+    holder.appendChild(img);
+   }
+   if(img.getAttribute("src")!==saved.art)img.src=saved.art;
+   holder.classList.add("has-artwork");
+  }
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",read);
+ else read();
+ setInterval(read,2000);
+})();
