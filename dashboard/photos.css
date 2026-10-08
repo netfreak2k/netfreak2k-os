@@ -26,3 +26,14 @@
 #photos-panel .n2k-photo-item-actions{display:flex;justify-content:space-between;gap:4px;padding:6px}
 #photos-panel .n2k-photo-item-actions button{background:rgba(19,52,78,.8);color:#d7e9f6;border:1px solid rgba(116,158,195,.2);border-radius:7px;padding:7px 6px;font-size:11px;cursor:pointer}
 @media(max-width:600px){#photos-panel #n2k-photos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#photos-panel .n2k-photo-item-actions button{font-size:10px}}
+
+/* Fotogalery v0.4 image editing */
+#n2k-photo-editor[hidden]{display:none}
+#n2k-photo-editor{position:fixed;inset:0;z-index:10001;background:rgba(3,10,20,.97);padding:18px;display:grid;place-items:center;overflow:auto}
+#n2k-photo-editor .n2k-editor-shell{width:min(950px,100%);max-height:95vh;overflow:auto;display:flex;flex-direction:column;gap:16px;padding:18px;background:#102337;border:1px solid #335d79;border-radius:16px;color:#f4faff}
+#n2k-editor-preview{display:block;max-width:100%;max-height:55vh;width:auto;height:auto;object-fit:contain;margin:auto}
+#n2k-photo-editor .n2k-editor-controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+#n2k-photo-editor .n2k-editor-controls label{display:flex;gap:8px;align-items:center;font-size:13px}
+#n2k-photo-editor button{padding:10px 15px;color:#f4faff;background:#1a496c;border:1px solid #45718f;border-radius:8px;cursor:pointer}
+#n2k-photo-editor .n2k-editor-buttons{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+#n2k-photo-viewer .n2k-photo-top-actions{display:flex;gap:8px}
