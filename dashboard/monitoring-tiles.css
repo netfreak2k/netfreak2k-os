@@ -133,3 +133,47 @@
 @media(max-width:1750px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .mini-metric.n2k-monitor-card,#dashboard-top .widget-grid>.widget{padding:7px}#dashboard-top .n2k-monitor-card .metric-ring{width:53px;height:53px;min-width:53px;min-height:53px}#dashboard-top .n2k-monitor-card .n2k-monitor-copy{gap:1px}}
+
+/* V7 micro-square overview: halve tile edge rather than shrinking only charts. */
+#dashboard-top .mini-metrics,
+#dashboard-top .widget-grid{
+ display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:start
+}
+#dashboard-top .mini-metrics>.n2k-monitor-card,
+#dashboard-top .widget-grid>.widget{
+ grid-column:span 1!important;grid-row:auto!important;
+ aspect-ratio:1/1!important;width:100%;height:auto!important;min-height:0!important;
+ max-height:none!important;padding:6px!important;border-radius:9px!important;gap:2px;overflow:hidden
+}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title{font-size:9px;gap:2px;min-height:14px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title .n2k-health{font-size:0}
+#dashboard-top .n2k-monitor-card .n2k-monitor-title .n2k-health i{width:6px;height:6px;margin:0}
+#dashboard-top .n2k-monitor-card .n2k-monitor-body{display:flex;justify-content:center;min-height:0;padding:1px 0;gap:0}
+#dashboard-top .n2k-monitor-card .metric-ring{height:clamp(39px,4.1vw,58px);width:clamp(39px,4.1vw,58px);min-height:0;min-width:0}
+#dashboard-top .n2k-monitor-card .metric-ring .ring-value{font-size:clamp(12px,1vw,16px)}
+#dashboard-top .n2k-monitor-card .metric-ring .ring-unit{font-size:8px}
+#dashboard-top .n2k-monitor-card .n2k-monitor-copy{display:none}
+#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:20px;min-height:20px;margin:0}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-body{flex:1}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:17px}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{color:#ffcf81;font-size:9px}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-spark{display:none}
+#dashboard-top .widget-grid>.widget .widget-head h3{font-size:9px}
+#dashboard-top .widget-grid>.widget .widget-head small{font-size:7px}
+#dashboard-top .widget-grid>.widget .widget-head{margin:0}
+#dashboard-top .widget-grid .network-values strong{font-size:10px}
+#dashboard-top .widget-grid .network-widget canvas{height:20px}
+#dashboard-top .widget-grid .network-widget .widget-detail-lines{display:none}
+#dashboard-top .widget-grid .drive-widget-body{gap:2px}
+#dashboard-top .widget-grid .drive-donut{width:43px;height:43px;min-width:43px;min-height:43px}
+#dashboard-top .widget-grid .widget-stat-copy span{display:none}
+#dashboard-top .widget-grid .overview-list{font-size:9px}
+#dashboard-top .widget-grid .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+#dashboard-top .widget-grid .quick-grid button{min-height:20px;padding:2px;font-size:8px}
+#dashboard-top .widget-grid .overview-media-widget .overview-media-now{display:none}
+#dashboard-top .widget-grid .overview-media-widget .overview-media-controls{gap:2px}
+#dashboard-top .n2k-network-alert:not([hidden]){max-height:24px;font-size:8px;padding:2px}
+@media(max-width:1700px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@media(max-width:1150px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(max-width:750px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:460px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#dashboard-top .mini-metrics>.n2k-monitor-card,#dashboard-top .widget-grid>.widget{padding:8px!important}#dashboard-top .n2k-monitor-card .n2k-monitor-copy{display:flex}#dashboard-top .n2k-monitor-card .n2k-monitor-body{gap:7px}#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:26px;min-height:26px}}
