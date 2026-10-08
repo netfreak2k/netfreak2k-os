@@ -54,6 +54,7 @@ function render(){
  const years=[...new Set(items.map(i=>date(i)?.getFullYear()).filter(Boolean))].sort((a,b)=>b-a);
  const pick=$("n2k-photo-year");if(pick){pick.replaceChildren(new Option("Alle Jahre","all"),...years.map(y=>new Option(String(y),String(y))));pick.value=year;pick.hidden=tab!=="timeline";}
  document.querySelectorAll("[data-photo-view]").forEach(b=>b.classList.toggle("active",b.dataset.photoView===tab));
+ const exportAlbum=$("n2k-photo-export-album");if(exportAlbum)exportAlbum.disabled=!(tab==="albums"&&album);
  const back=$("n2k-photos-back");if(back){back.disabled=!(tab==="albums"&&album);back.textContent=album?"← Alben":"← Zurück";}
  $("n2k-photos-path").textContent=album?"Album / "+album:"Alle Ordner · "+items.length+" Fotos";
  if(tab==="albums"&&!album){Object.keys(metadata.albums).sort().forEach(name=>{const b=el("button","n2k-photo-folder","▤ "+name+" · "+metadata.albums[name].length+" Fotos");b.type="button";b.onclick=()=>{album=name;render()};grid.append(b)});if(!grid.children.length)grid.append(el("p",null,"Noch keine Alben – lege eines an."));updateSelection();return;}
@@ -146,8 +147,28 @@ async function trashSelected(){
  await load();notify(moved+" Foto(s) in den Papierkorb verschoben.");
  }catch(e){notify("Nach "+moved+" Dateien abgebrochen: "+e.message)}finally{b.disabled=false}
 }
+
+async function exportPhotos(full=false){
+ const b=$(full?"n2k-photo-export-all":"n2k-photo-export-album");
+ if(!full&&!album){notify("Bitte zuerst ein Album öffnen.");return}
+ b.disabled=true;notify("ZIP-Export wird vorbereitet …");
+ try{
+  const q=new URLSearchParams();if(!full)q.set("album",album);
+  const response=await fetch("/api/photos/export?"+q,{credentials:"same-origin",cache:"no-store"});
+  if(!response.ok){const err=await response.json().catch(()=>({}));throw Error(err.error||"HTTP "+response.status)}
+  const blob=await response.blob();
+  const link=document.createElement("a"),address=URL.createObjectURL(blob);
+  link.href=address;link.download=full?"Fotogalery-Backup.zip":("Fotogalery-Album-"+album.replace(/[^a-z0-9_-]/gi,"_")+".zip");
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(address),60000);
+  notify("ZIP-Datei erstellt: "+(blob.size/1048576).toFixed(1)+" MB");
+ }catch(e){notify("Export fehlgeschlagen: "+e.message)}
+ finally{b.disabled=false}
+}
 function init(){
  $("n2k-photos-refresh")?.addEventListener("click",()=>tab==="trash"?showTrash():load());
+ $("n2k-photo-export-all")?.addEventListener("click",()=>exportPhotos(true));
+ $("n2k-photo-export-album")?.addEventListener("click",()=>exportPhotos(false));
  $("n2k-photos-search")?.addEventListener("input",e=>{search=e.target.value.toLocaleLowerCase("de");render()});
  $("n2k-photo-year")?.addEventListener("change",e=>{year=e.target.value;render()});
  document.querySelectorAll("[data-photo-view]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.photoView;album="";render()}));
