@@ -3337,3 +3337,15 @@ body::after{
  .topbar-desktop .topbar-welcome>strong{font-size:17px!important}
  .topbar-desktop .topbar-welcome>small{font-size:9px}
 }
+
+/* Overview strip: optional weather beside "System aktuell", never in clock. */
+.overview-inline-status{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0}
+.overview-inline-status #overview-health-copy{min-width:0;flex:1 1 auto}
+.overview-inline-weather{display:inline-flex;align-items:center;flex:0 0 auto;gap:6px;margin-left:auto;padding:6px 11px;border:1px solid rgba(110,177,220,.24);border-radius:999px;background:rgba(24,69,102,.7);color:#e4f6ff;font-size:12px;font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
+.overview-inline-weather[hidden]{display:none!important}
+/* Same original album artwork/station image as the Media Center. */
+#overview-media-widget .overview-media-now{display:flex;align-items:center;gap:12px;min-width:0}
+#overview-media-widget #overview-media-art{display:flex;align-items:center;justify-content:center;width:76px;height:76px;flex:0 0 76px;border-radius:12px;background-size:cover;background-position:center;background-repeat:no-repeat;background-color:rgba(12,34,55,.95);border:1px solid rgba(117,174,210,.23);overflow:hidden}
+#overview-media-widget #overview-media-art.has-artwork{color:transparent;font-size:0}
+#overview-media-widget .overview-media-now>div{flex:1;min-width:0}
+@media(max-width:680px){.overview-inline-weather{margin-left:0;padding:5px 8px;font-size:11px}#overview-media-widget #overview-media-art{width:64px;height:64px;flex-basis:64px}}
