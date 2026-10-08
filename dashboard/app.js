@@ -2048,8 +2048,23 @@ async function loadOverview() {
 
     const warningBox = document.getElementById("overview-warning");
     const warnings = data.health?.warnings || [];
-    if (warnings.length) {
-      const warning = warnings[0];
+    const isNetworkDeviceWarning = warning => {
+      const target = String(warning.target || "").toLowerCase();
+      const copy = String(warning.title || "") + " " + String(warning.detail || "");
+      return /(?:^|[-_])network(?:[-_]|$)/.test(target) && /gerät|device|heimnetz|client/i.test(copy);
+    };
+    const deviceWarnings = warnings.filter(isNetworkDeviceWarning);
+    const deviceAlert = document.getElementById("network-device-alert");
+    if (deviceAlert && deviceWarnings.length) {
+      deviceAlert.textContent = deviceWarnings.map(w => w.title || w.detail).join(" · ");
+      deviceAlert.hidden = false;
+    } else if (deviceAlert) {
+      deviceAlert.hidden = true;
+      deviceAlert.textContent = "";
+    }
+    const overviewWarnings = warnings.filter(w => !isNetworkDeviceWarning(w));
+    if (overviewWarnings.length) {
+      const warning = overviewWarnings[0];
       warningBox.innerHTML = '<div><strong></strong><span></span></div><button>Öffnen</button>';
       warningBox.querySelector("strong").textContent = warning.title;
       warningBox.querySelector("span").textContent = warning.detail;
