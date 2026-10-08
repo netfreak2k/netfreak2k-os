@@ -25,8 +25,18 @@ function setMetric(type,value,info,detail,max=100){
  const status=document.getElementById("n2k-"+type+"-status");
  const infoNode=document.getElementById("n2k-"+type+"-info");
  const detailNode=document.getElementById("n2k-"+type+"-detail");
- const card=document.querySelector('.n2k-monitor-card[data-metric="'+type+'"]');
- if(!status||!card)return;
+ const card=document.querySelector('.n2k-monitor-card[data-metric="'+(type==="fan"?"uptime":type)+'"]');
+ if(!card)return;
+ if(type==="fan"){
+   const fanNumber=card.querySelector("#n2k-combined-fan-value");
+   const fanStatus=card.querySelector("#n2k-combined-fan-status");
+   const ok=valid(value);
+   if(fanNumber)fanNumber.textContent=ok?Math.round(Number(value)).toLocaleString("de-DE")+" RPM":"– RPM";
+   if(fanStatus)fanStatus.textContent=ok?"Live · "+(info||"Sensor"):"Kein RPM-Sensor";
+   card.classList.toggle("n2k-fan-available",ok);
+   return;
+ }
+ if(!status)return;
  const ok=valid(value);
  status.textContent=ok?"Live":"Kein Sensor";
  status.classList.toggle("unavailable",!ok);
@@ -112,7 +122,18 @@ function start(){
 wireUpdateShortcut();
 const grid=document.querySelector("#dashboard-top .mini-metrics");if(!grid||grid.dataset.n2kReady)return;grid.dataset.n2kReady="1";
 for(const [i,type] of ["cpu","ram","storage","uptime"].entries())if(grid.children[i])decorate(grid.children[i],type);
-grid.append(makeCard("temperature","n2k-temperature","CPU"),makeCard("fan","n2k-fan","Lüfterdrehzahl"));
+grid.append(makeCard("temperature","n2k-temperature","CPU"));
+const combined=grid.querySelector('[data-metric="uptime"]');
+if(combined){
+ combined.classList.add("n2k-uptime-fan");
+ const heading=combined.querySelector(".n2k-monitor-title > span");
+ if(heading)heading.textContent="Uptime & Lüfter";
+ const fanArea=document.createElement("div");
+ fanArea.className="n2k-combined-fan";
+ fanArea.innerHTML='<span class="n2k-combined-fan-icon" aria-hidden="true">✣</span><div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">Sensor wird geprüft</small></div>';
+ combined.appendChild(fanArea);
+ combined.setAttribute("aria-label","Betriebsdauer und Lüfterdrehzahl");
+}
 poll();setInterval(poll,10000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
