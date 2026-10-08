@@ -2063,16 +2063,22 @@ async function loadOverview() {
       deviceAlert.textContent = "";
     }
     const overviewWarnings = warnings.filter(w => !isNetworkDeviceWarning(w));
-    if (overviewWarnings.length) {
-      const warning = overviewWarnings[0];
-      warningBox.innerHTML = '<div><strong></strong><span></span></div><button>Öffnen</button>';
-      warningBox.querySelector("strong").textContent = warning.title;
-      warningBox.querySelector("span").textContent = warning.detail;
-      warningBox.className = `overview-warning ${warning.level || "warning"}`;
-      warningBox.querySelector("button").addEventListener("click", () => switchView(warning.target));
-    } else {
-      warningBox.className = "overview-warning hidden";
-      warningBox.innerHTML = "";
+    if (overviewWarnings.length && warningBox) {
+      const warning = overviewWarnings.find(w => w.level === "critical") || overviewWarnings[0];
+      warningBox.replaceChildren();
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "n2k-status-alert-button";
+      const count = overviewWarnings.length;
+      trigger.textContent = "⚠ " + String(warning.title || "Systemhinweis").slice(0, 42) + (count > 1 ? " +" + (count - 1) : "");
+      trigger.title = [warning.title, warning.detail, count > 1 ? count + " aktive Hinweise" : ""].filter(Boolean).join(" · ");
+      trigger.setAttribute("aria-label", trigger.title);
+      trigger.addEventListener("click", () => switchView(warning.target || "health-panel"));
+      warningBox.appendChild(trigger);
+      warningBox.className = "overview-warning n2k-top-alert " + (warning.level || "warning");
+    } else if (warningBox) {
+      warningBox.className = "overview-warning n2k-top-alert hidden";
+      warningBox.replaceChildren();
     }
 
     renderActivity(data);
