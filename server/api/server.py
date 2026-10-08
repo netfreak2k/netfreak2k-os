@@ -2028,6 +2028,32 @@ def health_history_payload(period="24h"):
     ]
 
 
+def host_fan_sensors():
+    """Read actual tachometer values from Linux hwmon, if exposed to API container."""
+    found = []
+    base = HOST_SYS / "class" / "hwmon"
+    try:
+        for node in sorted(base.glob("hwmon*"))[:32]:
+            try:
+                chip = (node / "name").read_text(errors="replace").strip()[:64]
+            except (OSError, ValueError):
+                chip = node.name
+            for rpm_file in sorted(node.glob("fan*_input"))[:32]:
+                try:
+                    raw = int(rpm_file.read_text().strip())
+                    if raw < 0 or raw > 100000:
+                        continue
+                    prefix = rpm_file.name[:-6]
+                    label_file = node / (prefix + "_label")
+                    label = label_file.read_text(errors="replace").strip()[:64] if label_file.is_file() else prefix
+                    found.append({"name": label, "chip": chip, "rpm": raw})
+                except (OSError, ValueError):
+                    continue
+    except (OSError, ValueError):
+        pass
+    return found
+
+
 def system_health_payload(period="24h"):
     host = vm_agent("health_status")
     memory = parse_meminfo()
@@ -2045,6 +2071,7 @@ def system_health_payload(period="24h"):
         "network": network,
         "storage": host.get("storage") or {},
         "cpu_temperature": host.get("cpu_temperature") or {},
+        "fans": host.get("fans") or host_fan_sensors(),
         "smart": host.get("smart") or {},
         "docker": host.get("docker") or {},
         "services": host.get("services") or [],
