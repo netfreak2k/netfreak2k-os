@@ -199,3 +199,19 @@
 @media(max-width:850px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{gap:7px}}
+
+/* V10: merged uptime + fan, single square tile */
+#dashboard-top .n2k-monitor-card.n2k-uptime-fan{--n2k-accent:#eab968;justify-content:space-between}
+#dashboard-top .n2k-uptime-fan .n2k-monitor-body{flex:1;justify-content:flex-start;gap:8px;min-height:0}
+#dashboard-top .n2k-uptime-fan .n2k-monitor-copy{display:flex;gap:2px;min-width:0}
+#dashboard-top .n2k-uptime-fan .n2k-monitor-copy small{font-size:9px}
+#dashboard-top .n2k-uptime-fan .n2k-monitor-copy strong{font-size:10px;white-space:normal}
+#dashboard-top .n2k-uptime-fan .n2k-monitor-copy>span{display:none}
+#dashboard-top .n2k-uptime-fan .metric-ring{flex:none}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan{display:flex;align-items:center;gap:7px;padding:7px 3px 2px;border-top:1px solid rgba(150,177,207,.16);min-width:0}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-icon{color:#78a9c5;font-size:19px;line-height:1}
+#dashboard-top .n2k-uptime-fan.n2k-fan-available .n2k-combined-fan-icon{color:#1ddbe1}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-data{display:flex;flex-direction:column;gap:2px;min-width:0}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-data strong{font-size:clamp(11px,1vw,15px);font-weight:700;color:#f1f8ff}
+#dashboard-top .n2k-uptime-fan .n2k-combined-fan-data small{font-size:9px;color:#91a9bf}
+@media(max-width:460px){#dashboard-top .n2k-uptime-fan .n2k-monitor-body{gap:6px}#dashboard-top .n2k-uptime-fan .n2k-combined-fan{padding-top:4px}}
