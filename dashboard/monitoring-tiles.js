@@ -22,18 +22,36 @@ const spark=document.createElement("canvas");spark.className="n2k-monitor-spark"
 card.replaceChildren(title,body,spark);
 }
 function setMetric(type,value,info,detail,max=100){
-const status=document.getElementById("n2k-"+type+"-status"),text=document.getElementById("n2k-"+type+"-info"),extra=document.getElementById("n2k-"+type+"-detail");
-if(!status)return;
-const ok=valid(value);status.textContent=ok?"Live":"Nicht verfügbar";
-if(text&&info!==undefined)text.textContent=info;
-if(extra&&detail!==undefined)extra.textContent=detail;
-if(ok){const a=history[type]||(history[type]=[]);a.push(Math.min(max,Math.max(0,Number(value))));if(a.length>50)a.shift();}
-const card=document.querySelector('.n2k-monitor-card[data-metric="'+type+'"]');if(!card)return;
-if(type==="temperature"||type==="fan"){
- const center=card.querySelector(".metric-ring");center.style.background=ok?'conic-gradient(var(--n2k-accent) '+(Math.max(0,Math.min(100,Number(value)/max*100)))+'%, rgba(37,66,89,.4) 0)':'rgba(37,66,89,.4)';
- center.querySelector("span").textContent=ok?(type==="temperature"?Math.round(value)+" °C":Math.round(value)+" RPM"):"–";
-}
-draw(card.querySelector("canvas"),history[type]||[],max);
+ const status=document.getElementById("n2k-"+type+"-status");
+ const infoNode=document.getElementById("n2k-"+type+"-info");
+ const detailNode=document.getElementById("n2k-"+type+"-detail");
+ const card=document.querySelector('.n2k-monitor-card[data-metric="'+type+'"]');
+ if(!status||!card)return;
+ const ok=valid(value);
+ status.textContent=ok?"Live":"Kein Sensor";
+ status.classList.toggle("unavailable",!ok);
+ if(infoNode&&info!==undefined)infoNode.textContent=info;
+ if(detailNode&&detail!==undefined)detailNode.textContent=detail;
+ const ring=card.querySelector(".metric-ring");
+ if(ring){
+   const display=ring.querySelector("span");
+   let number="–",unit="";
+   if(ok){
+     if(type==="cpu"||type==="ram"||type==="storage"){number=Math.round(value)+"%";unit=""; }
+     else if(type==="temperature"){number=Math.round(value)+"°";unit="CPU";}
+     else if(type==="fan"){number=Math.round(value).toLocaleString("de-DE");unit="RPM";}
+     else if(type==="uptime"){number="Online";unit="Uptime";}
+   }
+   if(display){
+     display.replaceChildren();
+     const n=document.createElement("strong");n.className="ring-value";n.textContent=number;
+     const u=document.createElement("small");u.className="ring-unit";u.textContent=unit;
+     display.append(n,u);
+   }
+   ring.style.setProperty("--n2k-fill",ok?Math.min(100,Math.max(0,Number(value)/max*100))+"%":"0%");
+ }
+ if(ok){const items=history[type]||(history[type]=[]);items.push(Math.max(0,Number(value)));if(items.length>50)items.shift();}
+ draw(card.querySelector("canvas"),history[type]||[],max);
 }
 function draw(canvas,values,max){
  if(!canvas||!canvas.isConnected)return;
