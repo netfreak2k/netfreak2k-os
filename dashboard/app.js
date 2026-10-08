@@ -4074,6 +4074,63 @@ async function copyText(text) {
   }
 }
 
+// OS-native messenger; HA bridge stays completely separate.
+async function refreshNativeMessenger() {
+  const status = document.getElementById("n2k-native-state");
+  if (!status) return;
+  try {
+    const [state, contacts, inbox] = await Promise.all([
+      request("/api/messenger/status"), request("/api/messenger/contacts"), request("/api/messenger/messages")
+    ]);
+    status.textContent = state.online ? "● Reticulum / LXMF bereit" : "○ Nicht bereit: " + (state.error || "offline");
+    document.getElementById("n2k-native-id").value = state.identity || "";
+    const contactBox = document.getElementById("n2k-native-contacts");
+    contactBox.replaceChildren();
+    (contacts.contacts || []).forEach(item => {
+      const button = document.createElement("button");
+      button.className = "secondary compact";
+      button.textContent = (item.name || "Kontakt") + " · " + (item.destination || "").slice(0,8);
+      button.onclick = () => { document.getElementById("n2k-send-dest").value = item.destination || ""; };
+      contactBox.appendChild(button);
+    });
+    if (!contactBox.childNodes.length) contactBox.textContent = "Noch keine Kontakte";
+    const messageBox = document.getElementById("n2k-native-messages");
+    messageBox.replaceChildren();
+    (inbox.messages || []).slice(-30).reverse().forEach(item => {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px;border-bottom:1px solid #7774;overflow-wrap:anywhere";
+      const title = document.createElement("strong");
+      title.textContent = item.direction === "in" ? "Empfangen" : "Gesendet / eingereiht";
+      const body = document.createElement("div");
+      body.textContent = String(item.content || "");
+      row.append(title, body);
+      messageBox.appendChild(row);
+    });
+    if (!messageBox.childNodes.length) messageBox.textContent = "Noch keine Nachrichten";
+  } catch (err) {
+    status.textContent = "Native Messenger-Verbindung nicht verfügbar";
+  }
+}
+async function nativeMessengerSubmit(endpoint, payload) {
+  try {
+    await request("/api/messenger/" + endpoint, {method:"POST",headers:{"X-CSRF-Token":csrfToken},body:JSON.stringify(payload)});
+    showN2KToast(endpoint === "contacts" ? "Kontakt gespeichert" : "Nachricht an LXMF übergeben");
+    await refreshNativeMessenger();
+  } catch (err) {
+    showN2KToast("Messenger: " + (err.message || "Fehler"), "error");
+  }
+}
+document.getElementById("n2k-native-refresh")?.addEventListener("click", refreshNativeMessenger);
+document.getElementById("n2k-contact-save")?.addEventListener("click", () => nativeMessengerSubmit("contacts", {
+  name: document.getElementById("n2k-contact-name").value,
+  destination: document.getElementById("n2k-contact-dest").value
+}));
+document.getElementById("n2k-send-button")?.addEventListener("click", () => nativeMessengerSubmit("messages", {
+  content: document.getElementById("n2k-send-content").value,
+  destination: document.getElementById("n2k-send-dest").value
+}));
+refreshNativeMessenger();
+
 // The Messenger runs inside the Home Assistant add-on; do not request or expose HA tokens.
 async function refreshN2KRnsStatus() {
   const node = document.getElementById("n2k-rns-ha-status");
