@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile4">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-14">
   <link rel="stylesheet" href="photos.css?v=20261008-10">
+  <link rel="stylesheet" href="ollama-chat.css?v=20261008-1">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -1672,7 +1673,14 @@
               <div><p class="eyebrow">N2K AI WORKSPACE</p><h2>KI-Arbeitsplatz</h2><p>Vier parallele Chat-Slots. Heute ChatGPT, später zusätzlich lokale KI.</p></div>
               <span class="state-pill">4 PANE</span>
             </div>
-<section class="n2k-ollama-panel"><h3>Ollama · Lokale KI</h3><p>Ollama läuft auf diesem Server mit begrenztem RAM. Modell: qwen3.5:0.8b. Lokaler Endpunkt: <code>127.0.0.1:11434</code>.</p><p>Das Modell wird bei Bedarf geladen und danach wieder entladen. Der direkte Chat im Server-OS wird separat ergänzt.</p></section>
+<section class="n2k-ollama-panel" aria-label="Lokaler Ollama Chat">
+  <div class="n2k-ollama-head"><div><p class="eyebrow">N2K LOCAL AI</p><h3>Ollama Chat</h3><p>Qwen3.5 0.8B · CPU · 2K Kontext · Thinking aus</p></div><span id="n2k-ollama-state" class="state-pill">Prüfe …</span></div>
+  <div id="n2k-ollama-history" class="n2k-ollama-history" role="log" aria-live="polite"><p class="n2k-ollama-empty">Stelle deine erste Frage an Ollama.</p></div>
+  <label for="n2k-ollama-input">Deine Nachricht</label>
+  <textarea id="n2k-ollama-input" rows="3" maxlength="2000" placeholder="Frage an die lokale KI …"></textarea>
+  <div class="n2k-ollama-actions"><button type="button" id="n2k-ollama-send">Senden</button><button type="button" id="n2k-ollama-new" class="secondary">Neuer Chat</button><button type="button" id="n2k-ollama-refresh" class="secondary">Status prüfen</button></div>
+  <p class="n2k-ollama-hint" id="n2k-ollama-note">Alles lokal. Modell wird nach jeder Antwort entladen. Bestehende Ollama-RAM-Grenze bleibt aktiv.</p>
+</section>
             <div class="ai-pane-grid">
               <section class="ai-pane" data-ai-pane="1"><div class="ai-pane-head"><strong>Chat 1</strong><span>ChatGPT</span></div><div class="ai-chat-history" id="ai-history-1"><div class="ai-empty">Noch keine lokale Notiz.</div></div><textarea id="ai-input-1" placeholder="Prompt / Kontext für Chat 1 …"></textarea><div class="ai-pane-actions"><button class="secondary compact ai-copy-open" data-pane="1">In ChatGPT öffnen</button><button class="mini-action ai-save-note" data-pane="1">Notiz merken</button></div></section>
               <section class="ai-pane" data-ai-pane="2"><div class="ai-pane-head"><strong>Chat 2</strong><span>ChatGPT</span></div><div class="ai-chat-history" id="ai-history-2"><div class="ai-empty">Noch keine lokale Notiz.</div></div><textarea id="ai-input-2" placeholder="Prompt / Kontext für Chat 2 …"></textarea><div class="ai-pane-actions"><button class="secondary compact ai-copy-open" data-pane="2">In ChatGPT öffnen</button><button class="mini-action ai-save-note" data-pane="2">Notiz merken</button></div></section>
@@ -1697,5 +1705,6 @@
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
 <div id="n2k-photo-editor" class="n2k-photo-editor" role="dialog" aria-modal="true" aria-label="Bildeditor" hidden><div class="n2k-editor-shell"><h2>Foto bearbeiten</h2><canvas id="n2k-editor-preview"></canvas><div class="n2k-editor-controls"><button id="n2k-editor-rotate">↻ 90° drehen</button><label>Helligkeit <input id="n2k-editor-brightness" type="range" min="30" max="170" value="100"></label><label>Kontrast <input id="n2k-editor-contrast" type="range" min="30" max="170" value="100"></label><label><input id="n2k-editor-crop" type="checkbox"> Quadratisch zuschneiden</label></div><div class="n2k-editor-buttons"><button id="n2k-editor-cancel">Abbrechen</button><button id="n2k-editor-save">Als neue Datei speichern</button></div></div></div>
-  </body>
+  <script src="ollama-chat.js?v=20261008-1"></script>
+</body>
 </html>
