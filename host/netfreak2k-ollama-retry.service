@@ -1,0 +1,9 @@
+[Unit]
+Description=Netfreak2k local Ollama installation recovery
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/netfreak2k/retry-ollama.sh
+TimeoutStartSec=12min
