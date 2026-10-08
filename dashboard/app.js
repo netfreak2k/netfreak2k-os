@@ -5556,6 +5556,13 @@ async function loadTorRelayStatus() {
     const result = await request("/api/tor/relay");
     if (!result.available) throw Error(result.error || "Host-Agent nicht erreichbar");
     status.textContent = result.running ? "● Aktiv · TCP " + result.port : result.installed ? "○ Installiert · ausgeschaltet" : "○ Aus · nicht installiert";
+    const up = document.getElementById("tor-relay-uptime");
+    const traffic = document.getElementById("tor-relay-traffic");
+    if (up) {
+      const seconds = result.running && result.started_at ? Math.max(0, Math.floor((Date.now() - Date.parse(result.started_at)) / 1000)) : 0;
+      up.textContent = result.running && Number.isFinite(seconds) ? "Laufzeit: " + Math.floor(seconds / 3600) + " h " + Math.floor(seconds % 3600 / 60) + " min" : "Laufzeit: –";
+    }
+    if (traffic) traffic.textContent = result.running && result.traffic ? "Netzwerk RX / TX: " + result.traffic : "Netzwerk: –";
     enable.disabled = Boolean(result.running);
     disable.disabled = !result.running;
   } catch (error) {
@@ -5581,6 +5588,7 @@ document.getElementById("tor-relay-enable")?.addEventListener("click", () => set
 document.getElementById("tor-relay-disable")?.addEventListener("click", () => setTorRelay(false));
 document.getElementById("tor-relay-refresh")?.addEventListener("click", loadTorRelayStatus);
 loadTorRelayStatus();
+setInterval(() => { if (!document.hidden && document.getElementById("tor-relay-status")) loadTorRelayStatus(); }, 30000);
 
 function setTorControlState({installed=false, running=false, error=false} = {}) {
   const dot = document.getElementById("overview-tor-dot");
