@@ -5,7 +5,20 @@ let path="",photos=[],index=0,view="timeline",activeAlbum="";
 const stateKey="n2k-fotogalery-v03";
 function readState(){try{const x=JSON.parse(localStorage.getItem(stateKey)||"{}");return {favorites:Array.isArray(x.favorites)?x.favorites:[],albums:x.albums&&typeof x.albums==="object"?x.albums:{}}}catch{return {favorites:[],albums:{}}}}
 let photoState=readState();
-function saveState(){localStorage.setItem(stateKey,JSON.stringify(photoState))}
+let serverMetaReady=false;
+async function fetchState(){
+ try{
+  const r=await fetch("/api/photos/metadata",{credentials:"same-origin",cache:"no-store"});
+  if(!r.ok)throw Error("Metadata API: "+r.status);
+  const d=await r.json();
+  photoState={favorites:Array.isArray(d.favorites)?d.favorites:[],albums:d.albums&&typeof d.albums==="object"?d.albums:{}};
+  serverMetaReady=true;
+ }catch(e){console.warn("Fotogalery metadata:",e);serverMetaReady=false;}
+}
+function saveState(){
+ localStorage.setItem(stateKey,JSON.stringify(photoState));
+ if(serverMetaReady)fetch("/api/photos/metadata",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":typeof csrfToken!=="undefined"?csrfToken:""},body:JSON.stringify(photoState)}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status)}).catch(e=>console.error("Fotogalery speichern:",e));
+}
 function photoKey(item){return [path,item.name].filter(Boolean).join("/")}
 function stamp(item){const n=Number(item.modified_at);return Number.isFinite(n)&&n>0?(n>1e12?n:n*1000):0}
 
@@ -63,7 +76,42 @@ async function load(){
 }
 function openPhoto(i){if(i<0||!photos[i])return;index=i;const modal=$("n2k-photo-viewer");modal.hidden=false;showPhoto();}
 function showPhoto(){const photo=photos[index];if(!photo)return;$("n2k-photo-full").src=source(photo.name);$("n2k-photo-full").alt=photo.name;$("n2k-photo-caption").textContent=photo.name+(fmt(photo.modified_at)?" · "+fmt(photo.modified_at):"");}
-function init(){
+async 
+let editorImage=null,rotation=0;
+function openEditor(){
+ const photo=photos[index];if(!photo)return;
+ const image=new Image();image.onload=()=>{editorImage=image;rotation=0;$("n2k-editor-brightness").value=100;$("n2k-editor-contrast").value=100;$("n2k-editor-crop").checked=false;$("n2k-photo-editor").hidden=false;renderEditor()};image.onerror=()=>alert("Bild konnte nicht geladen werden.");image.src=source(photo.name);
+}
+function editedCanvas(full=false){
+ if(!editorImage)return null;
+ const square=$("n2k-editor-crop").checked;
+ const sourceSize=square?Math.min(editorImage.naturalWidth,editorImage.naturalHeight):0;
+ const sw=square?sourceSize:editorImage.naturalWidth,sh=square?sourceSize:editorImage.naturalHeight;
+ const limit=full?4096:900,scale=Math.min(1,limit/Math.max(sw,sh));
+ const w=Math.max(1,Math.round(sw*scale)),h=Math.max(1,Math.round(sh*scale));
+ const canvas=document.createElement("canvas");canvas.width=rotation%180?h:w;canvas.height=rotation%180?w:h;
+ const ctx=canvas.getContext("2d");ctx.filter="brightness("+Number($("n2k-editor-brightness").value)+"%) contrast("+Number($("n2k-editor-contrast").value)+"%)";
+ ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(rotation*Math.PI/180);
+ const sx=square?(editorImage.naturalWidth-sw)/2:0,sy=square?(editorImage.naturalHeight-sh)/2:0;
+ ctx.drawImage(editorImage,sx,sy,sw,sh,-w/2,-h/2,w,h);return canvas;
+}
+function renderEditor(){
+ const canvas=$("n2k-editor-preview"),src=editedCanvas();if(!canvas||!src)return;
+ canvas.width=src.width;canvas.height=src.height;canvas.getContext("2d").drawImage(src,0,0);
+}
+async function saveEdited(){
+ const photo=photos[index],canvas=editedCanvas(true);if(!photo||!canvas)return;
+ const btn=$("n2k-editor-save");btn.disabled=true;
+ try{
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.9));if(!blob)throw Error("Bildexport fehlgeschlagen");
+  const name=photo.name.replace(/\.[^.]+$/,"")+"-bearbeitet-"+Date.now()+".jpg";
+  const res=await fetch("/api/workspace/upload?"+query({name,replace:"0"}),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"image/jpeg","X-CSRF-Token":typeof csrfToken!=="undefined"?csrfToken:""},body:blob});
+  if(!res.ok){const data=await res.json().catch(()=>({}));throw Error(data.error||"HTTP "+res.status)}
+  $("n2k-photo-editor").hidden=true;$("n2k-photo-viewer").hidden=true;await load();
+ }catch(e){alert("Speichern fehlgeschlagen: "+e.message)}finally{btn.disabled=false}
+}
+async function init(){
+ await fetchState();
  $("n2k-photos-refresh")?.addEventListener("click",load);
  document.querySelectorAll("[data-photo-view]").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.photoView;activeAlbum="";load()}));
  $("n2k-photo-new-album")?.addEventListener("click",()=>{const name=prompt("Neues Album:");if(!name||!name.trim())return;const clean=name.trim();if(!Object.prototype.hasOwnProperty.call(photoState.albums,clean))photoState.albums[clean]=[];saveState();view="albums";activeAlbum=clean;load()});
@@ -96,6 +144,11 @@ function init(){
    }catch(e){status.textContent="Fotoimport fehlgeschlagen: "+e.message;}
    finally{button.disabled=false;}
  });
+ $("n2k-photo-edit")?.addEventListener("click",openEditor);
+ $("n2k-editor-cancel")?.addEventListener("click",()=>{$("n2k-photo-editor").hidden=true});
+ $("n2k-editor-rotate")?.addEventListener("click",()=>{rotation=(rotation+90)%360;renderEditor()});
+ ["brightness","contrast","crop"].forEach(name=>$("n2k-editor-"+name)?.addEventListener("input",renderEditor));
+ $("n2k-editor-save")?.addEventListener("click",saveEdited);
  $("n2k-photo-close")?.addEventListener("click",()=>{$("n2k-photo-viewer").hidden=true});
  $("n2k-photo-prev")?.addEventListener("click",()=>{index=(index-1+photos.length)%photos.length;showPhoto()});
  $("n2k-photo-next")?.addEventListener("click",()=>{index=(index+1)%photos.length;showPhoto()});
