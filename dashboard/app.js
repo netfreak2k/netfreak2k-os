@@ -7543,3 +7543,21 @@ function initWeatherSettings(){
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>n2kOverviewLastArtwork(null));else n2kOverviewLastArtwork(null);
+
+/* Read-only status-strip resource widgets. */
+(function(){
+ async function refresh(){
+  const cpu=document.getElementById("n2k-top-cpu"),ram=document.getElementById("n2k-top-ram");
+  if(!cpu||!ram||document.getElementById("app-shell")?.classList.contains("hidden"))return;
+  try{
+   const res=await fetch("/api/overview",{credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)return;
+   const d=await res.json();
+   const cp=Number(d.cpu_percent),rp=Number(d.memory?.used_percent);
+   cpu.textContent="CPU "+(Number.isFinite(cp)?Math.round(cp)+"%":"–");
+   ram.textContent="RAM "+(Number.isFinite(rp)?Math.round(rp)+"%":"–");
+  }catch(_){}
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",refresh);else refresh();
+ setInterval(refresh,30000);
+})();
