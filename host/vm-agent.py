@@ -3610,12 +3610,16 @@ def start_linux_upgrade():
 
 def ollama_local_status():
     try:
+        setup=json.loads(Path("/var/lib/netfreak2k/ollama-setup-status.json").read_text())
+    except (OSError,ValueError):
+        setup={}
+    try:
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=3) as resp:
             data=json.load(resp)
         models=[m.get("name","") for m in data.get("models",[])]
-        return {"running":True,"models":models,"model":"qwen2.5:0.5b"}
+        return {"running":True,"models":models,"model":"qwen2.5:0.5b","ready":"qwen2.5:0.5b" in models,"setup":setup}
     except (OSError, ValueError, urllib.error.URLError):
-        return {"running":False,"models":[],"model":"qwen2.5:0.5b"}
+        return {"running":False,"models":[],"model":"qwen2.5:0.5b","ready":False,"setup":setup}
 
 def ollama_local_chat(messages):
     if not isinstance(messages,list) or not 1 <= len(messages) <= 12:
