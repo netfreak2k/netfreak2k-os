@@ -21,7 +21,7 @@ async function send(){
   if(!session.authenticated||!session.csrf)throw Error("Bitte erneut anmelden");
   const r=await fetch("/api/ollama/chat",{method:"POST",credentials:"same-origin",
    headers:{"Content-Type":"application/json","X-CSRF-Token":session.csrf},
-   body:JSON.stringify({messages})});
+   body:JSON.stringify({messages,system_context:true})});
   const d=await r.json();if(!r.ok||d.error)throw Error(d.error||"HTTP "+r.status);
   messages.push({role:"assistant",content:d.reply||"Keine Antwort erhalten"});render();
   $("n2k-ollama-note").textContent="Antwort abgeschlossen · Ollama bleibt lokal";
@@ -29,6 +29,13 @@ async function send(){
  finally{busy=false;sendButton.disabled=false;}
 }
 sendButton.addEventListener("click",send);
+document.querySelectorAll("[data-n2k-ai-prompt]").forEach(button=>{
+ button.addEventListener("click",()=>{
+   if(busy)return;
+   input.value=button.dataset.n2kAiPrompt||"";
+   send();
+ });
+});
 $("n2k-ollama-new")?.addEventListener("click",()=>{messages=[];render();});
 $("n2k-ollama-refresh")?.addEventListener("click",status);
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}});
