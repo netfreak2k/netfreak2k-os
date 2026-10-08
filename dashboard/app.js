@@ -7538,7 +7538,7 @@ function initWeatherSettings(){
   input.value="";suggestions.hidden=true;saveWeatherLocation("");
  });
  input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveWeatherLocation(input.value.trim());}});
- setInterval(()=>{const badge=document.getElementById("n2k-top-weather");if(badge&&!badge.hidden)updateTopWeather(true);},15*60*1000);
+ setInterval(()=>{const badge=document.getElementById("overview-inline-weather");if(badge&&!badge.hidden)updateTopWeather(true);},15*60*1000);
 }
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWeatherSettings);else initWeatherSettings();
