@@ -107,7 +107,7 @@
 #dashboard-top .widget-grid .matrix-widget canvas{height:100%;max-height:160px}
 #dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:15px}
 #dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{font-size:9px}
-#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-spark{visibility:hidden}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-spark{display:none}
 @media(max-width:1750px){#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#dashboard-top .widget-grid>.widget{min-height:145px;max-height:185px;padding:9px 8px}}
