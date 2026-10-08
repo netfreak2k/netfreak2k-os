@@ -173,7 +173,7 @@ write_progress "running" 92 "restart" "Neue Webplattform und HTTPS-Gateway wurde
 
 mkdir -p "${STATE_DIR}"
 product_version="$(tr -d '\\r\\n' < "${N2K_DIR}/VERSION" 2>/dev/null || true)"
-printf '{"repo":"%s","ref":"%s","version":"%s","revision":"%s","fingerprint":"%s","installed_at":%s}\\n'   "${N2K_REPO}" "${N2K_REF}" "${product_version}" "${revision}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
+printf '{"repo":"%s","ref":"%s","version":"%s","revision":"%s","fingerprint":"%s","installed_at":%s}\n'   "${N2K_REPO}" "${N2K_REF}" "${product_version}" "${revision}" "${archive_fingerprint}" "$(date +%s)" > "${STATE_DIR}/version.json"
 
 write_progress "running" 97 "verify" "Installierter Stand wird geprueft."
 "${N2K_DIR}/scripts/check-updates.sh" || true
