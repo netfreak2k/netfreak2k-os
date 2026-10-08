@@ -2198,6 +2198,7 @@ def update_payload():
         "fingerprint": version.get("fingerprint") or status.get("installed_fingerprint"),
         "installed_at": version.get("installed_at"),
     }
+    status["host_updates"] = read_json_file(Path("/host/netfreak2k/host-update-status.json"))
     status["progress"] = progress or {
         "state": "idle",
         "progress": 0,
