@@ -3349,3 +3349,9 @@ body::after{
 #overview-media-widget #overview-media-art.has-artwork{color:transparent;font-size:0}
 #overview-media-widget .overview-media-now>div{flex:1;min-width:0}
 @media(max-width:680px){.overview-inline-weather{margin-left:0;padding:5px 8px;font-size:11px}#overview-media-widget #overview-media-art{width:64px;height:64px;flex-basis:64px}}
+
+/* Weather belongs exclusively beside Updates in the upper status bar. */
+.topbar .topbar-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.topbar .topbar-title-line .n2k-top-weather{display:inline-flex;align-items:center;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700;flex-shrink:0}
+.topbar .topbar-title-line .n2k-top-weather[hidden]{display:none!important}
+@media(max-width:820px){.topbar .topbar-title-line .n2k-top-weather:not([hidden]){display:inline-flex!important;max-width:95px;padding:5px 7px;font-size:10px}.topbar .topbar-title-line{flex-wrap:wrap!important}}
