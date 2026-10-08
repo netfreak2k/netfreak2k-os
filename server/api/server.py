@@ -1562,6 +1562,26 @@ def workspace_mkdir(username, area, rel, name):
     return {"created": True, "name": name}
 
 
+def photogalery_trash(username):
+    trash = workspace_base(username, "trash")
+    with db_connect() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS workspace_trash_origins (username TEXT, trash_name TEXT, area TEXT, rel TEXT, PRIMARY KEY(username,trash_name))")
+        origins = {row[0]: (row[1], row[2]) for row in conn.execute("SELECT trash_name,area,rel FROM workspace_trash_origins WHERE username=?", (username,))}
+    result = []
+    if trash.is_dir():
+        for file in trash.iterdir():
+            if not file.is_file() or file.is_symlink() or file.suffix.lower() not in {".jpg",".jpeg",".png",".webp",".gif",".bmp",".avif"}:
+                continue
+            origin = origins.get(file.name)
+            if origin and origin[0] != "media":
+                continue
+            # Legacy image trash entries can originate in other areas; mark unknown origin.
+            result.append({"name": file.name, "original_name": re.sub(r"^[0-9]+-", "", file.name, count=1),
+                           "origin": "media" if origin else "unknown",
+                           "path": origin[1] if origin else "", "modified_at": int(file.stat().st_mtime)})
+    return {"items": sorted(result, key=lambda x: x["modified_at"], reverse=True)}
+
+
 def workspace_delete(username, area, rel, name):
     if not name or "/" in name or "\\" in name:
         raise ValueError("invalid_name")
@@ -1583,7 +1603,15 @@ def workspace_delete(username, area, rel, name):
     trash = ensure_workspace(username) / WORKSPACE_AREAS["trash"]
     stamp = int(time.time())
     destination = trash / f"{stamp}-{target.name}"
+    counter = 1
+    while destination.exists():
+        destination = trash / f"{stamp}-{counter}-{target.name}"
+        counter += 1
     shutil.move(str(target), str(destination))
+    with db_connect() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS workspace_trash_origins (username TEXT, trash_name TEXT, area TEXT, rel TEXT, PRIMARY KEY(username,trash_name))")
+        conn.execute("INSERT OR REPLACE INTO workspace_trash_origins VALUES(?,?,?,?)", (username, destination.name, area, str(safe_relative(rel))))
+        conn.commit()
     return {"deleted": True, "permanent": False}
 
 
@@ -1627,7 +1655,15 @@ def workspace_restore(username, name):
     if trash.resolve() not in source.parents or not source.exists():
         raise ValueError("not_found")
     restored_name = re.sub(r"^[0-9]+-", "", source.name, count=1) or source.name
-    destination_root = ensure_workspace(username) / WORKSPACE_AREAS["documents"]
+    with db_connect() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS workspace_trash_origins (username TEXT, trash_name TEXT, area TEXT, rel TEXT, PRIMARY KEY(username,trash_name))")
+        origin = conn.execute("SELECT area,rel FROM workspace_trash_origins WHERE username=? AND trash_name=?", (username, name)).fetchone()
+    # Legacy photo trash entries had no origin record. Restore those into media.
+    is_photo = source.is_file() and source.suffix.lower() in {".jpg",".jpeg",".png",".webp",".gif",".bmp",".avif"}
+    area = origin[0] if origin else ("media" if is_photo else "documents")
+    rel = origin[1] if origin else ""
+    destination_root = workspace_target(username, area, rel)[1]
+    destination_root.mkdir(parents=True, exist_ok=True)
     destination = destination_root / restored_name
     if destination.exists():
         stem = destination.stem
@@ -1635,7 +1671,10 @@ def workspace_restore(username, name):
         restored_name = f"{stem}-wiederhergestellt-{int(time.time())}{suffix}"
         destination = destination_root / restored_name
     shutil.move(str(source), str(destination))
-    return {"restored": True, "area": "documents", "name": restored_name}
+    with db_connect() as conn:
+        conn.execute("DELETE FROM workspace_trash_origins WHERE username=? AND trash_name=?", (username, name))
+        conn.commit()
+    return {"restored": True, "area": area, "path": rel, "name": restored_name}
 
 
 def workspace_search(username, query):
@@ -3528,6 +3567,13 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             self.send_json(photogalery_duplicates(session["username"]))
+            return
+
+        if path == "/photos/trash":
+            session = self.require_auth()
+            if not session:
+                return
+            self.send_json(photogalery_trash(session["username"]))
             return
 
         if path == "/photos/library":
