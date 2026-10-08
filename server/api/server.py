@@ -3832,7 +3832,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"results":[]})
                 return
             candidates = [typed]
-            short = re.sub(r"\\s*\\([^)]*\\)", "", typed).strip()
+            short = re.sub(r"\s*\([^)]*\)", "", typed).strip()
             if short != typed:
                 candidates.append(short)
             first = re.split(r"[, ]", short, maxsplit=1)[0]
