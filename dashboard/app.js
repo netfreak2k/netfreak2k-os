@@ -5571,7 +5571,7 @@ async function setTorRelay(enabled) {
   enable.disabled = true;
   disable.disabled = true;
   try {
-    await request("/api/tor/relay", {method:"POST",body:JSON.stringify({enabled,acknowledged:enabled})});
+    await request("/api/tor/relay", {method:"POST",body:JSON.stringify({enabled,acknowledged:enabled}),headers:{"X-CSRF-Token":csrfToken}});
     showN2KToast(enabled ? "Tor-Relay wird gestartet" : "Tor-Relay ausgeschaltet");
   } catch (error) {
     showN2KToast("Tor-Relay: " + (error.message || "Aktion fehlgeschlagen"), "error");
@@ -5624,6 +5624,7 @@ function setTorControlState({installed=false, running=false, error=false} = {}) 
 }
 
 async function loadTorBrowserStatus() {
+  loadTorRelayStatus();
   const state = document.getElementById("tor-browser-state");
   const wrap = document.getElementById("tor-browser-frame-wrap");
   if (!state || !wrap) return;
