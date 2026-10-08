@@ -1189,15 +1189,17 @@ def preferences_payload(username):
     wallpaper = prefs.get("wallpaper", "01-night-bay")
     if wallpaper not in WALLPAPER_IDS:
         wallpaper = "01-night-bay"
-    return {"wallpaper": wallpaper}
+    return {"wallpaper": wallpaper, "weather_location": prefs.get("weather_location", "")}
 
 
 def set_preference(username, key, value):
-    if key != "wallpaper":
+    if key not in ("wallpaper", "weather_location"):
         raise ValueError("invalid_preference")
-    value = str(value or "")
-    if value not in WALLPAPER_IDS:
+    value = str(value or "").strip()
+    if key == "wallpaper" and value not in WALLPAPER_IDS:
         raise ValueError("invalid_wallpaper")
+    if key == "weather_location" and (len(value) > 75 or (value and not re.fullmatch(r"[\wÄÖÜäöüß .,-]+", value, re.UNICODE))):
+        raise ValueError("invalid_weather_location")
     now = int(time.time())
     with db_connect() as conn:
         conn.execute(
@@ -3810,6 +3812,31 @@ class Handler(BaseHTTPRequestHandler):
             payload["webdav_url"] = "/dav/files/"
             payload["caldav_url"] = f'/dav/calendars/{quote(session["username"])}/default/'
             self.send_json(payload)
+            return
+
+        if path == "/preferences/weather":
+            session = self.require_auth()
+            if not session:
+                return
+            place = preferences_payload(session["username"]).get("weather_location", "").strip()
+            if not place:
+                self.send_json({"configured": False})
+                return
+            try:
+                from urllib.parse import urlencode
+                req = Request("https://geocoding-api.open-meteo.com/v1/search?" + urlencode({"name":place,"count":1,"language":"de","format":"json"}),headers={"User-Agent":"Netfreak2k-OS/1.0"})
+                with urlopen(req, timeout=6) as resp:
+                    places = json.load(resp).get("results",[])
+                if not places:
+                    self.send_json({"configured": True, "error":"location_not_found"})
+                    return
+                found=places[0]
+                query=urlencode({"latitude":found["latitude"],"longitude":found["longitude"],"current":"temperature_2m,weather_code","timezone":"auto"})
+                with urlopen(Request("https://api.open-meteo.com/v1/forecast?"+query,headers={"User-Agent":"Netfreak2k-OS/1.0"}),timeout=6) as resp:
+                    current=json.load(resp).get("current",{})
+                self.send_json({"configured":True,"location":found.get("name",place),"temperature_c":current.get("temperature_2m"),"weather_code":current.get("weather_code"),"source":"Open-Meteo"})
+            except (OSError,ValueError,KeyError,TimeoutError):
+                self.send_json({"configured":True,"error":"weather_unavailable"})
             return
 
         if path == "/preferences":
