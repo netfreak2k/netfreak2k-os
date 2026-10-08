@@ -14,7 +14,7 @@
 #ai-panel .n2k-ai-compact-status strong{font-size:12px;white-space:nowrap}
 #ai-panel .n2k-ai-compact-status small{font-size:11px;color:#a6bdd5;border-left:1px solid #3a526b;padding-left:9px;white-space:nowrap}
 #ai-panel #n2k-ollama-refresh{font-size:18px;line-height:1;cursor:pointer;background:transparent;border:0;color:#aed3ee;padding:2px 4px}
-#ai-panel .n2k-ai-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:23px 0 17px}
+#ai-panel .n2k-ai-quick-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:23px 0 17px}
 #ai-panel .n2k-ai-quick-actions button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:49px;padding:10px;border:1px solid rgba(76,136,199,.33);border-radius:12px;background:rgba(13,43,78,.7);color:#dcecff;font-weight:720;font-size:13px;cursor:pointer}
 #ai-panel .n2k-ai-quick-actions button:hover,#ai-panel .n2k-ai-quick-actions button:focus-visible{background:rgba(22,85,139,.85);border-color:#51a8f3;outline:none}
 #ai-panel .n2k-ai-quick-actions button span{font-size:18px;color:#66b9ff}
