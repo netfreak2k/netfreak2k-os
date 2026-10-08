@@ -1,7 +1,14 @@
 /* N2K Fotos v0.1 — local photo gallery over existing authenticated workspace API */
 (function(){
 "use strict";
-let path="",photos=[],index=0;
+let path="",photos=[],index=0,view="timeline",activeAlbum="";
+const stateKey="n2k-fotogalery-v03";
+function readState(){try{const x=JSON.parse(localStorage.getItem(stateKey)||"{}");return {favorites:Array.isArray(x.favorites)?x.favorites:[],albums:x.albums&&typeof x.albums==="object"?x.albums:{}}}catch{return {favorites:[],albums:{}}}}
+let photoState=readState();
+function saveState(){localStorage.setItem(stateKey,JSON.stringify(photoState))}
+function photoKey(item){return [path,item.name].filter(Boolean).join("/")}
+function stamp(item){const n=Number(item.modified_at);return Number.isFinite(n)&&n>0?(n>1e12?n:n*1000):0}
+
 const $=id=>document.getElementById(id);
 const supported=/\.(jpe?g|png|gif|webp|bmp|avif)$/i;
 const query=extra=>new URLSearchParams({area:"media",path,...extra}).toString();
@@ -18,24 +25,48 @@ async function load(){
   photos=items.filter(item=>item.type==="file"&&supported.test(item.name));
   const folders=items.filter(item=>item.type==="folder");
   const term=($("n2k-photos-search")?.value||"").toLocaleLowerCase("de");
-  const visible=photos.filter(item=>item.name.toLocaleLowerCase("de").includes(term));
+  let visible=photos.filter(item=>item.name.toLocaleLowerCase("de").includes(term));
+  if(view==="favorites")visible=visible.filter(item=>photoState.favorites.includes(photoKey(item)));
+  if(view==="albums"&&activeAlbum)visible=visible.filter(item=>(photoState.albums[activeAlbum]||[]).includes(photoKey(item)));
+  if(view==="timeline")visible.sort((a,b)=>stamp(b)-stamp(a));
   const back=$("n2k-photos-back");if(back)back.disabled=!path;
   $("n2k-photos-path").textContent=path?"Mediathek / "+path:"Mediathek";
-  status.textContent=visible.length+" Fotos · "+folders.length+" Ordner";
-  if(!term)folders.forEach(item=>{const b=document.createElement("button");b.className="n2k-photo-folder";b.textContent="▤  "+item.name;b.onclick=()=>{path=path?path+"/"+item.name:item.name;load()};grid.appendChild(b)});
-  visible.forEach(item=>{
-   const b=document.createElement("button");b.className="n2k-photo-item";b.title=item.name;
-   const img=document.createElement("img");img.loading="lazy";img.alt=item.name;img.src=source(item.name);
-   const label=document.createElement("span");label.textContent=item.name;
-   b.append(img,label);b.onclick=()=>openPhoto(photos.findIndex(x=>x.name===item.name));grid.appendChild(b);
-  });
-  if(!grid.children.length){const p=document.createElement("p");p.textContent="Noch keine Fotos in diesem Ordner.";grid.appendChild(p)}
+  status.textContent=visible.length+" Fotos · "+folders.length+" Ordner"+(activeAlbum?" · Album: "+activeAlbum:"");
+  document.querySelectorAll("[data-photo-view]").forEach(b=>b.classList.toggle("active",b.dataset.photoView===view));
+  function tile(item){
+    const wrapper=document.createElement("div");wrapper.className="n2k-photo-cell";
+    const b=document.createElement("button");b.className="n2k-photo-item";b.title=item.name;
+    const img=document.createElement("img");img.loading="lazy";img.alt=item.name;img.src=source(item.name);
+    const label=document.createElement("span");label.textContent=item.name;
+    b.append(img,label);b.onclick=()=>openPhoto(photos.findIndex(x=>x.name===item.name));
+    const actions=document.createElement("div");actions.className="n2k-photo-item-actions";
+    const fav=document.createElement("button");fav.type="button";fav.textContent=photoState.favorites.includes(photoKey(item))?"♥ Favorit":"♡ Favorit";
+    fav.onclick=()=>{const k=photoKey(item);photoState.favorites=photoState.favorites.includes(k)?photoState.favorites.filter(x=>x!==k):[...photoState.favorites,k];saveState();load()};
+    const album=document.createElement("button");album.type="button";album.textContent="+ Album";
+    album.onclick=()=>{const names=Object.keys(photoState.albums);if(!names.length){alert("Bitte zuerst ein Album anlegen.");return}
+      const name=prompt("Zu welchem Album hinzufügen?\n"+names.join(" · "),activeAlbum||names[0]);
+      if(name===null)return;if(!Object.prototype.hasOwnProperty.call(photoState.albums,name)){alert("Album nicht vorhanden");return}
+      const k=photoKey(item);if(!photoState.albums[name].includes(k))photoState.albums[name].push(k);saveState();load()};
+    actions.append(fav,album);wrapper.append(b,actions);return wrapper;
+  }
+  if(view==="albums"&&!activeAlbum){
+    Object.keys(photoState.albums).sort().forEach(name=>{const b=document.createElement("button");b.className="n2k-photo-folder";b.textContent="▤ "+name+" ("+photoState.albums[name].length+")";b.onclick=()=>{activeAlbum=name;load()};grid.appendChild(b)});
+  }else{
+    if(!term&&view!=="favorites"&&!activeAlbum)folders.forEach(item=>{const b=document.createElement("button");b.className="n2k-photo-folder";b.textContent="▤  "+item.name;b.onclick=()=>{path=path?path+"/"+item.name:item.name;load()};grid.appendChild(b)});
+    if(view==="timeline"){
+      let last="";
+      visible.forEach(item=>{const key=stamp(item)?new Date(stamp(item)).toLocaleDateString("de-DE",{year:"numeric",month:"long"}):"Ohne Datum";if(key!==last){const heading=document.createElement("h3");heading.className="n2k-photo-month";heading.textContent=key;grid.appendChild(heading);last=key;}grid.appendChild(tile(item))});
+    }else visible.forEach(item=>grid.appendChild(tile(item)));
+  }
+  if(!grid.children.length){const message=document.createElement("p");message.textContent="Hier sind noch keine Fotos.";grid.appendChild(message)}
  }catch(e){status.textContent="Galerie nicht verfügbar: "+e.message;}
 }
 function openPhoto(i){if(i<0||!photos[i])return;index=i;const modal=$("n2k-photo-viewer");modal.hidden=false;showPhoto();}
 function showPhoto(){const photo=photos[index];if(!photo)return;$("n2k-photo-full").src=source(photo.name);$("n2k-photo-full").alt=photo.name;$("n2k-photo-caption").textContent=photo.name+(fmt(photo.modified_at)?" · "+fmt(photo.modified_at):"");}
 function init(){
  $("n2k-photos-refresh")?.addEventListener("click",load);
+ document.querySelectorAll("[data-photo-view]").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.photoView;activeAlbum="";load()}));
+ $("n2k-photo-new-album")?.addEventListener("click",()=>{const name=prompt("Neues Album:");if(!name||!name.trim())return;const clean=name.trim();if(!Object.prototype.hasOwnProperty.call(photoState.albums,clean))photoState.albums[clean]=[];saveState();view="albums";activeAlbum=clean;load()});
  $("n2k-photos-search")?.addEventListener("input",load);
  $("n2k-photos-back")?.addEventListener("click",()=>{path=path.split("/").slice(0,-1).join("/");load()});
  $("n2k-photos-import")?.addEventListener("click",()=>$("n2k-photos-files")?.click());
