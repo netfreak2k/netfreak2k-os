@@ -177,3 +177,13 @@
 @media(max-width:1150px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(max-width:750px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:460px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#dashboard-top .mini-metrics>.n2k-monitor-card,#dashboard-top .widget-grid>.widget{padding:8px!important}#dashboard-top .n2k-monitor-card .n2k-monitor-copy{display:flex}#dashboard-top .n2k-monitor-card .n2k-monitor-body{gap:7px}#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:26px;min-height:26px}}
+
+/* V8: moderately larger square cards, better fill of dashboard width */
+#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(9,minmax(0,1fr));gap:8px}
+#dashboard-top .mini-metrics>.n2k-monitor-card,#dashboard-top .widget-grid>.widget{aspect-ratio:1/1!important}
+#dashboard-top .n2k-monitor-card .metric-ring{width:clamp(44px,4.7vw,66px);height:clamp(44px,4.7vw,66px);min-width:0;min-height:0}
+#dashboard-top .n2k-monitor-card .n2k-monitor-spark{height:25px;min-height:25px}
+@media(max-width:1700px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@media(max-width:1150px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:750px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:460px){#dashboard-top .mini-metrics,#dashboard-top .widget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
