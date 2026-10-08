@@ -3624,9 +3624,9 @@ def ollama_local_status():
 def n2k_online_weather(question):
     # Explicit, narrowly-scoped HTTPS weather lookup; no arbitrary URLs or model tool execution.
     import urllib.parse
-    if not isinstance(question,str) or len(question)>2000 or not re.search(r"\\b(wetter|temperatur|regen|sonne|wind|vorhersage)\\b",question,re.I):
+    if not isinstance(question,str) or len(question)>2000 or not re.search(r"\b(wetter|temperatur|regen|sonne|wind|vorhersage)\b",question,re.I):
         return None
-    match=re.search(r"\\bin\\s+([A-Za-zÄÖÜäöüß\\- ]{2,45}?)(?=[?.!,;]|\\s+(?:heute|morgen|jetzt|aktuell|für|am|wie|ist|wird)\\b|$)",question,re.I)
+    match=re.search(r"\bin\s+([A-Za-zÄÖÜäöüß\- ]{2,45}?)(?=[?.!,;]|\s+(?:heute|morgen|jetzt|aktuell|für|am|wie|ist|wird)\b|$)",question,re.I)
     if not match:
         return {"error":"weather_location_missing","message":"Für welchen Ort soll ich das Wetter abrufen? Beispiel: Wie ist das Wetter in Aken?"}
     city=match.group(1).strip()
