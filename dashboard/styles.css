@@ -3263,3 +3263,10 @@ body::after{
   .side-nav .nav-item{flex-basis:58px;width:58px}
   #top-update-status{max-width:94px}
 }
+
+/* Artwork of the last selected media item in Schnellsteuerung */
+#overview-media-widget .overview-media-icon{display:flex;align-items:center;justify-content:center;flex:0 0 64px;width:64px;height:64px;border-radius:12px;background-color:#112d48;background-position:center;background-size:cover;background-repeat:no-repeat;overflow:hidden}
+#overview-media-widget .overview-media-icon.has-artwork{font-size:0;border:1px solid rgba(112,178,228,.24);box-shadow:0 4px 15px rgba(0,8,24,.27)}
+#overview-media-widget .overview-media-now{min-width:0}
+#overview-media-widget .overview-media-now>div{min-width:0}
+#overview-media-widget .overview-media-now strong,#overview-media-widget .overview-media-now small{overflow:hidden;text-overflow:ellipsis;display:block;white-space:nowrap}
