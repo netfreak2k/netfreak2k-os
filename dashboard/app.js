@@ -7476,7 +7476,7 @@ async function updateTopWeather(enabled=true){
   const code=Number(response.weather_code);
   const icon=code===0?"☀":code<=3?"⛅":code>=51&&code<=67?"🌧":code>=71&&code<=86?"❄":"☁";
   const temp=response.temperature_c!==null&&Number.isFinite(Number(response.temperature_c))?Math.round(Number(response.temperature_c))+"°C":"–";
-  badge.textContent=icon+" "+temp+" · "+response.location;
+  badge.textContent=icon+" "+temp;
   badge.title="Aktuelles Wetter in "+response.location+" · Quelle: Open-Meteo";
  }catch(e){badge.hidden=false;badge.textContent="Wetter nicht verfügbar";}
 }
