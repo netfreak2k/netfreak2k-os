@@ -4,8 +4,8 @@ const history=$("n2k-ollama-history"),input=$("n2k-ollama-input"),sendButton=$("
 if(!history||!input||!sendButton)return;
 function render(){
  history.replaceChildren();
- if(!messages.length){const p=document.createElement("p");p.className="n2k-ollama-empty";p.textContent="Hallo! Ich bin dein lokaler N2K Server-Assistent. Wähle einen Systemcheck oder stelle eine Frage.";history.append(p);}
- for(const m of messages){const item=document.createElement("div");item.className="n2k-ollama-message "+m.role;const title=document.createElement("strong");title.textContent=m.role==="user"?"Du":"Ollama";const body=document.createElement("p");body.textContent=m.content;item.append(title,body);history.append(item);}
+ if(!messages.length){const p=document.createElement("p");p.className="n2k-ollama-empty";p.textContent="N2K LOCAL INTELLIGENCE  /  Bereit für Eingaben. Starte einen Systemcheck oder stelle eine Frage.";history.append(p);}
+ for(const m of messages){const item=document.createElement("div");item.className="n2k-ollama-message "+m.role;const title=document.createElement("strong");title.textContent=m.role==="user"?"USER":"N2K AI";const body=document.createElement("p");body.textContent=m.content;item.append(title,body);history.append(item);}
  history.scrollTop=history.scrollHeight;
 }
 async function status(){
