@@ -4,13 +4,13 @@ const history=$("n2k-ollama-history"),input=$("n2k-ollama-input"),sendButton=$("
 if(!history||!input||!sendButton)return;
 function render(){
  history.replaceChildren();
- if(!messages.length){const p=document.createElement("p");p.className="n2k-ollama-empty";p.textContent="Stelle deine erste Frage an Ollama.";history.append(p);}
+ if(!messages.length){const p=document.createElement("p");p.className="n2k-ollama-empty";p.textContent="Hallo! Ich bin dein lokaler N2K Server-Assistent. Wähle einen Systemcheck oder stelle eine Frage.";history.append(p);}
  for(const m of messages){const item=document.createElement("div");item.className="n2k-ollama-message "+m.role;const title=document.createElement("strong");title.textContent=m.role==="user"?"Du":"Ollama";const body=document.createElement("p");body.textContent=m.content;item.append(title,body);history.append(item);}
  history.scrollTop=history.scrollHeight;
 }
 async function status(){
- try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ollama-state").textContent=d.ready?"Bereit":d.running?"Modell fehlt":"Offline";$("n2k-ollama-note").textContent=d.ready?"Lokales Modell Qwen2.5 0.5B bereit · RAM-Limit 1,5 GB.":d.setup?.message||"Ollama oder Modell noch nicht bereit. Installation wird beim Server-OS-Update erneut geprüft.";}
- catch(e){$("n2k-ollama-state").textContent="Status unbekannt";}
+ try{const r=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();$("n2k-ai-status-led")?.classList.toggle("ready",Boolean(d.ready));$("n2k-ollama-state").textContent=d.ready?"Bereit":d.running?"Modell fehlt":"Offline";$("n2k-ollama-note").textContent=d.ready?"Lokales Modell Qwen2.5 0.5B bereit · RAM-Limit 1,5 GB.":d.setup?.message||"Ollama oder Modell noch nicht bereit. Installation wird beim Server-OS-Update erneut geprüft.";}
+ catch(e){$("n2k-ai-status-led")?.classList.remove("ready");$("n2k-ollama-state").textContent="Status unbekannt";}
 }
 async function send(){
  if(busy)return;const value=input.value.trim();if(!value)return;
@@ -39,5 +39,5 @@ document.querySelectorAll("[data-n2k-ai-prompt]").forEach(button=>{
 $("n2k-ollama-new")?.addEventListener("click",()=>{messages=[];render();});
 $("n2k-ollama-refresh")?.addEventListener("click",status);
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}});
-status();
+render();status();
 })();
