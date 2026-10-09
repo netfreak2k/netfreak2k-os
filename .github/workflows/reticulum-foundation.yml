@@ -6,6 +6,8 @@ on:
     paths:
       - 'integrations/reticulum/**'
       - 'server/api/reticulum_status.py'
+      - 'server/api/reticulum_activation.py'
+      - 'server/api/server.py'
       - 'server/messenger/**'
       - 'server/reticulum-lan/**'
       - 'server/docker-compose.yml'
@@ -19,7 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile policy modules
-        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/messenger/service.py server/reticulum-lan/service.py server/reticulum-lan/config_validation.py
+        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/api/reticulum_activation.py server/api/server.py server/messenger/service.py server/reticulum-lan/service.py server/reticulum-lan/config_validation.py
       - name: Validate Docker Compose configuration
         run: docker compose -f server/docker-compose.yml config --quiet
       - name: Run foundation unit tests
