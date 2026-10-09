@@ -1,0 +1,49 @@
+"""Executable regression tests for LAN and transport configuration."""
+import pathlib
+import sys
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "server/reticulum-lan"))
+from config_validation import validate_config
+
+BASE = """[reticulum]
+  enable_transport = No
+  share_instance = No
+
+[interfaces]
+  [[N2K Discovery]]
+    type = AutoInterface
+    enabled = Yes
+  [[N2K LAN Server]]
+    type = TCPServerInterface
+    enabled = Yes
+    listen_port = 4243
+"""
+
+class ConfigValidationTests(unittest.TestCase):
+    def test_valid_client(self):
+        self.assertEqual(validate_config(BASE, False), (True, "ok"))
+
+    def test_explicit_transport(self):
+        self.assertEqual(validate_config(BASE.replace("enable_transport = No", "enable_transport = Yes"), True), (True, "ok"))
+
+    def test_transport_mismatch(self):
+        self.assertEqual(validate_config(BASE, True)[1], "transport_mode_mismatch")
+
+    def test_disabled_listener(self):
+        self.assertEqual(validate_config(BASE.replace("type = TCPServerInterface\\n    enabled = Yes", "type = TCPServerInterface\\n    enabled = No"), False)[1], "missing_messenger_listener")
+
+    def test_port_in_different_interface(self):
+        changed = BASE.replace("listen_port = 4243", "listen_port = 4244")
+        changed += "  [[Other Interface]]\\n    type = AutoInterface\\n    enabled = Yes\\n    listen_port = 4243\\n"
+        self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
+
+    def test_missing_mode_is_rejected(self):
+        self.assertEqual(validate_config(BASE.replace("enable_transport = No", ""), False)[1], "unknown_transport_mode")
+
+    def test_comments_do_not_count(self):
+        changed = BASE.replace("    listen_port = 4243", "    # listen_port = 4243")
+        self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
+
+if __name__ == "__main__":
+    unittest.main()
