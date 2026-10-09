@@ -6,6 +6,9 @@ on:
     paths:
       - 'integrations/reticulum/**'
       - 'server/api/reticulum_status.py'
+      - 'server/messenger/**'
+      - 'server/reticulum-lan/**'
+      - 'server/docker-compose.yml'
       - '.github/workflows/reticulum-foundation.yml'
 jobs:
   policy-tests:
@@ -16,6 +19,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile policy modules
-        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py
+        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/messenger/service.py server/reticulum-lan/service.py
       - name: Run foundation unit tests
         run: python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
