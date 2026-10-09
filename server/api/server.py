@@ -3415,14 +3415,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"online": False, "error": "native_messenger_unavailable"}, 503)
             return
 
-        if path == "/tor/relay":
-            session = self.require_auth()
-            if not session:
-                return
-            data = vm_agent("tor_relay_status")
-            self.send_json(data, 200 if data.get("available") else 503)
-            return
-
         if path == "/healthz":
             self.send_json({"status": "ok"})
             return
@@ -4127,25 +4119,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result)
             except ValueError as exc:
                 self.send_json({"error":str(exc)}, 400)
-            return
-
-        if path == "/tor/relay":
-            session = self.require_auth()
-            if not session or not self.require_admin(session) or not self.require_csrf(session):
-                return
-            try:
-                body = self.read_json()
-                enabled = body.get("enabled")
-                if type(enabled) is not bool or (enabled and body.get("acknowledged") is not True):
-                    raise ValueError("relay_confirmation_required")
-                data = vm_agent("tor_relay_set", {"enabled": enabled})
-                if not data.get("available"):
-                    self.send_json(data, 503)
-                    return
-                audit_event(session["username"], "tor_relay_set", "enabled" if enabled else "disabled", self.client_ip())
-                self.send_json(data)
-            except ValueError as exc:
-                self.send_json({"error": str(exc)}, 400)
             return
 
         if path == "/photos/restore-zip":
