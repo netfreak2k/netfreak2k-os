@@ -35,6 +35,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 </div>
 <div class="card"><h2>Living Mesh</h2><div class="mesh" aria-label="Dekorative Animation, keine echte Topologie"><span class="node"></span></div>
 <p class="muted">Dekorative Vorschau. Echte Peers und Verbindungen erscheinen erst nach Telemetrie-Anbindung.</p><button class="secondary" disabled>Netzwerk vergrößern</button></div>
+<div class="card"><h2>Kontakte</h2><div id="contacts" class="chat">Kontakte werden geladen …</div></div>
 <div class="card"><h2>Nachrichten · LXMF</h2><div class="chat" id="messages">Nachrichten werden geladen …</div><p class="muted" id="lxmf-status">LXMF-Status wird geprüft …</p>
 <div class="row" style="margin-top:12px"><input disabled placeholder="Nachricht schreiben"><button disabled>Senden</button></div></div>
 <div class="card"><h2>Meine Reticulum-Webseite</h2>
@@ -93,6 +94,19 @@ $('save').addEventListener('click',async()=>{
  }catch(err){$('notice').textContent='Speichern fehlgeschlagen: '+err.message}
  finally{$('save').disabled=false}
 });
+async function refreshContacts(){
+ try{
+  const data=await jsonRequest('/api/messenger/contacts');
+  const rows=Array.isArray(data.contacts)?data.contacts:[];
+  const box=$('contacts');box.replaceChildren();box.style.display='block';box.style.overflowY='auto';
+  if(!rows.length){box.textContent='Noch keine Kontakte gespeichert.';return}
+  for(const item of rows.slice(0,100)){
+   const p=document.createElement('p');
+   p.textContent=String(item.name||'Unbenannt')+' · '+String(item.destination||'');
+   box.appendChild(p);
+  }
+ }catch(err){$('contacts').textContent='Kontakte nicht verfügbar: '+err.message}
+}
 async function refreshLXMF(){
  try{
   const [status, messages]=await Promise.all([
@@ -119,7 +133,9 @@ async function refreshLXMF(){
 }
 loadPreferences();
 refreshLXMF();
+refreshContacts();
 refreshStatus();
 setInterval(refreshStatus,15000);
 setInterval(refreshLXMF,15000);
+setInterval(refreshContacts,30000);
 </script></body></html>
