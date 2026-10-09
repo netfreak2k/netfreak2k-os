@@ -33,6 +33,7 @@ def validate_config(text, requested_transport):
         values = _values(sections[index + 1])
         if (values.get("type") == "tcpserverinterface"
                 and values.get("enabled") in ("yes", "true", "1")
-                and values.get("listen_port") == "4243"):
+                and values.get("listen_port") == "4243"
+                and values.get("listen_ip") in ("0.0.0.0", "::", None)):
             return True, "ok"
     return False, "missing_messenger_listener"
