@@ -3619,9 +3619,13 @@ class Handler(BaseHTTPRequestHandler):
             session = self.require_auth()
             if not session:
                 return
-            from reticulum_clean import status_from_file
-            self.send_json(status_from_file(os.environ.get(
-                "N2K_RETICULUM_STATUS_FILE", "/reticulum-state/status.json")))
+            from reticulum_clean import status_from_runtime
+            try:
+                with urlopen("http://netfreak2k-messenger:8091/status", timeout=4) as response:
+                    runtime = json.loads(response.read(16384).decode("utf-8"))
+                self.send_json(status_from_runtime(runtime))
+            except (OSError, ValueError, TypeError):
+                self.send_json(status_from_runtime(None), 503)
             return
 
         if path == "/updates":
