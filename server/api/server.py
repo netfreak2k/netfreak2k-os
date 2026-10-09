@@ -3998,6 +3998,26 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"error":"native_messenger_unavailable"}, 503)
             return
 
+        if path == "/messenger/peers/request":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                destination = str(self.read_json().get("destination", "")).lower().strip()
+                if not re.fullmatch(r"[a-f0-9]{32}", destination):
+                    raise ValueError("invalid_destination")
+                req = Request("http://netfreak2k-messenger:8091/peers/request",
+                    data=json.dumps({"destination":destination}).encode("utf-8"),
+                    headers={"Content-Type":"application/json"}, method="POST")
+                with urlopen(req, timeout=7) as response:
+                    result=json.loads(response.read(16384).decode("utf-8"))
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error":str(exc)},400)
+            except Exception:
+                self.send_json({"error":"meshlink_path_request_failed"},503)
+            return
+
         if path == "/messenger/node/restart":
             session = self.require_auth()
             if not session or not self.require_admin(session) or not self.require_csrf(session):
