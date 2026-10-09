@@ -11,28 +11,16 @@ import subprocess
 from pathlib import Path
 
 SERVICE = "netfreak2k-reticulum-lan"
-VOLUMES = ("netfreak2k_netfreak2k-reticulum-lan-data", "netfreak2k_netfreak2k-messenger-data")
+VOLUMES = ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data")
 
 
 def inspect_host(run=subprocess.run):
     checks = {}
-    for volume in VOLUMES:
-        result = run(["docker", "volume", "inspect", volume],
-                     capture_output=True, text=True, timeout=15, check=False)
-        if result.returncode == 0:
-            try:
-                rows = json.loads(result.stdout)
-                if len(rows) != 1 or rows[0].get("Name") != volume:
-                    raise ValueError("unexpected_volume")
-                checks[volume] = "existing"
-            except (ValueError, TypeError, KeyError):
-                checks[volume] = "unverified"
-        elif "No such volume" in result.stderr:
-            checks[volume] = "absent"
-        else:
-            checks[volume] = "unverified"
+    # Compose volume names depend on the installed project name. Resolve the
+    # actual project from a managed container; never guess volume names.
     result = run(["docker", "container", "inspect", SERVICE],
                  capture_output=True, text=True, timeout=15, check=False)
+    project = None
     if result.returncode == 0:
         try:
             rows = json.loads(result.stdout)
@@ -41,16 +29,42 @@ def inspect_host(run=subprocess.run):
             labels = rows[0].get("Config", {}).get("Labels") or {}
             project = labels.get("com.docker.compose.project")
             service = labels.get("com.docker.compose.service")
-            checks["runtime"] = ("managed" if project == "netfreak2k"
-                                  and service == SERVICE else "external_or_unverified")
-        except (ValueError, TypeError, AttributeError):
+            checks["runtime"] = ("managed" if project and service == SERVICE
+                                  else "external_or_unverified")
+        except (ValueError, TypeError, AttributeError, IndexError):
             checks["runtime"] = "unverified"
     elif "No such object" in result.stderr or "No such container" in result.stderr:
         checks["runtime"] = "absent"
     else:
         checks["runtime"] = "unverified"
-    return checks
 
+    if checks["runtime"] == "managed":
+        checks["project"] = project
+    else:
+        checks["project"] = None
+    # An absent runtime does not establish which project owns existing volumes.
+    # Never mark unknown data as absent based on a guessed project prefix.
+    if not project or checks["runtime"] != "managed":
+        for volume in VOLUMES:
+            checks[volume] = "unverified"
+        return checks
+    for volume in VOLUMES:
+        actual_name = project + "_" + volume
+        item = run(["docker", "volume", "inspect", actual_name],
+                   capture_output=True, text=True, timeout=15, check=False)
+        if item.returncode == 0:
+            try:
+                rows = json.loads(item.stdout)
+                if len(rows) != 1 or rows[0].get("Name") != actual_name:
+                    raise ValueError("unexpected_volume")
+                checks[volume] = "existing"
+            except (ValueError, TypeError, KeyError):
+                checks[volume] = "unverified"
+        elif "No such volume" in item.stderr:
+            checks[volume] = "absent"
+        else:
+            checks[volume] = "unverified"
+    return checks
 
 def assess(checks, *, backup_verified=False):
     if any(value == "unverified" for value in checks.values()) or checks.get("runtime") == "external_or_unverified":
