@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen
 from reticulum_status import public_status
 from reticulum_activation import plan_activation
 from reticulum_overview import activation_overview
+from reticulum_beta_gate import beta_control_state
 
 try:
     from mutagen import File as MutagenFile
@@ -3428,6 +3429,15 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError, ValueError, TypeError):
                 raw = None
             self.send_json(activation_overview(rows, raw, username=session["username"]))
+            return
+
+        if path == "/reticulum/beta-control":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_admin(session):
+                return
+            self.send_json(beta_control_state())
             return
 
         if path == "/reticulum/activation-plan":
