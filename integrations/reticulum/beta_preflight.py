@@ -77,6 +77,13 @@ def inspect_host(run=subprocess.run):
 def assess(checks, *, backup_verified=False):
     if any(value == "unverified" for value in checks.values()) or checks.get("runtime") == "external_or_unverified":
         return "hold", "unverified_or_external_runtime"
+    # No managed container means the Compose project and historical volume
+    # ownership cannot be established. A clean install must use a separate
+    # explicit inventory procedure, not this upgrade preflight.
+    if checks.get("runtime") != "managed" or not checks.get("project"):
+        return "hold", "compose_project_not_verified"
+    if not all(checks.get(name) in ("existing", "absent") for name in VOLUMES):
+        return "hold", "volume_inventory_incomplete"
     existing = any(checks.get(name) == "existing" for name in VOLUMES)
     if existing and not backup_verified:
         return "hold", "existing_data_requires_verified_backup"
