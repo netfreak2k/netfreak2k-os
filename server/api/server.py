@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
+from reticulum_status import public_status
 
 try:
     from mutagen import File as MutagenFile
@@ -3416,27 +3417,11 @@ class Handler(BaseHTTPRequestHandler):
             if session.get("role") == "guest":
                 self.send_json({"error": "forbidden"}, 403)
                 return
-            # Existing LAN transport is not equivalent to a configured user identity,
-            # authenticated LXMF service, or a verified remote network path.
-            status_path = Path("/reticulum-state/status.json")
             try:
-                status = json.loads(status_path.read_text(encoding="utf-8"))
-                if not isinstance(status, dict):
-                    raise ValueError("invalid status")
-                age = int(time.time()) - int(status.get("updated_at", 0))
-                if age < 0 or age > 45:
-                    raise ValueError("stale status")
-                safe_keys = ("available", "connected", "state", "enabled",
-                             "transport_enabled", "interfaces", "updated_at")
-                payload = {key: status[key] for key in safe_keys if key in status}
-                payload["note"] = "Local runtime status only; remote connectivity not verified"
-                self.send_json(payload)
-            except (OSError, ValueError, TypeError, OverflowError):
-                self.send_json({
-                    "available": False, "connected": None,
-                    "state": "runtime_status_unavailable", "enabled": False,
-                    "transport_enabled": False, "interfaces": []
-                })
+                raw = json.loads(Path("/reticulum-state/status.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                raw = None
+            self.send_json(public_status(raw))
             return
 
         if path == "/meshlink/service":
