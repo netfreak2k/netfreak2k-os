@@ -62,6 +62,7 @@ def main():
     parser.add_argument("--database", required=True)
     parser.add_argument("--compose-file", required=True)
     parser.add_argument("--apply", action="store_true", help="Explicit host-side authorization")
+    parser.add_argument("--confirm-service", default="", help="Must equal netfreak2k-reticulum-lan when applying")
     parser.add_argument("--legacy-transport-detected", action="store_true")
     parser.add_argument("--legacy-checked", action="store_true", help="Host operator confirms legacy transport was checked")
     args = parser.parse_args()
@@ -75,6 +76,9 @@ def main():
     if not args.apply:
         print("DRY RUN: no services changed")
         return 0
+    if args.confirm_service != "netfreak2k-reticulum-lan":
+        print("Refusing apply without exact service confirmation")
+        return 2
     if os.geteuid() != 0:
         print("Refusing apply without host administrator privileges")
         return 2
@@ -82,6 +86,9 @@ def main():
     if not compose_file.is_file():
         return 2
     command = compose_command(compose_file, decision.action)
+    # Do not allow the host environment to silently select another project.
+    project = "netfreak2k"
+    command[2:2] = ["--project-name", project]
     if decision.action == "start_client":
         # The env flag controls the opt-in runtime. Compose defaults to disabled.
         env = dict(os.environ)
@@ -89,6 +96,9 @@ def main():
         env["N2K_RETICULUM_TRANSPORT"] = "false"
     else:
         env = dict(os.environ)
+    env.pop("COMPOSE_FILE", None)
+    env.pop("COMPOSE_PROJECT_NAME", None)
+    env.pop("COMPOSE_PROFILES", None)
     subprocess.run(command, check=True, env=env, timeout=120)
     return 0
 
