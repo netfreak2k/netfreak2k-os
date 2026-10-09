@@ -118,6 +118,12 @@ def start_stack():
             config_text += ("\n  [[N2K Public TCP Peer]]\n    type = TCPClientInterface\n"
                 "    enabled = Yes\n    target_host = " + gateway["host"] +
                 "\n    target_port = " + str(gateway["port"]) + "\n")
+        # N2K owns its local Reticulum transport server, independently of HA.
+        # The TCP listener is only enabled when the OS transport-node switch is on.
+        config_text=re.sub(r"(?ms)\n?  \[\[N2K TCP Server\]\]\n.*?(?=\n  \[\[|\Z)", "", config_text)
+        if node["enabled"]:
+            config_text += ("\n  [[N2K TCP Server]]\n    type = TCPServerInterface\n"
+                            "    enabled = Yes\n    listen_ip = 0.0.0.0\n    listen_port = 4242\n")
         config_file.write_text(config_text, encoding="utf-8")
         RNS.Reticulum(configdir=str(rns_path))
         RNS.Transport.register_announce_handler(LXMFAnnounces())
