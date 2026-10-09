@@ -556,32 +556,30 @@
   .topbar .topbar-alert,.topbar .storage-warning{font-size:12px!important;line-height:1.25!important;padding:8px 10px!important;min-height:0!important}
 }
 
-/* Root-cause fix: grid rows were distributing spare height between Hub widgets.
-   Opaque iOS status-bar scrim prevents scrolled content showing behind clock/5G. */
+/* iPhone repair: remove the fixed pseudo-element that covered page content.
+   Reticulum traffic is not currently measured, so omit its empty chart on phones.
+   This also removes the visual gap before Discovery without altering live data. */
 @media screen and (max-width:620px){
-  html::after{
-    content:"";position:fixed;inset:0 0 auto 0;
-    height:max(env(safe-area-inset-top,0px),54px);
-    background:#050d17;z-index:9999;pointer-events:none;
-  }
-  #privacy-panel .n2k-hub-tiles,
-  #privacy-panel .n2k-hub-vertical{
-    display:grid!important;
-    grid-auto-rows:max-content!important;
-    align-content:start!important;
-    align-items:start!important;
+  html::after{content:none!important;display:none!important}
+  #privacy-panel .n2k-hub-tiles{
+    display:block!important;
   }
   #privacy-panel .n2k-hub-card{
     display:flex!important;flex-direction:column!important;
-    justify-content:flex-start!important;align-content:flex-start!important;
+    justify-content:flex-start!important;
     gap:12px!important;
+    min-height:0!important;height:auto!important;
   }
-  #privacy-panel .n2k-hub-card>canvas{
-    display:block!important;flex:0 0 42px!important;
-    height:42px!important;max-height:42px!important;
+  #privacy-panel #n2k-hub-mesh-chart{
+    display:none!important;
   }
-  #privacy-panel .n2k-peer-browser{flex:0 0 auto!important;margin-top:0!important}
-  #privacy-panel .n2k-hub-stats{flex:0 0 auto!important}
-  #privacy-panel .n2k-hub-actions{flex:0 0 auto!important}
-  #privacy-panel .n2k-hub-title{flex:0 0 auto!important}
+  #privacy-panel .n2k-peer-browser{
+    flex:none!important;margin-top:0!important;
+    min-height:0!important;
+  }
+  #privacy-panel .n2k-hub-stats,
+  #privacy-panel .n2k-hub-actions,
+  #privacy-panel .n2k-hub-title{
+    flex:none!important;
+  }
 }
