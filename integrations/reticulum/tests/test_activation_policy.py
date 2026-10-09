@@ -30,5 +30,14 @@ class ActivationPolicyTests(unittest.TestCase):
     def test_transport_unimplemented(self):
         self.check("hold", requested_transport=True)
 
+    def test_negative_active_users_rejected(self):
+        self.check("hold", active_users=-1)
+
+    def test_string_flag_rejected(self):
+        self.check("hold", requested_enabled="false")
+
+    def test_boolean_active_users_rejected(self):
+        self.check("hold", active_users=True)
+
 if __name__ == "__main__":
     unittest.main()
