@@ -52,6 +52,7 @@ class HostControllerTests(unittest.TestCase):
     def test_host_controller_requires_explicit_confirmation(self):
         source = (pathlib.Path(__file__).resolve().parents[1] / "host_controller.py").read_text()
         self.assertIn('args.confirm_service != "netfreak2k-reticulum-lan"', source)
+        self.assertIn("args.existing_runtime_reviewed", source)
         self.assertIn('env.pop("COMPOSE_PROJECT_NAME", None)', source)
         self.assertIn('["--project-name", project]', source)
     def test_commands_are_fixed(self):
