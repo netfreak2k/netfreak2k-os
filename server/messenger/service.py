@@ -202,7 +202,7 @@ class Handler(BaseHTTPRequestHandler):
                     entry["path_known"]=False
                     entry["hops"]=None
                 peers.append(entry)
-            result={"peers":peers,"known_count":len(peers),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("N2K LAN-Transport vorkonfiguriert; erreichbare Knoten erst nach Empfang von Announcements sichtbar." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
+            result={"peers":peers,"known_count":len(peers),"reachable_route_count":sum(1 for peer in peers if peer.get("path_known") is True),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("N2K LAN-Transport vorkonfiguriert; erreichbare Knoten erst nach Empfang von Announcements sichtbar." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
         elif self.path == "/node":
             result = dict(node_settings(), applied_name=RUNTIME.get("node_name"), applied_transport=RUNTIME.get("transport_enabled"))
         else:
