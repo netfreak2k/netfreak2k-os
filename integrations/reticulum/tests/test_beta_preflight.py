@@ -62,6 +62,21 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(assess(checks)[0], "hold")
         self.assertEqual(len(commands), 1)
 
+    def test_missing_docker_is_hold(self):
+        def fake_run(command, **kwargs):
+            raise FileNotFoundError("docker")
+        checks = inspect_host(run=fake_run)
+        self.assertEqual(checks["runtime"], "unverified")
+        self.assertEqual(assess(checks)[0], "hold")
+
+    def test_docker_timeout_is_hold(self):
+        import subprocess
+        def fake_run(command, **kwargs):
+            raise subprocess.TimeoutExpired(command, 15)
+        checks = inspect_host(run=fake_run)
+        self.assertEqual(checks["runtime"], "unverified")
+        self.assertEqual(assess(checks)[0], "hold")
+
     def test_docker_inspection_read_only(self):
         commands = []
         def fake_run(command, **kwargs):
