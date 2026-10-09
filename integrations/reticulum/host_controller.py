@@ -24,12 +24,16 @@ def read_requests(db_path):
         ).fetchall()
     finally:
         conn.close()
+    if not rows:
+        raise ValueError("no_reticulum_preferences_configured")
     users = {}
     for username, key, value in rows:
         if not isinstance(username, str) or not username or value not in ("true", "false"):
             raise ValueError("invalid_preference_data")
         prefs = users.setdefault(username, {})
         prefs[key] = value == "true"
+    if any("reticulum_requested_enabled" not in p for p in users.values()):
+        raise ValueError("missing_enabled_preference")
     if any(p.get("reticulum_requested_transport", False)
            and not p.get("reticulum_requested_enabled", False) for p in users.values()):
         raise ValueError("inconsistent_transport_request")
@@ -69,7 +73,11 @@ def main():
     if not args.legacy_checked:
         print("HOLD: legacy transport inventory must be checked before proceeding")
         return 2
-    decision = decide(args.database, legacy_transport_detected=args.legacy_transport_detected)
+    try:
+        decision = decide(args.database, legacy_transport_detected=args.legacy_transport_detected)
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        print(f"HOLD: preferences unavailable or invalid: {type(exc).__name__}")
+        return 2
     print(f"decision={decision.action} reason={decision.reason}")
     if decision.action == "hold":
         return 2
