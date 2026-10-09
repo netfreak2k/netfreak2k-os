@@ -54,15 +54,15 @@ class ConfigValidationTests(unittest.TestCase):
         self.assertEqual(validate_config(changed, False)[1], "missing_or_ambiguous_messenger_listener")
 
     def test_duplicate_transport_setting_is_rejected(self):
-        changed = BASE.replace("enable_transport = No", "enable_transport = No\\n  enable_transport = Yes")
+        changed = BASE.replace("enable_transport = No", "enable_transport = No\n  enable_transport = Yes")
         self.assertEqual(validate_config(changed, False)[1], "duplicate_or_empty_setting")
 
     def test_duplicate_listener_is_rejected(self):
-        changed = BASE + "  [[Second LAN Server]]\\n    type = TCPServerInterface\\n    enabled = Yes\\n    listen_port = 4243\\n"
+        changed = BASE + "  [[Second LAN Server]]\n    type = TCPServerInterface\n    enabled = Yes\n    listen_port = 4243\n"
         self.assertEqual(validate_config(changed, False)[1], "missing_or_ambiguous_messenger_listener")
 
     def test_duplicate_interface_name_is_rejected(self):
-        changed = BASE + "  [[N2K LAN Server]]\\n    type = TCPServerInterface\\n    enabled = Yes\\n    listen_port = 4243\\n"
+        changed = BASE + "  [[N2K LAN Server]]\n    type = TCPServerInterface\n    enabled = Yes\n    listen_port = 4243\n"
         self.assertEqual(validate_config(changed, False)[1], "duplicate_interface")
 
     def test_invalid_flag_type_is_rejected(self):
