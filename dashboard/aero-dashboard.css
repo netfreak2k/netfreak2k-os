@@ -265,3 +265,25 @@
 @media(max-width:360px){
  #dashboard-top .n2k-aero-applications .widget-grid{grid-template-columns:minmax(0,1fr)!important}
 }
+
+/* AI dashboard v8 — truthful live status, compact and icon-free. */
+#dashboard-top .n2k-aero-system .n2k-ai-live-card{grid-column:1/-1!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)!important;gap:8px!important;align-items:center!important;justify-content:stretch!important;text-align:left!important;padding:8px 11px!important;box-sizing:border-box!important;min-height:90px!important;height:auto!important;max-height:none!important;overflow:visible!important}
+#dashboard-top .n2k-ai-live-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+#dashboard-top .n2k-ai-live-title small{font-size:10px!important;color:#9cb9e8}
+#dashboard-top .n2k-ai-live-title strong{font-size:12px!important;line-height:1.25;overflow-wrap:anywhere}
+#dashboard-top .n2k-ai-live-stats{display:flex;flex-direction:column;gap:4px;min-width:0}
+#dashboard-top .n2k-ai-live-line{display:grid;grid-template-columns:7px minmax(0,1fr) auto;align-items:center;gap:5px;font-size:10px}
+#dashboard-top .n2k-ai-live-line b{font-size:10px;font-weight:650;white-space:nowrap;color:#dceaff}
+#dashboard-top .n2k-ai-live-dot{height:7px;width:7px;border-radius:50%;background:#8190a5;display:block}
+#dashboard-top .n2k-ai-live-dot.is-online{background:#43d99b;box-shadow:0 0 8px rgba(67,217,155,.45)}
+#dashboard-top .n2k-ai-live-neutral{background:#8f9eb3}
+#dashboard-top .n2k-ai-live-detail{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:10px;color:#b0c5e0;font-variant-numeric:tabular-nums}
+#dashboard-top .n2k-ai-live-meter{height:3px;width:100%;display:block;border-radius:4px;background:rgba(140,165,198,.2);overflow:hidden}
+#dashboard-top .n2k-ai-live-meter i{height:100%;width:0%;display:block;background:linear-gradient(90deg,#7b86ff,#43d6bd);transition:width .35s}
+@media(min-width:751px) and (max-width:1100px){
+ #dashboard-top .n2k-aero-system .n2k-ai-live-card{min-height:88px!important;height:auto!important;max-height:none!important;grid-template-columns:minmax(0,.95fr) minmax(0,1.1fr)!important}
+}
+@media(max-width:750px){
+ #dashboard-top .n2k-aero-system .n2k-ai-live-card{flex:0 0 84%!important;max-width:310px!important;min-width:240px!important;width:84%!important;min-height:110px!important;grid-template-columns:minmax(0,.95fr) minmax(0,1.1fr)!important;scroll-snap-align:start}
+ #dashboard-top .n2k-ai-live-detail{font-size:9px}
+}
