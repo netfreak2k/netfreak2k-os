@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="photos.css?v=20261008-10">
   <link rel="stylesheet" href="ollama-chat.css?v=20261008-terminal1">
   <link rel="stylesheet" href="mobile-stabilization.css?v=20261008-all-mobile4">
-  <link rel="stylesheet" href="aero-dashboard.css?v=20261009-ai8">
+  <link rel="stylesheet" href="aero-dashboard.css?v=20261009-final9">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -248,6 +248,21 @@
                 <span class="n2k-ai-live-meter" aria-hidden="true"><i id="n2k-ai-meter-fill"></i></span>
               </span>
             </button>
+            <div class="n2k-hub-network">            <button class="widget network-widget n2k-system-network" data-target-view="network-panel">
+              <div class="widget-head"><div><small>NETZWERK</small><h3>Internet & LAN</h3></div><span>›</span></div>
+              <div id="network-device-alert" class="n2k-network-alert" hidden></div>
+              <div class="network-values">
+                <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
+                <div><span>↑ Upload</span><strong id="network-up">0 B/s</strong></div>
+              </div>
+              <canvas id="network-chart" width="420" height="64" aria-label="Netzwerkverlauf"></canvas>
+              <div class="widget-detail-lines">
+                <span><b>Provider</b><strong id="network-provider">–</strong></span>
+                <span><b>Ping</b><strong id="network-ping">–</strong></span>
+                <span><b>WAN</b><strong id="network-wan-ip">–</strong></span>
+              </div>
+              <small id="network-interface">LAN</small>
+            </button></div>
           </div>
 
             </section>
@@ -265,21 +280,7 @@
               </div>
             </button>
 
-            <button class="widget network-widget" data-target-view="network-panel">
-              <div class="widget-head"><div><small>NETZWERK</small><h3>Internet & LAN</h3></div><span>›</span></div>
-              <div id="network-device-alert" class="n2k-network-alert" hidden></div>
-              <div class="network-values">
-                <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
-                <div><span>↑ Upload</span><strong id="network-up">0 B/s</strong></div>
-              </div>
-              <canvas id="network-chart" width="420" height="64" aria-label="Netzwerkverlauf"></canvas>
-              <div class="widget-detail-lines">
-                <span><b>Provider</b><strong id="network-provider">–</strong></span>
-                <span><b>Ping</b><strong id="network-ping">–</strong></span>
-                <span><b>WAN</b><strong id="network-wan-ip">–</strong></span>
-              </div>
-              <small id="network-interface">LAN</small>
-            </button>
+
 
             <button class="widget calendar-widget" data-target-view="calendar-panel">
               <div class="widget-head"><div><small>KALENDER</small><h3>Nächste Termine</h3></div><span>›</span></div>
@@ -322,6 +323,7 @@
               <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
             </div>
 
+            <div class="n2k-service-duo">
             <section class="widget n2k-network-service-widget" aria-label="ShadowNode">
               <div class="widget-head"><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="ShadowNode öffnen">›</button></div>
               <div class="n2k-service-live"><span id="n2k-shadow-state">Status wird geprüft …</span><strong id="n2k-shadow-nodes">Tor-Relay · Non-Exit</strong></div>
@@ -334,6 +336,7 @@
               <div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
               <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
             </section>
+            </div>
             <button class="widget matrix-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="300" height="110" aria-label="Network Hub Animation"></canvas>
               <div class="matrix-overlay">
@@ -1765,7 +1768,7 @@
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
 <div id="n2k-photo-editor" class="n2k-photo-editor" role="dialog" aria-modal="true" aria-label="Bildeditor" hidden><div class="n2k-editor-shell"><h2>Foto bearbeiten</h2><canvas id="n2k-editor-preview"></canvas><div class="n2k-editor-controls"><button id="n2k-editor-rotate">↻ 90° drehen</button><label>Helligkeit <input id="n2k-editor-brightness" type="range" min="30" max="170" value="100"></label><label>Kontrast <input id="n2k-editor-contrast" type="range" min="30" max="170" value="100"></label><label><input id="n2k-editor-crop" type="checkbox"> Quadratisch zuschneiden</label></div><div class="n2k-editor-buttons"><button id="n2k-editor-cancel">Abbrechen</button><button id="n2k-editor-save">Als neue Datei speichern</button></div></div></div>
-  <script src="aero-dashboard.js?v=20261009-ai8" defer></script>
+  <script src="aero-dashboard.js?v=20261009-final9" defer></script>
   <script src="ollama-chat.js?v=20261008-weather1"></script>
 </body>
 </html>
