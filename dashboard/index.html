@@ -94,8 +94,9 @@
         <button class="nav-item" data-target="media-center-panel"><span>♪</span>Media Center</button>
         <button class="nav-item" data-target="photos-panel"><span>▧</span>Fotogalery</button>
         <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
-        <button class="nav-item nav-subitem" data-target="privacy-panel"><span>◈</span>ShadowNode</button>
-        <button class="nav-item nav-subitem" data-target="reticulum-panel"><span>✉</span>MeshLink</button>
+        <button class="nav-item nav-subitem" data-target="privacy-panel"><span>◎</span>N2K Network Hub</button>
+        
+        
         <div id="system-nav-group" class="nav-group">
           <button id="system-nav-toggle" class="nav-item nav-group-toggle" type="button" aria-expanded="false">
             <span>▣</span><b>System</b><i>⌄</i>
@@ -113,7 +114,6 @@
           </div>
         </div>
         <button class="nav-item" data-target="terminal-panel"><span>&gt;_</span>Terminal</button>
-        <button class="nav-item" data-target="privacy-panel"><span>◈</span>Underground</button>
         <button class="nav-item" data-target="updates-panel"><span>⚙</span>Einstellungen</button>
         <button class="nav-item" data-target="help-panel"><span>?</span>FAQ &amp; Handbuch</button>
       </nav>
@@ -313,17 +313,17 @@
               <div class="n2k-service-actions"><button type="button" id="n2k-shadow-on" disabled>Ein</button><button type="button" id="n2k-shadow-off" disabled>Aus</button></div>
             </section>
             <section class="widget n2k-network-service-widget" aria-label="MeshLink">
-              <div class="widget-head"><div><small>MESH COMMUNICATION</small><h3>MeshLink</h3></div><button class="widget-open-mini" data-target-view="reticulum-panel" title="MeshLink öffnen">›</button></div>
+              <div class="widget-head"><div><small>MESH COMMUNICATION</small><h3>MeshLink</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="MeshLink öffnen">›</button></div>
               <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
               <div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
               <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
             </section>
             <button class="widget matrix-widget" data-target-view="privacy-panel">
-              <canvas id="matrix-canvas" width="300" height="110" aria-label="Underground Animation"></canvas>
+              <canvas id="matrix-canvas" width="300" height="110" aria-label="Network Hub Animation"></canvas>
               <div class="matrix-overlay">
                 <small>N2K UNDERGROUND</small>
-                <strong>Underground</strong>
-                <span>Tor · Privacy · Tools</span>
+                <strong>N2K Network Hub</strong>
+                <span>ShadowNode · MeshLink</span>
               </div>
             </button>
           </div>
@@ -1010,51 +1010,6 @@
             </section>
           </article>
 
-          <article id="reticulum-panel" class="panel section-anchor">
-            <div class="panel-head">
-              <div><p class="eyebrow">MESHLINK · MESH COMMUNICATION</p><h2>MeshLink</h2><p>Unser N2K RNS Gateway DEV · LXMF-Nachrichten über Reticulum.</p></div>
-              <span class="panel-symbol">✉</span>
-            </div>
-            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
-              <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
-              <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
-              <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-                <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
-                <div style="display:grid;gap:8px"><strong>Nachricht senden</strong><input id="n2k-send-dest" placeholder="LXMF-Zielhash" maxlength="32"><textarea id="n2k-send-content" maxlength="2048" rows="4" placeholder="Nachricht schreiben …"></textarea><button id="n2k-send-button" class="primary compact">Über LXMF senden</button><div id="n2k-native-messages" aria-live="polite">Noch keine Nachrichten</div></div>
-              </div>
-            </section>
-            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:14px">
-              <div class="tor-browser-toolbar">
-                <div><small>HOME ASSISTANT ADD-ON</small><strong>N2K RNS Gateway DEV</strong><span id="n2k-rns-ha-status" aria-live="polite">Home Assistant wird geprüft …</span></div>
-                <div class="tor-browser-actions">
-                  <button class="primary compact" id="n2k-rns-open">Messenger in Home Assistant öffnen ↗</button>
-                  <button class="secondary compact" id="n2k-rns-refresh">Status prüfen</button>
-                </div>
-              </div>
-              <div class="privacy-status-grid">
-                <section><small>NACHRICHTEN</small><strong>LXMF</strong><span>Verschlüsselte Reticulum-Kommunikation</span></section>
-                <section><small>NETZWERK</small><strong>TCP · AutoInterface</strong><span>Optional RNode / LoRa</span></section>
-                <section><small>STATUS</small><strong>HA-Add-on</strong><span>Getrennte Identität und Datenspeicherung im Add-on</span></section>
-              </div>
-              <p style="margin:0;line-height:1.6">Diese Integration verwendet dein bestehendes <strong>N2K RNS Gateway DEV</strong> – keine zweite Messenger-Instanz. Kontakte, Nachrichten, Identität, Living Mesh und Systemcheck bleiben in der originalen Oberfläche des Add-ons. Eine Verbindung zum laufenden Add-on wird hier nicht vorgetäuscht.</p>
-              <div class="tor-browser-actions">
-                <button type="button" class="secondary compact" id="n2k-rns-install-guide">Installationsanleitung anzeigen</button>
-                <a href="https://github.com/netfreak2k/home-assistant-reticulum-dev" target="_blank" rel="noopener noreferrer">Quellcode / DEV-Repository ↗</a>
-              </div>
-              <div id="n2k-rns-guide" hidden style="line-height:1.6">
-                <strong>Einmalige Einrichtung in Home Assistant</strong>
-                <ol>
-                  <li>Home Assistant öffnen → Einstellungen → Add-ons → Add-on Store.</li>
-                  <li>Menü ⋮ → Repositories → <code>https://github.com/netfreak2k/home-assistant-reticulum-dev</code> hinzufügen.</li>
-                  <li>N2K RNS Gateway DEV installieren, konfigurieren und starten.</li>
-                  <li>In der Add-on-Weboberfläche Messenger → Einstellungen → Systemcheck → Prüfen.</li>
-                </ol>
-                <p>Hinweis: Das Add-on muss zunächst in Home Assistant installiert sein. Der Button öffnet Home Assistant, nicht automatisch eine private Ingress-Sitzung.</p>
-              </div>
-            </section>
-          </article>
-
           <article id="vms-panel" class="panel vm-panel section-anchor">
             <div class="panel-head">
               <div><p class="eyebrow">N2K VIRTUALIZATION</p><h2>Virtuelle Maschinen</h2><p>KVM-Workloads inklusive Home Assistant OS zentral bedienen.</p></div>
@@ -1652,12 +1607,52 @@
           <article id="privacy-panel" class="panel privacy-panel section-anchor">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">N2K UNDERGROUND</p>
-                <h2>Privacy & Underground</h2>
-                <p>Isolierter Tor Browser direkt im Netfreak2k-Workspace – getrennt von Chromium und normalen Browser-Sitzungen.</p>
+                <p class="eyebrow">N2K NETWORK HUB</p>
+                <h2>Network Hub</h2>
+                <p>Privacy Network mit ShadowNode und dezentrale Mesh-Kommunikation mit MeshLink.</p>
               </div>
-              <span class="state-pill">PRIVACY</span>
+              <span class="state-pill">PRIVACY · MESH</span>
             </div>
+
+            <div class="panel-head"><div><p class="eyebrow">MESHLINK · MESH COMMUNICATION</p><h3>MeshLink · Reticulum Messenger</h3><p>Nativer Standard-Messenger, separat von Home Assistant.</p></div></div>
+            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
+              <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
+              <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
+              <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+                <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
+                <div style="display:grid;gap:8px"><strong>Nachricht senden</strong><input id="n2k-send-dest" placeholder="LXMF-Zielhash" maxlength="32"><textarea id="n2k-send-content" maxlength="2048" rows="4" placeholder="Nachricht schreiben …"></textarea><button id="n2k-send-button" class="primary compact">Über LXMF senden</button><div id="n2k-native-messages" aria-live="polite">Noch keine Nachrichten</div></div>
+              </div>
+            </section>
+            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:14px">
+              <div class="tor-browser-toolbar">
+                <div><small>HOME ASSISTANT ADD-ON</small><strong>N2K RNS Gateway DEV</strong><span id="n2k-rns-ha-status" aria-live="polite">Home Assistant wird geprüft …</span></div>
+                <div class="tor-browser-actions">
+                  <button class="primary compact" id="n2k-rns-open">Messenger in Home Assistant öffnen ↗</button>
+                  <button class="secondary compact" id="n2k-rns-refresh">Status prüfen</button>
+                </div>
+              </div>
+              <div class="privacy-status-grid">
+                <section><small>NACHRICHTEN</small><strong>LXMF</strong><span>Verschlüsselte Reticulum-Kommunikation</span></section>
+                <section><small>NETZWERK</small><strong>TCP · AutoInterface</strong><span>Optional RNode / LoRa</span></section>
+                <section><small>STATUS</small><strong>HA-Add-on</strong><span>Getrennte Identität und Datenspeicherung im Add-on</span></section>
+              </div>
+              <p style="margin:0;line-height:1.6">Diese Integration verwendet dein bestehendes <strong>N2K RNS Gateway DEV</strong> – keine zweite Messenger-Instanz. Kontakte, Nachrichten, Identität, Living Mesh und Systemcheck bleiben in der originalen Oberfläche des Add-ons. Eine Verbindung zum laufenden Add-on wird hier nicht vorgetäuscht.</p>
+              <div class="tor-browser-actions">
+                <button type="button" class="secondary compact" id="n2k-rns-install-guide">Installationsanleitung anzeigen</button>
+                <a href="https://github.com/netfreak2k/home-assistant-reticulum-dev" target="_blank" rel="noopener noreferrer">Quellcode / DEV-Repository ↗</a>
+              </div>
+              <div id="n2k-rns-guide" hidden style="line-height:1.6">
+                <strong>Einmalige Einrichtung in Home Assistant</strong>
+                <ol>
+                  <li>Home Assistant öffnen → Einstellungen → Add-ons → Add-on Store.</li>
+                  <li>Menü ⋮ → Repositories → <code>https://github.com/netfreak2k/home-assistant-reticulum-dev</code> hinzufügen.</li>
+                  <li>N2K RNS Gateway DEV installieren, konfigurieren und starten.</li>
+                  <li>In der Add-on-Weboberfläche Messenger → Einstellungen → Systemcheck → Prüfen.</li>
+                </ol>
+                <p>Hinweis: Das Add-on muss zunächst in Home Assistant installiert sein. Der Button öffnet Home Assistant, nicht automatisch eine private Ingress-Sitzung.</p>
+              </div>
+            </section>
 
             <div class="privacy-grid">
               <section class="privacy-card onion-explorer-card">
