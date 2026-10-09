@@ -3736,10 +3736,12 @@ def ollama_local_status():
     except (OSError,ValueError):
         setup={}
     try:
+        t0=time.monotonic()
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=3) as resp:
-            data=json.load(resp)
+            data=json.load(resp) 
+        latency_ms=round((time.monotonic()-t0)*1000)
         models=[m.get("name","") for m in data.get("models",[])]
-        return {"running":True,"models":models,"model":"qwen2.5:0.5b","ready":"qwen2.5:0.5b" in models,"setup":setup}
+        return {"running":True,"models":models,"model":"qwen2.5:0.5b","ready":"qwen2.5:0.5b" in models,"latency_ms":latency_ms,"setup":setup}
     except (OSError, ValueError, urllib.error.URLError):
         return {"running":False,"models":[],"model":"qwen2.5:0.5b","ready":False,"setup":setup}
 
