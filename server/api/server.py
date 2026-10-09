@@ -1223,6 +1223,54 @@ def set_preference(username, key, value):
     return {"saved": True, key: value}
 
 
+def reticulum_preferences(username):
+    """Per-user intent only; never a claim that the network is running."""
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT pref_key,pref_value FROM user_preferences WHERE username=? AND pref_key LIKE 'reticulum_%'",
+            (username,),
+        ).fetchall()
+    prefs = dict(rows)
+    return {
+        "display_name": prefs.get("reticulum_display_name", ""),
+        "requested_enabled": prefs.get("reticulum_requested_enabled") == "true",
+        "requested_transport": prefs.get("reticulum_requested_transport") == "true",
+        "applied": False,
+    }
+
+
+def save_reticulum_preferences(username, data):
+    """Store UI choices, not daemon configuration or key material."""
+    if not isinstance(data, dict):
+        raise ValueError("invalid_payload")
+    if set(data) != {"display_name", "requested_enabled", "requested_transport"}:
+        raise ValueError("invalid_fields")
+    name = data["display_name"]
+    enabled = data["requested_enabled"]
+    transport = data["requested_transport"]
+    if not isinstance(name, str) or not (1 <= len(name.strip()) <= 64):
+        raise ValueError("invalid_display_name")
+    if not isinstance(enabled, bool) or not isinstance(transport, bool):
+        raise ValueError("invalid_flags")
+    if transport and not enabled:
+        raise ValueError("transport_requires_enabled")
+    values = {
+        "reticulum_display_name": name.strip(),
+        "reticulum_requested_enabled": str(enabled).lower(),
+        "reticulum_requested_transport": str(transport).lower(),
+    }
+    with db_connect() as conn:
+        conn.executemany(
+            """INSERT INTO user_preferences(username,pref_key,pref_value,updated_at)
+               VALUES (?,?,?,?)
+               ON CONFLICT(username,pref_key) DO UPDATE
+               SET pref_value=excluded.pref_value,updated_at=excluded.updated_at""",
+            [(username, key, value, int(time.time())) for key, value in values.items()],
+        )
+        conn.commit()
+    return reticulum_preferences(username)
+
+
 def ensure_workspace(username):
     base = WORKSPACE_ROOT / "users" / username
     base.mkdir(parents=True, exist_ok=True)
@@ -3350,6 +3398,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":"native_messenger_unavailable"}, 503)
             return
 
+        if path == "/reticulum/preferences":
+            session = self.require_auth()
+            if not session:
+                return
+            if session.get("role") == "guest":
+                self.send_json({"error": "forbidden"}, 403)
+                return
+            self.send_json(reticulum_preferences(session["username"]))
+            return
+
         if path == "/reticulum/status":
             # Authenticated, read-only feature status. No unauthenticated guest route.
             session = self.require_auth()
@@ -4020,6 +4078,21 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+
+        if path == "/reticulum/preferences":
+            session = self.require_auth()
+            if not session:
+                return
+            if session.get("role") == "guest":
+                self.send_json({"error": "forbidden"}, 403)
+                return
+            if not self.require_csrf(session):
+                return
+            try:
+                self.send_json(save_reticulum_preferences(session["username"], self.read_json()))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
 
         if path in ("/messenger/messages", "/messenger/contacts"):
             session = self.require_auth()
