@@ -56,7 +56,11 @@ class HostControllerTests(unittest.TestCase):
         self.assertIn('env.pop("COMPOSE_PROJECT_NAME", None)', source)
         self.assertIn('["--project-name", project]', source)
     def test_commands_are_fixed(self):
-        self.assertIn("netfreak2k-reticulum-lan", compose_command("/tmp/compose.yml", "start_client"))
+        start = compose_command("/tmp/compose.yml", "start_client")
+        self.assertIn("netfreak2k-reticulum-lan", start)
+        self.assertIn("--force-recreate", start)
+        self.assertIn("--no-build", start)
+        self.assertIn("--no-deps", start)
         self.assertEqual(compose_command("/tmp/compose.yml", "stop")[-2:], ["stop", "netfreak2k-reticulum-lan"])
         with self.assertRaises(ValueError):
             compose_command("/tmp/compose.yml", "delete_everything")
