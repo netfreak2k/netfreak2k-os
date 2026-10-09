@@ -358,3 +358,16 @@
 .n2k-combined-ai-data{display:flex;flex-direction:column;min-width:0;gap:3px;text-align:left}
 .n2k-combined-ai-data strong{font-size:14px;line-height:1.2;font-weight:750;color:inherit}
 .n2k-combined-ai-data small{font-size:12px;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Native service cards: Golden Glass, mobile-first, no decorative fake telemetry. */
+.n2k-network-service-widget{display:flex;flex-direction:column;gap:12px;min-width:0}
+.n2k-service-live{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
+.n2k-service-live strong{font-size:11px;font-weight:650;opacity:.8}
+.n2k-service-graph{font-size:12px;display:grid;gap:7px;min-width:0;overflow:hidden}
+.n2k-service-graph>span{overflow-wrap:anywhere;opacity:.85}
+.n2k-service-track{height:5px;border-radius:9px;background:rgba(160,180,200,.13);overflow:hidden}
+.n2k-service-track i{display:block;width:0%;height:100%;background:linear-gradient(90deg,#6ab8dc,#d4ba79);transition:width .3s}
+.n2k-service-actions{display:flex;gap:8px;margin-top:auto}
+.n2k-service-actions button{min-height:35px;flex:1;border-radius:9px;border:1px solid rgba(180,195,212,.2);background:rgba(120,145,170,.13);color:inherit;cursor:pointer}
+.n2k-service-actions button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:650px){.n2k-network-service-widget{min-height:0;padding:12px}.n2k-service-actions button{min-height:42px}}
