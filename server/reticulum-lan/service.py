@@ -69,7 +69,11 @@ def load_settings(path=CONFIG):
         seen.add(key)
         normalized.append({"host": host, "port": p, "transport": transport})
     socks_host = data.get("socks_host", "127.0.0.1")
-    if not isinstance(socks_host, str) or not ipaddress.ip_address(socks_host).is_loopback:
+    try:
+        loopback = isinstance(socks_host, str) and ipaddress.ip_address(socks_host).is_loopback
+    except ValueError:
+        loopback = False
+    if not loopback:
         raise ValueError("SOCKS must bind to loopback")
     return {"enabled": data.get("enabled", False),
             "tor_enabled": data.get("tor_enabled", False),
@@ -197,8 +201,12 @@ def main():
         config.write_text(managed_config(settings), encoding="utf-8")
     else:
         existing = config.read_text(encoding="utf-8")
-        # Only replace configurations created by the N2K transport itself.
-        if "[[N2K LAN Discovery]]" in existing and "[[N2K Bridge Transport]]" in existing:
+        # Existing user-defined interfaces must never be removed by regeneration.
+        # This initial feature only updates configurations with no custom blocks.
+        names = re.findall(r"(?m)^\\s*\\[\\[([^]]+)\\]\\]", existing)
+        managed = {"N2K LAN Discovery", "N2K Bridge Transport"}
+        managed.update(name for name in names if re.fullmatch(r"N2K Shadow Peer \\d+", name))
+        if set(names) <= managed and {"N2K LAN Discovery", "N2K Bridge Transport"} <= set(names):
             config.write_text(managed_config(settings), encoding="utf-8")
         else:
             LOG.warning("Custom RNS config preserved; Shadow peer settings not applied")
