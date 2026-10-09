@@ -60,3 +60,39 @@
  .app-shell.n2k-mobile-menu-open>.sidebar{display:flex!important;flex-direction:column!important;position:fixed!important;top:0!important;left:0!important;bottom:0!important;right:auto!important;width:min(84vw,320px)!important;height:100dvh!important;max-height:100dvh!important;z-index:120!important;visibility:visible!important;transform:none!important;opacity:1!important;overflow-y:auto!important;background:linear-gradient(145deg,#101b32,#091324)!important;border-right:1px solid rgba(153,179,235,.27)!important;box-shadow:0 0 0 200vw rgba(1,5,15,.62),20px 0 60px rgba(0,0,0,.5)!important}
  .app-shell.n2k-mobile-menu-open>.sidebar .side-nav{display:flex!important;flex-direction:column!important;overflow:visible!important}
 }
+
+/* N2K compact dashboard v2: restore information density without losing live bindings. */
+@media(min-width:751px){
+ #dashboard-top .n2k-aero-dashboard{grid-template-columns:minmax(220px,0.72fr) minmax(0,1.72fr)!important;gap:14px!important}
+ #dashboard-top .n2k-aero-system .mini-metric{height:91px!important;min-height:91px!important;max-height:91px!important;padding:11px 13px!important;gap:11px!important}
+ #dashboard-top .n2k-aero-system .metric-ring{width:60px!important;height:60px!important;min-width:60px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{height:auto!important;min-height:0!important;max-height:none!important;padding:13px 16px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget{min-height:90px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget{min-height:116px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{min-height:125px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget .ha-widget-status{min-height:0!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget h3{font-size:15px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget canvas{height:30px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-graph{gap:4px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-actions{margin-top:2px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-actions button{min-height:30px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget #network-chart{height:36px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget .widget-detail-lines{display:none!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget .network-values{margin-block:3px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid{gap:9px!important}
+}
+/* The four primary cards stay first; additional tools are available below. */
+#dashboard-top .n2k-aero-applications .widget-grid>.drive-widget{order:3}
+#dashboard-top .n2k-aero-applications .widget-grid>.calendar-widget{order:4}
+#dashboard-top .n2k-aero-applications .widget-grid>.recent-widget{order:5}
+#dashboard-top .n2k-aero-applications .widget-grid>.overview-media-widget{order:6}
+@media(max-width:750px){
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{min-height:0!important;height:auto!important;padding:11px 13px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget canvas{height:30px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget h3{font-size:15px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid{gap:9px!important}
+}
