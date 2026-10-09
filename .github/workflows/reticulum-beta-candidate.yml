@@ -20,8 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/reticulum-integration-foundation
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -57,7 +55,19 @@ jobs:
               "production_approved": False,
               "requires": ["verified_host_backup", "reticulum_identity_backup", "messenger_history_backup", "manual_upgrade_tests", "rollback_test"],
           }
-          pathlib.Path("dist/reticulum-beta-manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+          pathlib.Path("dist/reticulum-beta-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+      - name: Verify candidate metadata and branch
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          data = json.loads(pathlib.Path("dist/reticulum-beta-manifest.json").read_text(encoding="utf-8"))
+          assert data["revision"] == os.environ["GITHUB_SHA"]
+          assert data["channel"] == "reticulum-beta-preview"
+          assert data["installable"] is False and data["update_available"] is False
+          assert data["production_approved"] is False
+          assert re.fullmatch(r"[0-9a-f]{40}", data["revision"])
+          assert os.environ["GITHUB_REF"] == "refs/heads/feature/reticulum-integration-foundation"
           PY
       - name: Generate source-only candidate
         run: |
