@@ -3369,6 +3369,17 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":"meshlink_gateway_unavailable"},503)
             return
 
+        if path == "/messenger/peers/best":
+            session=self.require_auth()
+            if not session:
+                return
+            try:
+                with urlopen("http://netfreak2k-messenger:8091/peers/best",timeout=5) as response:
+                    self.send_json(json.loads(response.read(16384).decode("utf-8")))
+            except (OSError,ValueError,json.JSONDecodeError):
+                self.send_json({"error":"meshlink_discovery_unavailable"},503)
+            return
+
         if path == "/messenger/peers":
             session = self.require_auth()
             if not session:
@@ -4029,6 +4040,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":str(exc)},400)
             except Exception:
                 self.send_json({"error":"meshlink_gateway_unavailable"},503)
+            return
+
+        if path == "/messenger/peers/auto":
+            session=self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                req=Request("http://netfreak2k-messenger:8091/peers/auto",
+                    data=b"{}",headers={"Content-Type":"application/json"},method="POST")
+                with urlopen(req,timeout=8) as response:
+                    result=json.loads(response.read(16384).decode("utf-8"))
+                self.send_json(result)
+            except (OSError,ValueError,json.JSONDecodeError):
+                self.send_json({"error":"meshlink_auto_path_failed"},503)
             return
 
         if path == "/messenger/peers/request":
