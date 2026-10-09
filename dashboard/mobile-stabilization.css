@@ -361,3 +361,71 @@
   #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{grid-template-columns:minmax(0,1fr)!important}
   #privacy-panel .n2k-hub-stats{grid-template-columns:minmax(0,1fr)!important}
 }
+
+
+/* 2026-10-09: screenshot-driven phone-only density fixes.
+   Deliberately no backend, telemetry, tablet, or desktop changes. */
+@media screen and (max-width:620px){
+  /* Compact header: two tidy rows, no giant gap between title and clock. */
+  .topbar.topbar-desktop{
+    min-height:0!important;padding:8px 10px!important;
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+    gap:5px 8px!important;align-items:center!important
+  }
+  .topbar .topbar-title-line{display:flex!important;flex-wrap:wrap!important;gap:5px!important}
+  .topbar .topbar-title-line h1{font-size:clamp(15px,4.2vw,18px)!important;flex:1 1 100%!important}
+  .topbar .topbar-right{align-self:center!important;min-width:0!important}
+  .topbar .topbar-welcome{min-width:0!important}
+  .topbar .topbar-welcome>strong{font-size:17px!important}
+  .topbar .topbar-welcome>small{font-size:9px!important}
+  .topbar .topbar-right .top-actions{gap:4px!important}
+  .topbar .topbar-right .icon-button{width:36px!important;height:36px!important;min-height:36px!important}
+  .topbar #top-update-status{min-height:28px!important}
+  #dashboard-top .overview-inline-status{padding:10px 12px!important;min-height:0!important;gap:5px!important}
+  #dashboard-top #overview-greeting{font-size:20px!important;line-height:1.2!important}
+  #dashboard-top #overview-health-copy{font-size:12px!important;line-height:1.35!important}
+
+  /* Equal, compact metric cards; preserve genuine sensor/status values. */
+  #dashboard-top .mini-metrics>.mini-metric{
+    min-height:128px!important;padding:11px!important;gap:6px!important
+  }
+  #dashboard-top .mini-metric .metric-ring{width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important;flex:0 0 54px!important}
+  #dashboard-top .mini-metric .metric-ring .ring-value{font-size:19px!important}
+  #dashboard-top .mini-metric .n2k-monitor-title{font-size:11px!important;line-height:1.25!important}
+  #dashboard-top .mini-metric .n2k-monitor-copy{font-size:11px!important}
+  #dashboard-top .mini-metric .cpu-metric-copy>span{font-size:11px!important;line-height:1.25!important}
+  #dashboard-top .mini-metric strong{font-size:14px!important;line-height:1.25!important}
+  #dashboard-top .mini-metric :is(canvas,svg){max-width:100%!important}
+  /* Do not fabricate unavailable storage or temperature data. */
+  #dashboard-top .n2k-uptime-plain .n2k-uptime-content{gap:5px!important}
+  #dashboard-top #n2k-uptime-value{font-size:16px!important}
+
+  /* RNS hub: remove excessive empty chart space, retain route and traffic labels. */
+  #dashboard-top .widget-grid>.n2k-rns-hub-widget{
+    min-height:0!important;height:auto!important;padding:13px!important;
+    gap:9px!important;justify-content:flex-start!important
+  }
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-live{gap:5px!important;align-items:flex-start!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{gap:7px!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>div{padding:9px!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-graph{
+    gap:5px!important;min-height:0!important;margin:0!important
+  }
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-graph canvas{
+    height:35px!important;max-height:35px!important;min-height:0!important
+  }
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-track{margin:0!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-actions{margin-top:2px!important;gap:7px!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-actions button{
+    min-height:38px!important;padding:6px!important
+  }
+  /* Disabled actions cannot operate: don't waste phone space on them. */
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-actions:has(button:disabled) button:disabled{display:none!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-service-actions:not(:has(button:not(:disabled))){display:none!important}
+
+  /* Footer copy remains available but is visually secondary. */
+  #dashboard-top ~ footer, .workspace footer{
+    font-size:11px!important;line-height:1.5!important;overflow-wrap:anywhere;
+    padding:10px 2px calc(12px + env(safe-area-inset-bottom))!important
+  }
+}
