@@ -34,8 +34,9 @@ else:
         config_dir = STATE / "rns"
         config_dir.mkdir(parents=True, exist_ok=True)
         config = config_dir / "config"
-        if not config.exists():
-            # Default to client mode; transport is a separate explicit opt-in.
+        fresh_config = not config.exists()
+        if fresh_config:
+            # Fresh installs may opt in explicitly; never alter persisted settings.
             config.write_text(
                 "[reticulum]\n  enable_transport = No\n  share_instance = No\n\n"
                 "[interfaces]\n  [[N2K LAN Discovery]]\n"
@@ -59,11 +60,9 @@ else:
         # Do not silently rewrite a user configuration during upgrade.
         if not re.search(r"(?im)^\s*type\s*=\s*TCPServerInterface\s*$", existing) or not re.search(r"(?im)^\s*listen_port\s*=\s*4243\s*$", existing):
             raise RuntimeError("Existing RNS config lacks Messenger LAN TCP 4243; migration required")
-        if TRANSPORT:
-            raise RuntimeError("Transport opt-in requires managed config migration (not implemented)")
         RNS.Reticulum(configdir=str(config_dir))
         while True:
-            report("local_instance_started", available=True)
+            report("local_instance_started", available=True, transport=TRANSPORT)
             time.sleep(15)
     except Exception as exc:
         while True:
