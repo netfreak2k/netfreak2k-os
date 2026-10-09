@@ -4167,7 +4167,7 @@ class Handler(BaseHTTPRequestHandler):
                 SHADOW_STATE.parent.mkdir(parents=True, exist_ok=True)
                 temporary = SHADOW_STATE.with_suffix(".tmp")
                 temporary.write_text(json.dumps(settings), encoding="utf-8")
-                temporary.chmod(0o600)
+                temporary.chmod(0o660)
                 temporary.replace(SHADOW_STATE)
                 audit_event(session["username"], "shadow_nodes_settings", "config_updated", self.client_ip())
                 self.send_json({"saved": True, "restart_required": True, "connection_status": "not_measured"})
