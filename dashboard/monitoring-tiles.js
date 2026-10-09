@@ -99,7 +99,7 @@ setMetric("temperature",temp,valid(t.max_c)?"Max "+Number(t.max_c).toFixed(0)+" 
 const fans=c.fans||c.fan_speeds||d.fans||[];
 const numbers=Array.isArray(fans)?fans.map(f=>val(typeof f==="object"?(f.rpm??f.speed_rpm??f.current_rpm):f)).filter(v=>v!==null):[];
 const rpm=numbers.length?numbers[0]:val(c.fan_rpm);
-setMetric("fan",rpm,numbers.length?numbers.length+" Lüfter erkannt":"RPM-Sensor",rpm!==null?"Echter Tachometerwert":"Kein RPM-Sensor vom Host gemeldet",5000);
+// Fan telemetry is shown on the dedicated hardware page, not in Uptime.
 }catch(e){console.debug("N2K tiles sensors:",e.message)}
 }
 async function pollLocalAi(){
@@ -143,21 +143,15 @@ wireUpdateShortcut();
 const grid=document.querySelector("#dashboard-top .mini-metrics");if(!grid||grid.dataset.n2kReady)return;grid.dataset.n2kReady="1";
 for(const [i,type] of ["cpu","ram","storage","uptime"].entries())if(grid.children[i])decorate(grid.children[i],type);
 grid.append(makeCard("temperature","n2k-temperature","CPU"));
-const combined=grid.querySelector('[data-metric="uptime"]');
-if(combined){
- combined.classList.add("n2k-uptime-fan");
- const heading=combined.querySelector(".n2k-monitor-title > span");
- if(heading)heading.textContent="Uptime & Lüfter";
- const fanArea=document.createElement("div");
- fanArea.className="n2k-combined-fan";
- fanArea.innerHTML='<span class="n2k-combined-fan-icon" aria-hidden="true">✣</span><div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">Sensor wird geprüft</small></div>';
- combined.appendChild(fanArea);
- const aiArea=document.createElement("div");
- aiArea.className="n2k-combined-ai";
- aiArea.innerHTML='<span class="n2k-combined-ai-dot" id="n2k-combined-ai-dot" data-state="offline" aria-hidden="true"></span><div class="n2k-combined-ai-data"><strong id="n2k-combined-ai-status">KI wird geprüft</strong><small id="n2k-combined-ai-model">Ollama · lokal</small></div>';
- combined.appendChild(aiArea);
- combined.setAttribute("aria-label","Betriebsdauer, Lüfterdrehzahl und lokaler KI-Status");
+const uptimeCard=grid.querySelector('[data-metric="uptime"]');
+if(uptimeCard){
+ const heading=uptimeCard.querySelector(".n2k-monitor-title > span");
+ if(heading)heading.textContent="Uptime";
+ const ring=uptimeCard.querySelector(".metric-ring");
+ if(ring){ring.classList.add("n2k-uptime-text-only");ring.style.setProperty("--n2k-fill","0%");}
+ uptimeCard.setAttribute("aria-label","Betriebsdauer seit letztem Neustart");
 }
+
 poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
