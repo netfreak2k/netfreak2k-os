@@ -457,3 +457,14 @@
  #dashboard-top .widget-grid>.overview-media-widget{order:7!important}
  #dashboard-top .widget-grid>.activity-widget{order:8!important}
 }
+
+/* Uptime: plain readable duration instead of a status ring. */
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only{
+ width:auto!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:0!important;
+ border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only:before,
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only:after{display:none!important}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:19px!important;font-weight:750!important}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{font-size:10px!important}
