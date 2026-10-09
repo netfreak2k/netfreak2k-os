@@ -1606,101 +1606,13 @@
 
           <article id="privacy-panel" class="panel privacy-panel section-anchor">
             <div class="panel-head">
-              <div>
-                <p class="eyebrow">N2K NETWORK HUB</p>
-                <h2>Network Hub</h2>
-                <p>Privacy Network mit ShadowNode und dezentrale Mesh-Kommunikation mit MeshLink.</p>
-              </div>
+              <div><p class="eyebrow">N2K NETWORK HUB</p><h2>Network Hub</h2><p>ShadowNode · Privacy Network und MeshLink · Mesh Communication – zentral verwalten.</p></div>
               <span class="state-pill">PRIVACY · MESH</span>
             </div>
-
-            <div class="panel-head"><div><p class="eyebrow">MESHLINK · MESH COMMUNICATION</p><h3>MeshLink · Reticulum Messenger</h3><p>Nativer Standard-Messenger, separat von Home Assistant.</p></div></div>
-            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
-              <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
-              <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
-              <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-                <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
-                <div style="display:grid;gap:8px"><strong>Nachricht senden</strong><input id="n2k-send-dest" placeholder="LXMF-Zielhash" maxlength="32"><textarea id="n2k-send-content" maxlength="2048" rows="4" placeholder="Nachricht schreiben …"></textarea><button id="n2k-send-button" class="primary compact">Über LXMF senden</button><div id="n2k-native-messages" aria-live="polite">Noch keine Nachrichten</div></div>
-              </div>
-            </section>
-            <section class="tor-browser-shell" style="padding:18px;display:grid;gap:14px">
-              <div class="tor-browser-toolbar">
-                <div><small>HOME ASSISTANT ADD-ON</small><strong>N2K RNS Gateway DEV</strong><span id="n2k-rns-ha-status" aria-live="polite">Home Assistant wird geprüft …</span></div>
-                <div class="tor-browser-actions">
-                  <button class="primary compact" id="n2k-rns-open">Messenger in Home Assistant öffnen ↗</button>
-                  <button class="secondary compact" id="n2k-rns-refresh">Status prüfen</button>
-                </div>
-              </div>
-              <div class="privacy-status-grid">
-                <section><small>NACHRICHTEN</small><strong>LXMF</strong><span>Verschlüsselte Reticulum-Kommunikation</span></section>
-                <section><small>NETZWERK</small><strong>TCP · AutoInterface</strong><span>Optional RNode / LoRa</span></section>
-                <section><small>STATUS</small><strong>HA-Add-on</strong><span>Getrennte Identität und Datenspeicherung im Add-on</span></section>
-              </div>
-              <p style="margin:0;line-height:1.6">Diese Integration verwendet dein bestehendes <strong>N2K RNS Gateway DEV</strong> – keine zweite Messenger-Instanz. Kontakte, Nachrichten, Identität, Living Mesh und Systemcheck bleiben in der originalen Oberfläche des Add-ons. Eine Verbindung zum laufenden Add-on wird hier nicht vorgetäuscht.</p>
-              <div class="tor-browser-actions">
-                <button type="button" class="secondary compact" id="n2k-rns-install-guide">Installationsanleitung anzeigen</button>
-                <a href="https://github.com/netfreak2k/home-assistant-reticulum-dev" target="_blank" rel="noopener noreferrer">Quellcode / DEV-Repository ↗</a>
-              </div>
-              <div id="n2k-rns-guide" hidden style="line-height:1.6">
-                <strong>Einmalige Einrichtung in Home Assistant</strong>
-                <ol>
-                  <li>Home Assistant öffnen → Einstellungen → Add-ons → Add-on Store.</li>
-                  <li>Menü ⋮ → Repositories → <code>https://github.com/netfreak2k/home-assistant-reticulum-dev</code> hinzufügen.</li>
-                  <li>N2K RNS Gateway DEV installieren, konfigurieren und starten.</li>
-                  <li>In der Add-on-Weboberfläche Messenger → Einstellungen → Systemcheck → Prüfen.</li>
-                </ol>
-                <p>Hinweis: Das Add-on muss zunächst in Home Assistant installiert sein. Der Button öffnet Home Assistant, nicht automatisch eine private Ingress-Sitzung.</p>
-              </div>
-            </section>
-
-            <div class="privacy-grid">
-              <section class="privacy-card onion-explorer-card">
-                <div class="privacy-icon">◈</div>
-                <div class="onion-explorer-body">
-                  <small>N2K ONION EXPLORER</small>
-                  <strong>Darkweb-Startseite</strong>
-                  <p>Onion-Adresse eingeben, Favoriten verwalten und das Ziel im eingebetteten Tor-Arbeitsbereich öffnen.</p>
-                  <div class="onion-explorer-search">
-                    <input id="onion-explorer-url" type="text" placeholder="http://example.onion/">
-                    <button id="onion-explorer-open" class="primary compact">Öffnen</button>
-                    <button id="onion-explorer-save" class="secondary compact">Favorit</button>
-                  </div>
-                  <div class="onion-explorer-toolbar">
-                    <button id="onion-copy" class="mini-action">Adresse kopieren</button>
-                    <button id="tor-download" class="mini-action">Tor Browser</button>
-                    <button id="onion-clear-history" class="mini-action">Verlauf löschen</button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="privacy-card tor-card">
-                <div class="privacy-icon">T</div>
-                <div>
-                  <small>TOR / ONION</small>
-                  <strong>Tor-fähigen Browser verwenden</strong>
-                  <p>.onion-Adressen funktionieren nur über einen Tor-fähigen Browser. N2K betreibt keinen offenen Proxy.</p>
-                  <div class="onion-launcher">
-                    <input id="onion-url" type="text" placeholder="http://exampleonionaddress.onion/">
-                    <button id="open-onion" class="primary compact">Öffnen</button>
-                  </div>
-                  <button id="tor-project" class="mini-action">Tor Project öffnen</button>
-                </div>
-              </section>
-            </div>
-
-            <div class="onion-explorer-dashboard">
-              <section>
-                <div class="subpanel-head"><h3>Favoriten</h3><span>lokal im Browser</span></div>
-                <div id="onion-favorites" class="onion-list"><div class="app-empty">Noch keine Favoriten.</div></div>
-              </section>
-              <section>
-                <div class="subpanel-head"><h3>Verlauf</h3><span>lokal im Browser</span></div>
-                <div id="onion-history" class="onion-list"><div class="app-empty">Noch kein Verlauf.</div></div>
-              </section>
-            </div>
-
-            <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
+            <div class="n2k-hub-tiles">
+              <section class="n2k-hub-card" aria-label="ShadowNode Steuerung">
+                <div class="n2k-hub-title"><span class="n2k-hub-symbol">◈</span><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3><span>Tor Non-Exit-Relay</span></div></div>
+                <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
               <div class="tor-browser-toolbar">
                 <div><small>SHADOWNODE · PRIVACY NETWORK</small><strong>ShadowNode · Tor-Knotenpunkt (Non-Exit-Relay)</strong><span id="tor-relay-status">Status wird geladen …</span></div>
                 <div class="tor-browser-actions">
@@ -1709,45 +1621,31 @@
                   <button type="button" id="tor-relay-refresh" class="secondary compact">Aktualisieren</button>
                 </div>
               </div>
-              <p style="margin:0;line-height:1.55">Ein Tor-Relay leitet verschlüsselten Datenverkehr für andere Tor-Nutzer weiter und stärkt damit das Netzwerk. Dieser Server wird <strong>kein Exit-Knoten</strong>: Über ihn werden keine Verbindungen aus Tor ins normale Internet freigegeben. Der Tor Browser funktioniert unabhängig davon.</p>
+              <p style="margin:0;line-height:1.55">Ein Tor-Relay leitet verschlüsselten Datenverkehr für andere Tor-Nutzer weiter und stärkt damit das Netzwerk. Dieser Server wird <strong>kein Exit-Knoten</strong>: Über ihn werden keine Verbindungen aus Tor ins normale Internet freigegeben. Der Dienst ist unabhängig vom Messenger und bietet keinen Tor-Browser.</p>
               <div id="tor-relay-metrics" aria-live="polite" style="display:flex;flex-wrap:wrap;gap:10px;font-size:.9em"><span id="tor-relay-uptime">Laufzeit: –</span><span id="tor-relay-traffic">Netzwerk: –</span><span>Modus: Non-Exit</span></div>
               <p style="margin:0;opacity:.8;font-size:.91em">Hinweis: Der Relay nutzt deine Upload-Bandbreite und macht deine öffentliche IP als Tor-Knoten sichtbar. Für Erreichbarkeit kann eine Portfreigabe TCP 9001 nötig sein. Standardmäßig ist die Funktion aus; nur Administratoren dürfen sie einschalten.</p>
             </section>
-
-            <section class="tor-browser-shell">
-              <div class="tor-browser-toolbar">
-                <div>
-                  <small>ISOLIERTER BROWSER</small>
-                  <strong>Tor Browser</strong>
-                  <span id="tor-browser-state">Nicht installiert</span>
-                </div>
-                <div class="tor-browser-actions">
-                  <button id="tor-browser-install" class="primary compact">Tor Browser installieren</button>
-                  <button id="tor-browser-start" class="secondary compact">Start</button>
-                  <button id="tor-browser-stop" class="secondary compact">Stop</button>
-                  <button id="tor-browser-restart" class="secondary compact">Neu starten</button>
-                  <button id="tor-browser-open" class="secondary compact">Groß öffnen</button>
-                </div>
-              </div>
-              <div id="tor-browser-frame-wrap" class="tor-browser-frame-wrap">
-                <div class="tor-browser-placeholder">
-                  <strong>Tor Browser noch nicht aktiv</strong>
-                  <span>Nach der optionalen Installation erscheint hier die browserbasierte Tor-Sitzung.</span>
-                </div>
-              </div>
-              <div class="tor-browser-note">
-                Kasm Tor Browser läuft isoliert im Docker-Container. Beim ersten Öffnen kann der Browser wegen seines lokalen HTTPS-Zertifikats eine Bestätigung verlangen.
+                <div class="n2k-hub-stats"><div><small>Netzwerkverkehr RX / TX</small><strong id="n2k-hub-shadow-traffic">–</strong></div><div><small>Relay-Verbindung</small><strong id="n2k-hub-shadow-status">Nicht geprüft</strong></div></div>
+                <canvas id="n2k-hub-shadow-chart" width="500" height="95" aria-label="ShadowNode Traffic-Verlauf"></canvas>
+                <p class="n2k-hub-footnote">Die Messwerte stammen vom verwalteten Docker-Container. Ein laufender Container bedeutet nicht automatisch, dass das Tor-Netzwerk ihn von außen erreichen kann.</p>
+              </section>
+              <section class="n2k-hub-card" aria-label="MeshLink Steuerung">
+                <div class="n2k-hub-title"><span class="n2k-hub-symbol">⌁</span><div><small>MESH COMMUNICATION</small><h3>MeshLink</h3><span>Reticulum / LXMF · Standard-Messenger</span></div></div>
+                <div class="n2k-hub-actions"><span id="n2k-hub-mesh-state">Status wird geprüft …</span><button id="n2k-hub-mesh-on" class="primary compact" disabled>Ein</button><button id="n2k-hub-mesh-off" class="secondary compact" disabled>Aus</button></div>
+                <div class="n2k-hub-stats"><div><small>Nodes</small><strong id="n2k-hub-mesh-nodes">Nicht verfügbar</strong></div><div><small>Netzwerkverkehr RX / TX</small><strong id="n2k-hub-mesh-traffic">–</strong></div></div>
+                <canvas id="n2k-hub-mesh-chart" width="500" height="95" aria-label="MeshLink Traffic-Verlauf"></canvas>
+                <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
+              <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
+              <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
+              <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+                <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
+                <div style="display:grid;gap:8px"><strong>Nachricht senden</strong><input id="n2k-send-dest" placeholder="LXMF-Zielhash" maxlength="32"><textarea id="n2k-send-content" maxlength="2048" rows="4" placeholder="Nachricht schreiben …"></textarea><button id="n2k-send-button" class="primary compact">Über LXMF senden</button><div id="n2k-native-messages" aria-live="polite">Noch keine Nachrichten</div></div>
               </div>
             </section>
-
-            <div class="privacy-status-grid">
-              <section><small>SERVER-PROXY</small><strong>Deaktiviert</strong><span>Kein offener SOCKS/HTTP-Proxy</span></section>
-              <section><small>ONION-LAUNCHER</small><strong>Browser-seitig</strong><span>Nur URL-Übergabe, kein Server-Relay</span></section>
-              <section><small>FAVORITEN</small><strong>Nur lokal</strong><span>Keine zentrale Darkweb-Datenbank</span></section>
-              <section><small>SICHERHEIT</small><strong>LAN-first</strong><span>Keine WAN-Freigabe standardmäßig</span></section>
+              </section>
             </div>
           </article>
-
 <article id="help-panel" class="panel n2k-help-panel section-anchor">
  <div class="panel-head"><div><p class="eyebrow">N2K HILFECENTER</p><h2>FAQ &amp; Handbuch</h2><p>Dein Einstieg in Netfreak2k Server-OS – ohne Terminalkenntnisse.</p></div><span class="state-pill">LOKAL</span></div>
  <nav class="n2k-help-nav" aria-label="Handbuch Kapitel">
