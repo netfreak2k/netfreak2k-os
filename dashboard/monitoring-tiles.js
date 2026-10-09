@@ -150,15 +150,7 @@ if(combined){
  combined.classList.add("n2k-uptime-fan");
  const heading=combined.querySelector(".n2k-monitor-title > span");
  if(heading)heading.textContent="Uptime";
- const fanArea=document.createElement("div");
- fanArea.className="n2k-combined-fan";
- fanArea.innerHTML='<div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">RPM wird geprüft</small></div><canvas class="n2k-fan-curve" data-spark="fan" aria-label="Lüfterdrehzahl-Verlauf"></canvas>';
- combined.appendChild(fanArea);
- const aiArea=document.createElement("div");
- aiArea.className="n2k-combined-ai";
- aiArea.innerHTML='<span class="n2k-combined-ai-dot" id="n2k-combined-ai-dot" data-state="offline" aria-hidden="true"></span><div class="n2k-combined-ai-data"><strong id="n2k-combined-ai-status">KI wird geprüft</strong><small id="n2k-combined-ai-model">Ollama · lokal</small></div>';
- combined.appendChild(aiArea);
- combined.setAttribute("aria-label","Betriebsdauer, Lüfterdrehzahl und lokaler KI-Status");
+ combined.setAttribute("aria-label","Betriebsdauer");
 }
 poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
