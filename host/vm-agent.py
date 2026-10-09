@@ -25,7 +25,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "meshlink_status", "meshlink_set", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "meshlink_status", "meshlink_set", "meshlink_restart", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -3912,6 +3912,11 @@ def execute(action, request):
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
+
+    if action == "meshlink_restart":
+        managed_container_state(MESHLINK_CONTAINER)
+        run("docker", "restart", "--time", "20", MESHLINK_CONTAINER, check=True, timeout=50)
+        return meshlink_status()
 
     if action == "meshlink_status":
         return meshlink_status()
