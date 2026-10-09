@@ -145,6 +145,22 @@ class Handler(BaseHTTPRequestHandler):
             result = {"messages":read_records(MESSAGES)}
         elif self.path == "/contacts":
             result = {"contacts":read_records(CONTACTS)}
+        elif self.path == "/peers/best":
+            now=int(time.time())
+            candidates=[]
+            for peer in read_records(PEERS):
+                try:
+                    h=bytes.fromhex(peer["destination"])
+                    known=bool(RNS.Transport.has_path(h))
+                    hops=RNS.Transport.hops_to(h) if known else None
+                    age=max(0,now-int(peer.get("last_seen",0)))
+                    candidates.append(dict(peer,path_known=known,hops=hops,age_seconds=age))
+                except (ValueError,KeyError,TypeError):
+                    continue
+            candidates.sort(key=lambda p:(not p["path_known"],p["hops"] if isinstance(p["hops"],int) else 999,p["age_seconds"]))
+            best=next((p for p in candidates if p["path_known"] and p["age_seconds"]<=86400),None)
+            result={"best":best,"known_count":len(candidates),"reachable_route_count":sum(1 for p in candidates if p["path_known"]),
+                    "connected_transport_count":None,"note":"Known route != active TCP connection"}
         elif self.path == "/gateway":
             result=dict(public_peer(), applied=RUNTIME.get("online",False))
         elif self.path == "/peers":
@@ -174,7 +190,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path not in ("/contacts", "/messages", "/node", "/peers/request", "/gateway"):
+        if self.path not in ("/contacts", "/messages", "/node", "/peers/request", "/gateway", "/peers/auto"):
             self.send_error(404)
             return
         try:
@@ -184,6 +200,32 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("invalid_payload")
+            if self.path == "/peers/auto":
+                if not RUNTIME["online"]:
+                    raise ValueError("reticulum_offline")
+                now=int(time.time())
+                candidates=[]
+                for entry in read_records(PEERS):
+                    try:
+                        dest=bytes.fromhex(entry["destination"])
+                        age=max(0,now-int(entry.get("last_seen",0)))
+                        if age>86400:
+                            continue
+                        has=bool(RNS.Transport.has_path(dest))
+                        hops=RNS.Transport.hops_to(dest) if has else None
+                        candidates.append((not has,hops if isinstance(hops,int) else 999,age,entry["destination"]))
+                    except (ValueError,KeyError,TypeError):
+                        continue
+                candidates.sort()
+                if not candidates:
+                    self.send_result({"selected":None,"requested":False,"message":"no_recent_announces"})
+                    return
+                selected=candidates[0][3]
+                RNS.Transport.request_path(bytes.fromhex(selected))
+                self.send_result({"selected":selected,"requested":True,
+                    "path_known":bool(RNS.Transport.has_path(bytes.fromhex(selected))),
+                    "note":"best observed LXMF route requested; this is not a direct TCP link"})
+                return
             if self.path == "/gateway":
                 host=str(payload.get("host","")).strip().lower()
                 port=payload.get("port")
