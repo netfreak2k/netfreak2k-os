@@ -65,20 +65,7 @@ APP_CATALOG = {
         "volume": "netfreak2k-app-uptime-kuma-data",
         "mount": "/app/data",
     },
-    "tor-browser": {
-        "name": "Tor Browser",
-        "description": "Isolierter Tor Browser mit browserbasierter KasmVNC-Oberfläche.",
-        "image": "kasmweb/tor-browser:1.18.0",
-        "container": "netfreak2k-app-tor-browser",
-        "host_port": 6901,
-        "container_port": 6901,
-        "volume": None,
-        "mount": None,
-        "shm_size": "512m",
-        "requirements": "Optionaler isolierter Browser · ca. 1 GB Image",
-        "license": "Kasm/Tor Browser upstream licenses",
-        "requires_password": True,
-    },
+
     "onlyoffice-docs": {
         "name": "ONLYOFFICE Docs Community",
         "description": "Browserbasierte Office-Engine für Dokumente, Tabellen und Präsentationen.",
