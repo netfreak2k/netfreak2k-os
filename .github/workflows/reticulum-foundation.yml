@@ -8,6 +8,7 @@ on:
       - 'server/api/reticulum_status.py'
       - 'server/api/reticulum_activation.py'
       - 'server/api/reticulum_overview.py'
+      - 'server/api/reticulum_beta_gate.py'
       - 'server/api/server.py'
       - 'server/messenger/**'
       - 'server/reticulum-lan/**'
@@ -22,13 +23,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile policy modules
-        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/api/reticulum_activation.py server/api/reticulum_overview.py server/api/server.py server/messenger/service.py server/reticulum-lan/service.py server/reticulum-lan/config_validation.py
+        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/api/reticulum_activation.py server/api/reticulum_overview.py server/api/reticulum_beta_gate.py server/api/server.py server/messenger/service.py server/reticulum-lan/service.py server/reticulum-lan/config_validation.py
       - name: Validate Docker Compose configuration
         run: docker compose -f server/docker-compose.yml config --quiet
       - name: Build Reticulum runtime images
         run: |
           docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan
-          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation, reticulum_overview'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation, reticulum_overview, reticulum_beta_gate'
           docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-reticulum-lan -c 'import config_validation'
       - name: Run foundation unit tests
         run: python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
