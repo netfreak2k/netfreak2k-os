@@ -41,6 +41,17 @@ class ConfigValidationTests(unittest.TestCase):
     def test_missing_mode_is_rejected(self):
         self.assertEqual(validate_config(BASE.replace("enable_transport = No", ""), False)[1], "unknown_transport_mode")
 
+    def test_disabled_transport_is_not_assumed_enabled(self):
+        self.assertEqual(validate_config(BASE, False), (True, "ok"))
+        self.assertEqual(validate_config(BASE, True)[1], "transport_mode_mismatch")
+
+    def test_wrong_port_is_rejected(self):
+        changed = BASE.replace("listen_port = 4243", "listen_port = 4244")
+        self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
+
+    def test_invalid_flag_type_is_rejected(self):
+        self.assertEqual(validate_config(BASE, "false")[1], "invalid_input")
+
     def test_comments_do_not_count(self):
         changed = BASE.replace("    listen_port = 4243", "    # listen_port = 4243")
         self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
