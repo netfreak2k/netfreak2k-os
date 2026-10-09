@@ -113,8 +113,8 @@ async function pollLocalAi(){
    const info=await res.json();
    const available=info.running===true;
    const ready=info.ready===true;
-   node.textContent=ready?"KI bereit":available?"Modell fehlt":"KI offline";
-   model.textContent=ready?(info.model||"Ollama"):available?"Ollama aktiv":"Ollama nicht erreichbar";
+   node.textContent=ready?"Ollama online · bereit":available?"Ollama online · kein Modell":"Ollama offline";
+   model.textContent=ready?"Modell: "+(info.model||"bereit"):available?"Modell: "+(Array.isArray(info.models)&&info.models.length?info.models[0]:"nicht geladen"):"Modell: –";
    indicator.dataset.state=ready?"ready":available?"warning":"offline";
  }catch(e){
    node.textContent="KI-Status unbekannt";
@@ -146,10 +146,17 @@ grid.append(makeCard("temperature","n2k-temperature","CPU"));
 const uptimeCard=grid.querySelector('[data-metric="uptime"]');
 if(uptimeCard){
  const heading=uptimeCard.querySelector(".n2k-monitor-title > span");
- if(heading)heading.textContent="Uptime";
+ if(heading)heading.textContent="UPTIME & KI";
  const ring=uptimeCard.querySelector(".metric-ring");
  if(ring){ring.classList.add("n2k-uptime-text-only");ring.style.setProperty("--n2k-fill","0%");}
- uptimeCard.setAttribute("aria-label","Betriebsdauer seit letztem Neustart");
+ const body=uptimeCard.querySelector(".n2k-monitor-body");
+ if(body && !uptimeCard.querySelector(".n2k-uptime-ai")){
+   const ai=document.createElement("div");
+   ai.className="n2k-uptime-ai";
+   ai.innerHTML='<span class="n2k-uptime-ai-row"><i id="n2k-combined-ai-dot" data-state="offline"></i><b id="n2k-combined-ai-status">Ollama wird geprüft …</b></span><small id="n2k-combined-ai-model">Modell: –</small>';
+   body.append(ai);
+ }
+ uptimeCard.setAttribute("aria-label","Betriebsdauer und lokaler Ollama KI-Status");
 }
 
 poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
