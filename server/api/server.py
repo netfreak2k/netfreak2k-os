@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
 from reticulum_status import public_status
+from reticulum_activation import plan_activation
 
 try:
     from mutagen import File as MutagenFile
@@ -3407,6 +3408,27 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "forbidden"}, 403)
                 return
             self.send_json(reticulum_preferences(session["username"]))
+            return
+
+        if path == "/reticulum/activation-plan":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_admin(session):
+                return
+            with db_connect() as conn:
+                rows = conn.execute(
+                    "SELECT username,pref_key,pref_value FROM user_preferences "
+                    "WHERE pref_key IN ('reticulum_requested_enabled','reticulum_requested_transport')"
+                ).fetchall()
+            # Preview only: web API cannot authorize the privileged controller.
+            plan = plan_activation(rows, controller_authorized=False)
+            self.send_json({
+                "action": plan.action, "reason": plan.reason,
+                "active_users": plan.active_users,
+                "transport_requests": plan.transport_requests,
+                "applied": False,
+            })
             return
 
         if path == "/reticulum/status":
