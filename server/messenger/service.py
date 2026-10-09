@@ -118,6 +118,14 @@ def start_stack():
             config_text += ("\n  [[N2K Public TCP Peer]]\n    type = TCPClientInterface\n"
                 "    enabled = Yes\n    target_host = " + gateway["host"] +
                 "\n    target_port = " + str(gateway["port"]) + "\n")
+        # Auto-installed LAN transport: isolated host-network RNS service.
+        # The Messenger HTTP API remains reachable only on the private N2K bridge.
+        lan_host = os.environ.get("N2K_LAN_TRANSPORT_HOST", "").strip()
+        config_text = re.sub(r"(?ms)\n?  \[\[N2K LAN Transport\]\]\n.*?(?=\n  \[\[|\Z)", "", config_text)
+        if lan_host:
+            config_text += ("\n  [[N2K LAN Transport]]\n    type = TCPClientInterface\n"
+                            "    enabled = Yes\n    target_host = " + lan_host +
+                            "\n    target_port = 4243\n")
         # N2K owns its local Reticulum transport server, independently of HA.
         # The TCP listener is only enabled when the OS transport-node switch is on.
         config_text=re.sub(r"(?ms)\n?  \[\[N2K TCP Server\]\]\n.*?(?=\n  \[\[|\Z)", "", config_text)
