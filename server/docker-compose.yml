@@ -87,6 +87,7 @@ services:
       - /var/lib/netfreak2k:/host/netfreak2k:ro
       - /srv/netfreak2k:/workspace
       - netfreak2k-data:/data
+      - netfreak2k-reticulum-lan-data:/shadow-state
       - netfreak2k-inventory:/inventory:ro
     healthcheck:
       test:
