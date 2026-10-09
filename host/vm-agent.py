@@ -19,6 +19,8 @@ from pathlib import Path
 SOCKET_PATH = Path("/run/netfreak2k/vm-agent.sock")
 TOKEN_FILE = Path(os.environ.get("N2K_AGENT_TOKEN_FILE", "/var/lib/netfreak2k/agent.token"))
 VM_NAME = "netfreak2k-homeassistant"
+# Dedicated native Reticulum/LXMF service; never target the HA add-on.
+MESHLINK_CONTAINER = "netfreak2k-messenger"
 HA_IP = "192.168.122.50"
 UPDATE_SCRIPT = "/opt/netfreak2k/scripts/update-server.sh"
 UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
