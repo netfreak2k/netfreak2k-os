@@ -55,6 +55,10 @@ else:
         import re
         if re.search(r"(?im)^\s*enable_transport\s*=\s*(yes|true|1)\s*$", existing):
             raise RuntimeError("Legacy transport configuration needs explicit migration")
+        # Existing persisted configurations must provide the Messenger LAN endpoint.
+        # Do not silently rewrite a user configuration during upgrade.
+        if not re.search(r"(?im)^\s*type\s*=\s*TCPServerInterface\s*$", existing) or not re.search(r"(?im)^\s*listen_port\s*=\s*4243\s*$", existing):
+            raise RuntimeError("Existing RNS config lacks Messenger LAN TCP 4243; migration required")
         if TRANSPORT:
             raise RuntimeError("Transport opt-in requires managed config migration (not implemented)")
         RNS.Reticulum(configdir=str(config_dir))
