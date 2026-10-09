@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="styles.css?v=20261008-small-alert1">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile-preview1">
-  <link rel="stylesheet" href="monitoring-tiles.css?v=20261008-15">
+  <link rel="stylesheet" href="monitoring-tiles.css?v=20261009-peers1">
   <link rel="stylesheet" href="photos.css?v=20261008-10">
   <link rel="stylesheet" href="ollama-chat.css?v=20261008-terminal1">
   <link rel="stylesheet" href="mobile-stabilization.css?v=20261008-all-mobile4">
@@ -1609,7 +1609,7 @@
               <div><p class="eyebrow">N2K NETWORK HUB</p><h2>Network Hub</h2><p>ShadowNode · Privacy Network und MeshLink · Mesh Communication – zentral verwalten.</p></div>
               <span class="state-pill">PRIVACY · MESH</span>
             </div>
-            <div class="n2k-hub-tiles">
+            <div class="n2k-hub-tiles n2k-hub-vertical">
               <section class="n2k-hub-card" aria-label="ShadowNode Steuerung">
                 <div class="n2k-hub-title"><span class="n2k-hub-symbol">◈</span><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3><span>Tor Non-Exit-Relay</span></div></div>
                 <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
@@ -1618,14 +1618,14 @@
                 <div class="tor-browser-actions">
                   <button type="button" id="tor-relay-enable" class="primary compact" disabled>Aktivieren</button>
                   <button type="button" id="tor-relay-disable" class="secondary compact" disabled>Deaktivieren</button>
-                  <button type="button" id="tor-relay-refresh" class="secondary compact">Aktualisieren</button>
+                  <button type="button" id="tor-relay-refresh" class="secondary compact">Aktualisieren</button><button type="button" id="n2k-tor-check" class="secondary compact">Tor-Knoten prüfen</button>
                 </div>
               </div>
               <p style="margin:0;line-height:1.55">Ein Tor-Relay leitet verschlüsselten Datenverkehr für andere Tor-Nutzer weiter und stärkt damit das Netzwerk. Dieser Server wird <strong>kein Exit-Knoten</strong>: Über ihn werden keine Verbindungen aus Tor ins normale Internet freigegeben. Der Dienst ist unabhängig vom Messenger und bietet keinen Tor-Browser.</p>
               <div id="tor-relay-metrics" aria-live="polite" style="display:flex;flex-wrap:wrap;gap:10px;font-size:.9em"><span id="tor-relay-uptime">Laufzeit: –</span><span id="tor-relay-traffic">Netzwerk: –</span><span>Modus: Non-Exit</span></div>
               <p style="margin:0;opacity:.8;font-size:.91em">Hinweis: Der Relay nutzt deine Upload-Bandbreite und macht deine öffentliche IP als Tor-Knoten sichtbar. Für Erreichbarkeit kann eine Portfreigabe TCP 9001 nötig sein. Standardmäßig ist die Funktion aus; nur Administratoren dürfen sie einschalten.</p>
             </section>
-                <div class="n2k-hub-stats"><div><small>Netzwerkverkehr RX / TX</small><strong id="n2k-hub-shadow-traffic">–</strong></div><div><small>Relay-Verbindung</small><strong id="n2k-hub-shadow-status">Nicht geprüft</strong></div></div>
+                <p id="n2k-tor-check-result" role="status">Öffentlicher ORPort-Selbsttest: noch nicht abgerufen.</p><div class="n2k-hub-stats"><div><small>Netzwerkverkehr RX / TX</small><strong id="n2k-hub-shadow-traffic">–</strong></div><div><small>Relay-Verbindung</small><strong id="n2k-hub-shadow-status">Nicht geprüft</strong></div></div>
                 <div class="n2k-hub-stats">
                   <div><small>Betriebszeit</small><strong id="n2k-shadow-hub-uptime">–</strong></div>
                   <div><small>ORPort</small><strong id="n2k-shadow-hub-port">TCP 9001 · nicht geprüft</strong></div>
@@ -1642,6 +1642,12 @@
                 <div class="n2k-hub-actions"><span id="n2k-hub-mesh-state">Status wird geprüft …</span><button id="n2k-hub-mesh-on" class="primary compact" disabled>Ein</button><button id="n2k-hub-mesh-off" class="secondary compact" disabled>Aus</button></div>
                 <div class="n2k-hub-stats"><div><small>Nodes</small><strong id="n2k-hub-mesh-nodes">Nicht verfügbar</strong></div><div><small>Netzwerkverkehr RX / TX</small><strong id="n2k-hub-mesh-traffic">–</strong></div></div>
                 <canvas id="n2k-hub-mesh-chart" width="500" height="95" aria-label="MeshLink Traffic-Verlauf"></canvas>
+                <section class="n2k-peer-browser" aria-label="Reticulum Knotenübersicht">
+                  <div class="n2k-hub-title"><div><small>RETICULUM DISCOVERY</small><h3>Bekannte LXMF-Knoten</h3><span>Über Announcements im erreichbaren Reticulum-Netz gefunden</span></div></div>
+                  <div class="n2k-hub-actions"><strong id="n2k-peers-count">0 bekannt · Verbindungen ungeprüft</strong><button id="n2k-peers-refresh" class="secondary compact" type="button">Knoten suchen</button></div>
+                  <div id="n2k-peers-list" class="n2k-peers-list" aria-live="polite">Noch keine Knoten entdeckt.</div>
+                  <p class="n2k-hub-footnote">Bekannte Ziele sind nicht automatisch direkt verbundene Transportknoten. Ohne öffentlich konfigurierten TCP-Transport können nur über bestehende Interfaces erreichbare Knoten erscheinen.</p>
+                </section>
                 <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
               <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
               <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
@@ -1741,7 +1747,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20261008-tor-relay1"></script>
+  <script src="app.js?v=20261009-peers1"></script>
   <script defer src="monitoring-tiles.js?v=20261008-15"></script>
 <div id="n2k-photo-viewer" role="dialog" aria-modal="true" aria-label="Fotobetrachter" hidden><div class="n2k-photo-top-actions"><button id="n2k-photo-slide">▶ Diashow</button><button id="n2k-photo-edit">Bearbeiten</button><button id="n2k-photo-close">✕ Schließen</button></div><img id="n2k-photo-full" alt=""><div class="n2k-photo-controls"><button id="n2k-photo-prev">←</button><span id="n2k-photo-caption"></span><button id="n2k-photo-next">→</button></div></div>
   <script defer src="photos.js?v=20261008-10"></script>
