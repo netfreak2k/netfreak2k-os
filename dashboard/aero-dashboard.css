@@ -179,3 +179,43 @@
  .topbar-desktop{min-width:0!important}
  .topbar-desktop input{min-width:0!important}
 }
+
+/* N2K mini-patch v6: stable priority order and compact 1024 sidebar. */
+/* Primary: Home Assistant, ShadowNode, MeshLink, Network. Secondary follow beneath. */
+#dashboard-top .n2k-aero-applications .widget-grid>.ha-widget{order:0!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget[aria-label="ShadowNode"]{order:1!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget[aria-label="MeshLink"]{order:2!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.network-widget{order:3!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.drive-widget{order:4!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.calendar-widget{order:5!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.recent-widget{order:6!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.overview-media-widget{order:7!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.activity-widget{order:8!important}
+#dashboard-top .n2k-aero-applications .widget-grid>.matrix-widget{order:9!important}
+/* Never stretch secondary cards to fill an entire grid row. */
+@media(min-width:751px){
+ #dashboard-top .n2k-aero-applications .widget-grid{align-items:start!important;align-content:start!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget{align-self:start!important;min-height:0!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.drive-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.calendar-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.recent-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.overview-media-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.activity-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.matrix-widget{
+   height:auto!important;max-height:220px!important;min-height:120px!important;overflow:hidden!important
+ }
+}
+@media(min-width:751px) and (max-width:1100px){
+ .app-shell{grid-template-columns:clamp(154px,16vw,178px) minmax(0,1fr)!important}
+ .app-shell>.sidebar{width:100%!important;min-width:0!important;padding-inline:8px!important}
+ .app-shell>.sidebar .brand{gap:7px!important;min-width:0!important}
+ .app-shell>.sidebar .brand strong{font-size:13px!important}
+ .app-shell>.sidebar .brand span{font-size:10px!important}
+ .app-shell>.sidebar .side-nav{gap:2px!important}
+ .app-shell>.sidebar .side-nav .nav-item{min-width:0!important;padding:9px 8px!important;font-size:11px!important;gap:7px!important;white-space:normal!important}
+ .app-shell>.sidebar .side-nav .nav-subitem{padding-left:14px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget{max-width:100%!important}
+}
+@media(max-width:750px){
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget{max-height:none!important}
+}
