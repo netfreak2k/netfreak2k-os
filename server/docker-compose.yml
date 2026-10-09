@@ -54,6 +54,9 @@ services:
       netfreak2k.managed: "true"
     restart: unless-stopped
     network_mode: host
+    environment:
+      N2K_RETICULUM_ENABLED: "${N2K_RETICULUM_ENABLED:-false}"
+      N2K_RETICULUM_TRANSPORT: "${N2K_RETICULUM_TRANSPORT:-false}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -88,6 +91,7 @@ services:
       - /srv/netfreak2k:/workspace
       - netfreak2k-data:/data
       - netfreak2k-inventory:/inventory:ro
+      - netfreak2k-reticulum-lan-data:/reticulum-state:ro
     healthcheck:
       test:
         - CMD
