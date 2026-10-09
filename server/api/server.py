@@ -3358,6 +3358,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 200 if result.get("available") else 503)
             return
 
+        if path == "/messenger/gateway":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                with urlopen("http://netfreak2k-messenger:8091/gateway", timeout=4) as response:
+                    self.send_json(json.loads(response.read(16384).decode("utf-8")))
+            except (OSError,ValueError,json.JSONDecodeError):
+                self.send_json({"error":"meshlink_gateway_unavailable"},503)
+            return
+
         if path == "/messenger/peers":
             session = self.require_auth()
             if not session:
@@ -3996,6 +4007,28 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"error":"messenger_rejected_request"}, 400)
                 else:
                     self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
+        if path == "/messenger/gateway":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                data=self.read_json()
+                host=data.get("host")
+                port=data.get("port")
+                enabled=data.get("enabled")
+                if not isinstance(host,str) or not isinstance(port,int) or isinstance(port,bool) or type(enabled) is not bool:
+                    raise ValueError("invalid_gateway")
+                body=json.dumps({"host":host,"port":port,"enabled":enabled}).encode("utf-8")
+                req=Request("http://netfreak2k-messenger:8091/gateway",data=body,
+                    headers={"Content-Type":"application/json"},method="POST")
+                with urlopen(req,timeout=8) as response:
+                    self.send_json(json.loads(response.read(16384).decode("utf-8")))
+            except ValueError as exc:
+                self.send_json({"error":str(exc)},400)
+            except Exception:
+                self.send_json({"error":"meshlink_gateway_unavailable"},503)
             return
 
         if path == "/messenger/peers/request":
