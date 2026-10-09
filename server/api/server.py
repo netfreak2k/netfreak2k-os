@@ -3615,6 +3615,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(vm_agent("status"))
             return
 
+        if path == "/reticulum/clean-status":
+            session = self.require_auth()
+            if not session:
+                return
+            from reticulum_clean import status_from_file
+            self.send_json(status_from_file(os.environ.get(
+                "N2K_RETICULUM_STATUS_FILE", "/reticulum-state/status.json")))
+            return
+
         if path == "/updates":
             if not self.require_auth():
                 return
