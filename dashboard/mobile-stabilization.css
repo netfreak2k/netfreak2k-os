@@ -515,3 +515,19 @@
  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{grid-template-columns:minmax(0,1fr)!important}
  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>div:nth-child(3){grid-column:auto!important}
 }
+
+/* iPhone safe-area + compact RNS cards: 2026-10-09 */
+@media screen and (max-width:620px){
+  body{padding-top:env(safe-area-inset-top,0px)!important}
+  .topbar.topbar-desktop{padding-top:calc(12px + env(safe-area-inset-top,0px))!important}
+  /* Avoid double inset: body remains the scroll canvas. */
+  body:has(.topbar.topbar-desktop){padding-top:0!important}
+  .workspace,.workspace main{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important}
+  .bottom-nav,.mobile-bottom-nav{padding-bottom:env(safe-area-inset-bottom,0px)!important}
+  .n2k-rns-extra,.n2k-service-actions{min-width:0!important}
+  .n2k-rns-extra strong,.n2k-rns-extra small{overflow-wrap:anywhere!important}
+  #n2k-hub-mesh,.n2k-service-card{min-height:0!important}
+  #n2k-hub-mesh .n2k-service-graph{margin-top:12px!important}
+  #n2k-native-contacts button{max-width:100%!important;overflow-wrap:anywhere!important}
+  input,textarea,select{max-width:100%!important}
+}

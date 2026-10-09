@@ -7673,25 +7673,45 @@ async function refreshN2KNetworkServices() {
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
       if (off) off.disabled = !data.running;
     } catch (_) {
+      // Host-agent metrics can fail while the Reticulum/LXMF runtime is healthy.
+      // Never overwrite verified LXMF discovery with a host-monitoring error.
       const discovery = document.getElementById("n2k-rns-discovery");
       const routes = document.getElementById("n2k-rns-routes");
-      if (discovery) discovery.textContent = "API nicht erreichbar";
-      if (routes) routes.textContent = "–";
-      if (nodes) nodes.textContent = "Nodes: nicht verfügbar";
-      // The messenger may still be healthy when host-agent Docker metrics fail.
+      const hubNodes = document.getElementById("n2k-hub-mesh-nodes");
+      let messengerOnline = false;
       try {
-        const peers = await request("/api/messenger/peers");
-        if (peers.online) {
-          if (nodes && Number.isFinite(Number(peers.known_count))) nodes.textContent = "LXMF-Knoten: " + Number(peers.known_count);
-          if (routes && peers.reachable_route_count != null) routes.textContent = String(peers.reachable_route_count);
+        const [runtime, peers] = await Promise.all([
+          request("/api/reticulum/clean-status"),
+          request("/api/messenger/peers")
+        ]);
+        messengerOnline = runtime.connected === true || peers.online === true;
+        if (messengerOnline) {
+          const count = Number(peers.known_count);
+          if (Number.isFinite(count) && count >= 0) {
+            if (nodes) nodes.textContent = "LXMF-Knoten: " + count;
+            if (hubNodes) hubNodes.textContent = String(count);
+          }
+          if (routes) routes.textContent = peers.reachable_route_count != null ? String(peers.reachable_route_count) : "Nicht gemessen";
           if (discovery) discovery.textContent = "Aktiv · LXMF";
         }
-      } catch (_) { /* Explicit unavailable state already shown. */ }
-      state.textContent = "Host-Monitoring nicht verfügbar";
+      } catch (error) {
+        console.debug("Reticulum runtime status unavailable:", error);
+      }
+      if (!messengerOnline) {
+        if (discovery) discovery.textContent = "Nicht erreichbar";
+        if (routes) routes.textContent = "–";
+        if (nodes) nodes.textContent = "LXMF-Status nicht verfügbar";
+        if (hubNodes) hubNodes.textContent = "Nicht verfügbar";
+      }
+      state.textContent = messengerOnline ? "● LXMF aktiv · Host-Monitoring offline" : "Host-Monitoring nicht verfügbar";
+      const hubState = document.getElementById("n2k-hub-mesh-state");
+      if (hubState) hubState.textContent = messengerOnline ? "● LXMF aktiv" : "○ Status unbekannt";
       if (on) on.disabled = true;
       if (off) off.disabled = true;
       if (meter) meter.style.width = "0%";
-      if (traffic) traffic.textContent = "Traffic: –";
+      if (traffic) traffic.textContent = "Traffic: nicht gemessen";
+      const hubTraffic = document.getElementById("n2k-hub-mesh-traffic");
+      if (hubTraffic) hubTraffic.textContent = "Nicht gemessen";
     }
   }));
 }
