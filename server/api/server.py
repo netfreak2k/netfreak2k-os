@@ -3431,6 +3431,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(activation_overview(rows, raw, username=session["username"]))
             return
 
+        if path == "/reticulum/beta-preflight":
+            session = self.require_auth()
+            if not session:
+                return
+            if not self.require_admin(session):
+                return
+            self.send_json(vm_agent("reticulum_beta_preflight"))
+            return
+
         if path == "/reticulum/beta-control":
             session = self.require_auth()
             if not session:
