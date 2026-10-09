@@ -652,7 +652,6 @@ function enterApp(username, role = "viewer") {
   loadUpdates();
   loadCatalog();
   loadOfficeStatus();
-  loadTorBrowserStatus();
   loadStorage();
   loadVms();
   loadBackups();
@@ -5627,334 +5626,6 @@ function startMatrixSimulation() {
 }
 startMatrixSimulation();
 
-async function openOnionInTorWorkspace(value) {
-  const normalized = normalizeOnionUrl(value);
-  if (!normalized) {
-    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
-    return;
-  }
-
-  const explorerInput = document.getElementById("onion-explorer-url");
-  const simpleInput = document.getElementById("onion-url");
-  if (explorerInput) explorerInput.value = normalized;
-  if (simpleInput) simpleInput.value = normalized;
-
-  const history = onionLoad("history").filter(item => item.url !== normalized);
-  history.unshift({url: normalized, at: Date.now()});
-  onionSave("history", history);
-  renderOnionExplorer();
-
-  switchView("privacy-panel");
-  await loadTorBrowserStatus();
-
-  const stateText = document.getElementById("tor-browser-state")?.textContent || "";
-  if (!stateText.startsWith("Bereit")) {
-    showN2KToast("Der isolierte Tor Browser ist noch nicht aktiv. Installiere oder starte ihn im Tor-Workspace.");
-    document.getElementById("tor-browser-install")?.focus();
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(normalized);
-  } catch (_) {}
-
-  document.querySelector(".tor-browser-shell")?.scrollIntoView({behavior:"smooth", block:"start"});
-  showN2KToast("Die Onion-Adresse wurde in die Zwischenablage kopiert. Füge sie oben in die Adressleiste des eingebetteten Tor Browsers ein.");
-}
-
-document.getElementById("open-onion")?.addEventListener("click", () => {
-  openOnionInTorWorkspace(document.getElementById("onion-url")?.value || "");
-});
-
-document.getElementById("tor-project")?.addEventListener("click", () => {
-  window.open("https://www.torproject.org/download/", "_blank", "noopener");
-});
-// Non-exit Tor relay: a separate service, never linked to browser controls.
-async function loadTorRelayStatus() {
-  const status = document.getElementById("tor-relay-status");
-  const enable = document.getElementById("tor-relay-enable");
-  const disable = document.getElementById("tor-relay-disable");
-  if (!status) return;
-  try {
-    const result = await request("/api/tor/relay");
-    if (!result.available) throw Error(result.error || "Host-Agent nicht erreichbar");
-    status.textContent = result.running ? "● Aktiv · TCP " + result.port : result.installed ? "○ Installiert · ausgeschaltet" : "○ Aus · nicht installiert";
-    const up = document.getElementById("tor-relay-uptime");
-    const traffic = document.getElementById("tor-relay-traffic");
-    if (up) {
-      const seconds = result.running && result.started_at ? Math.max(0, Math.floor((Date.now() - Date.parse(result.started_at)) / 1000)) : 0;
-      up.textContent = result.running && Number.isFinite(seconds) ? "Laufzeit: " + Math.floor(seconds / 3600) + " h " + Math.floor(seconds % 3600 / 60) + " min" : "Laufzeit: –";
-    }
-    if (traffic) traffic.textContent = result.running && result.traffic ? "Netzwerk RX / TX: " + result.traffic : "Netzwerk: –";
-    enable.disabled = Boolean(result.running);
-    disable.disabled = !result.running;
-  } catch (error) {
-    status.textContent = "Status nicht verfügbar";
-    enable.disabled = true;
-    disable.disabled = true;
-  }
-}
-async function setTorRelay(enabled) {
-  if (enabled && !window.confirm("Tor-Relay aktivieren? Deine öffentliche IP wird als Tor-Relay sichtbar und dein Server stellt TCP-Port 9001 bereit. Upload-Bandbreite wird genutzt. Der Knoten ist KEIN Exit-Relay. Fortfahren?")) return;
-  const enable = document.getElementById("tor-relay-enable");
-  const disable = document.getElementById("tor-relay-disable");
-  enable.disabled = true;
-  disable.disabled = true;
-  try {
-    await request("/api/tor/relay", {method:"POST",body:JSON.stringify({enabled,acknowledged:enabled}),headers:{"X-CSRF-Token":csrfToken}});
-    showN2KToast(enabled ? "Tor-Relay wird gestartet" : "Tor-Relay ausgeschaltet");
-  } catch (error) {
-    showN2KToast("Tor-Relay: " + (error.message || "Aktion fehlgeschlagen"), "error");
-  } finally { await loadTorRelayStatus(); }
-}
-document.getElementById("tor-relay-enable")?.addEventListener("click", () => setTorRelay(true));
-document.getElementById("tor-relay-disable")?.addEventListener("click", () => setTorRelay(false));
-document.getElementById("tor-relay-refresh")?.addEventListener("click", loadTorRelayStatus);
-loadTorRelayStatus();
-setInterval(() => { if (!document.hidden && document.getElementById("tor-relay-status")) loadTorRelayStatus(); }, 30000);
-
-function setTorControlState({installed=false, running=false, error=false} = {}) {
-  const dot = document.getElementById("overview-tor-dot");
-  const overviewState = document.getElementById("overview-tor-status");
-  const install = document.getElementById("tor-browser-install");
-  const open = document.getElementById("tor-browser-open");
-  const startButtons = [
-    document.getElementById("overview-tor-start"),
-    document.getElementById("tor-browser-start")
-  ].filter(Boolean);
-  const stopButtons = [
-    document.getElementById("overview-tor-stop"),
-    document.getElementById("tor-browser-stop")
-  ].filter(Boolean);
-  const restartButtons = [
-    document.getElementById("overview-tor-restart"),
-    document.getElementById("tor-browser-restart")
-  ].filter(Boolean);
-
-  if (dot) {
-    dot.classList.remove("running", "stopped", "missing", "error", "unknown");
-    dot.classList.add(error ? "error" : running ? "running" : installed ? "stopped" : "missing");
-  }
-  if (overviewState) {
-    overviewState.textContent = error ? "Fehler" : running ? "Tor aktiv" : installed ? "gestoppt" : "nicht installiert";
-  }
-  if (install) install.classList.toggle("hidden", installed);
-  if (open) open.disabled = !running;
-  startButtons.forEach(button => {
-    button.disabled = !installed || running || error;
-    button.classList.toggle("hidden", !installed);
-  });
-  stopButtons.forEach(button => {
-    button.disabled = !running || error;
-    button.classList.toggle("hidden", !installed);
-  });
-  restartButtons.forEach(button => {
-    button.disabled = !running || error;
-    button.classList.toggle("hidden", !installed);
-  });
-}
-
-async function loadTorBrowserStatus() {
-  loadTorRelayStatus();
-  const state = document.getElementById("tor-browser-state");
-  const wrap = document.getElementById("tor-browser-frame-wrap");
-  if (!state || !wrap) return;
-  try {
-    const data = await request("/api/catalog", {headers:{}});
-    const app = (Array.isArray(data.apps) ? data.apps : []).find(item => item.id === "tor-browser");
-    const installed = Boolean(app?.installed);
-    const running = app?.state === "running";
-
-    state.textContent = running ? "● Tor aktiv · eingebettet" : installed ? "Installiert · gestoppt" : "Nicht installiert";
-    state.className = running ? "running" : "";
-    setTorControlState({installed, running});
-
-    if (running && !wrap.querySelector("iframe")) {
-      wrap.innerHTML = "";
-      const frame = document.createElement("iframe");
-      frame.className = "tor-browser-frame";
-      frame.src = `https://${window.location.hostname}:6901/`;
-      frame.title = "N2K Tor Browser";
-      frame.referrerPolicy = "no-referrer";
-      frame.setAttribute("allow", "clipboard-read; clipboard-write");
-      wrap.appendChild(frame);
-    } else if (!running && wrap.querySelector("iframe")) {
-      wrap.innerHTML = `
-        <div class="tor-browser-placeholder">
-          <strong>Tor Browser ist gestoppt</strong>
-          <span>Starte die isolierte Sitzung über das Dashboard oder hier im Workspace.</span>
-        </div>`;
-    }
-  } catch (error) {
-    console.error(error);
-    state.textContent = "Status nicht verfügbar";
-    state.className = "";
-    setTorControlState({error:true});
-  }
-}
-
-async function torBrowserAction(action) {
-  const container = "netfreak2k-app-tor-browser";
-  const buttons = [
-    document.getElementById("overview-tor-start"),
-    document.getElementById("overview-tor-stop"),
-    document.getElementById("overview-tor-restart"),
-    document.getElementById("tor-browser-start"),
-    document.getElementById("tor-browser-stop"),
-    document.getElementById("tor-browser-restart")
-  ].filter(Boolean);
-  buttons.forEach(button => button.disabled = true);
-  try {
-    await request("/api/apps/action", {
-      method: "POST",
-      body: JSON.stringify({name: container, action}),
-      headers: {"X-CSRF-Token": csrfToken}
-    });
-    await loadTorBrowserStatus();
-    loadApps();
-    loadCatalog();
-  } catch (error) {
-    console.error(error);
-    showN2KToast("Tor Browser konnte nicht " + (action === "start" ? "gestartet" : action === "stop" ? "gestoppt" : "neu gestartet") + " werden.");
-    await loadTorBrowserStatus();
-  }
-}
-
-document.getElementById("tor-browser-install")?.addEventListener("click", async () => {
-  const password = prompt("Lege ein Passwort für den isolierten Tor-Browser fest (mindestens 10 Zeichen):");
-  if (!password) return;
-  if (password.length < 10 || password.length > 64) {
-    showN2KToast("Das Passwort muss zwischen 10 und 64 Zeichen lang sein.");
-    return;
-  }
-  await installCatalogApp("tor-browser", "Tor Browser", {password});
-  setTimeout(loadTorBrowserStatus, 2500);
-});
-
-document.getElementById("overview-tor-start")?.addEventListener("click", event => {
-  event.stopPropagation();
-  torBrowserAction("start");
-});
-document.getElementById("overview-tor-stop")?.addEventListener("click", event => {
-  event.stopPropagation();
-  torBrowserAction("stop");
-});
-document.getElementById("overview-tor-restart")?.addEventListener("click", event => {
-  event.stopPropagation();
-  torBrowserAction("restart");
-});
-document.getElementById("tor-browser-start")?.addEventListener("click", () => torBrowserAction("start"));
-document.getElementById("tor-browser-stop")?.addEventListener("click", () => torBrowserAction("stop"));
-document.getElementById("tor-browser-restart")?.addEventListener("click", () => torBrowserAction("restart"));
-
-document.querySelector(".onion-explorer-widget")?.addEventListener("keydown", event => {
-  if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
-    event.preventDefault();
-    switchView("privacy-panel");
-  }
-});
-
-document.getElementById("tor-browser-open")?.addEventListener("click", () => {
-  window.open(`https://${window.location.hostname}:6901/`, "_blank", "noopener");
-});
-
-function normalizeOnionUrl(value) {
-  let raw = String(value || "").trim();
-  if (!raw) return null;
-  if (!/^https?:\/\//i.test(raw)) raw = "http://" + raw;
-  try {
-    const parsed = new URL(raw);
-    if (!parsed.hostname.toLowerCase().endsWith(".onion")) return null;
-    return parsed.href;
-  } catch (_) {
-    return null;
-  }
-}
-
-function onionStoreKey(type) {
-  return `n2k_onion_${type}`;
-}
-
-function onionLoad(type) {
-  try {
-    const value = JSON.parse(localStorage.getItem(onionStoreKey(type)) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function onionSave(type, items) {
-  localStorage.setItem(onionStoreKey(type), JSON.stringify(items.slice(0, 40)));
-}
-
-function renderOnionList(type, containerId) {
-  const box = document.getElementById(containerId);
-  if (!box) return;
-  const items = onionLoad(type);
-  box.innerHTML = "";
-  if (!items.length) {
-    box.innerHTML = `<div class="app-empty">${type === "favorites" ? "Noch keine Favoriten." : "Noch kein Verlauf."}</div>`;
-    return;
-  }
-  items.slice(0, 12).forEach(item => {
-    const row = document.createElement("button");
-    row.className = "onion-list-row";
-    row.innerHTML = "<strong></strong><small></small>";
-    row.querySelector("strong").textContent = item.url;
-    row.querySelector("small").textContent = new Date(item.at).toLocaleString("de-DE", {dateStyle:"short",timeStyle:"short"});
-    row.addEventListener("click", () => {
-      const input = document.getElementById("onion-explorer-url");
-      if (input) input.value = item.url;
-    });
-    box.appendChild(row);
-  });
-}
-
-function renderOnionExplorer() {
-  renderOnionList("favorites", "onion-favorites");
-  renderOnionList("history", "onion-history");
-}
-renderOnionExplorer();
-
-document.getElementById("onion-explorer-open")?.addEventListener("click", () => {
-  openOnionInTorWorkspace(document.getElementById("onion-explorer-url")?.value || "");
-});
-
-document.getElementById("onion-explorer-save")?.addEventListener("click", () => {
-  const input = document.getElementById("onion-explorer-url");
-  const value = normalizeOnionUrl(input?.value);
-  if (!value) {
-    showN2KToast("Bitte eine gültige .onion-Adresse eingeben.");
-    return;
-  }
-  const items = onionLoad("favorites").filter(item => item.url !== value);
-  items.unshift({url:value,at:Date.now()});
-  onionSave("favorites",items);
-  renderOnionExplorer();
-});
-
-document.getElementById("onion-copy")?.addEventListener("click", async () => {
-  const value = normalizeOnionUrl(document.getElementById("onion-explorer-url")?.value);
-  if (!value) {
-    showN2KToast("Bitte zuerst eine gültige .onion-Adresse eingeben.");
-    return;
-  }
-  try { await navigator.clipboard.writeText(value); } catch (_) {}
-});
-
-document.getElementById("tor-download")?.addEventListener("click", () => {
-  window.open("https://www.torproject.org/download/", "_blank", "noopener");
-});
-
-document.getElementById("onion-clear-history")?.addEventListener("click", () => {
-  localStorage.removeItem(onionStoreKey("history"));
-  renderOnionExplorer();
-});
-
-
-
-
 bootstrapAuth().catch(error => {
   console.error(error);
   document.getElementById("auth-title").textContent = "Server nicht erreichbar";
@@ -5970,7 +5641,6 @@ setInterval(loadHomeAssistant, 15000);
 setInterval(loadUpdates, 60000);
 setInterval(loadCatalog, 60000);
 setInterval(loadOfficeStatus, 30000);
-setInterval(loadTorBrowserStatus, 30000);
 setInterval(loadStorage, 15000);
 setInterval(loadVms, 20000);
 setInterval(loadBackups, 60000);
@@ -7920,7 +7590,6 @@ function n2kUpdateTrafficChart(prefix, text, running) {
 // Container stats are cumulative RX/TX, not a fabricated current speed.
 async function refreshN2KNetworkServices() {
   const specs = [
-    {prefix:"n2k-shadow", path:"/api/tor/relay", type:"shadow"},
     {prefix:"n2k-mesh", path:"/api/meshlink/service", type:"mesh"}
   ];
   await Promise.all(specs.map(async spec => {
@@ -8009,23 +7678,18 @@ async function refreshN2KNetworkServices() {
   }));
 }
 async function setN2KNetworkService(type, enabled) {
-  if (type === "shadow" && enabled) {
-    if (!window.confirm("ShadowNode aktivieren? Dein öffentlicher Anschluss wird als Tor-Relay sichtbar. Es handelt sich ausdrücklich um einen Non-Exit-Knoten. TCP 9001 kann eine Portfreigabe benötigen.")) return;
-  }
-  const path = type === "shadow" ? "/api/tor/relay" : "/api/meshlink/service";
+  const path = "/api/meshlink/service";
   try {
     await request(path, {method:"POST", headers:{"X-CSRF-Token":csrfToken}, body:JSON.stringify({enabled, acknowledged:enabled})});
-    showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + (enabled ? " gestartet" : " ausgeschaltet"));
+    showN2KToast("MeshLink" + (enabled ? " gestartet" : " ausgeschaltet"));
   } catch (err) {
     showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + ": " + (err.message || "Aktion fehlgeschlagen"), "error");
   } finally {
     await refreshN2KNetworkServices();
-    if (type === "shadow") await loadTorRelayStatus();
     if (type === "mesh") await refreshNativeMessenger();
   }
 }
 for (const [id, type, enabled] of [
-  ["n2k-shadow-on", "shadow", true], ["n2k-shadow-off", "shadow", false],
   ["n2k-mesh-on", "mesh", true], ["n2k-mesh-off", "mesh", false]
 ]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
 for (const [id, type, enabled] of [
