@@ -3358,6 +3358,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 200 if result.get("available") else 503)
             return
 
+        if path == "/messenger/peers":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                with urlopen("http://netfreak2k-messenger:8091/peers", timeout=5) as response:
+                    result=json.loads(response.read(131072).decode("utf-8"))
+                self.send_json(result)
+            except (OSError,ValueError,json.JSONDecodeError):
+                self.send_json({"error":"meshlink_discovery_unavailable"},503)
+            return
+
         if path == "/messenger/node":
             session = self.require_auth()
             if not session:
