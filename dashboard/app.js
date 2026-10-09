@@ -8047,10 +8047,12 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     try {
       const d = await request("/api/tor/relay");
       const state = d.reachability || "checking";
-      checkText.textContent = state === "reachable" ? "Tor bestätigt: ORPort öffentlich erreichbar." :
-        state === "unreachable" ? "Tor meldet: ORPort nicht erreichbar. Firewall / Portfreigabe prüfen." :
+      const binding=d.port_binding ? " · Docker-Port: "+d.port_binding : " · Kein veröffentlichter Docker-Port bestätigt";
+      const bootstrap=Number.isInteger(d.bootstrap_percent)?" · Tor-Bootstrap "+d.bootstrap_percent+"%":"";
+      checkText.textContent = state === "reachable" ? "Tor bestätigt: ORPort öffentlich erreichbar."+bootstrap+binding :
+        state === "unreachable" ? "Tor meldet: ORPort nicht erreichbar. Firewall / Portfreigabe prüfen."+bootstrap+binding :
         state === "stopped" ? "ShadowNode ist ausgeschaltet." :
-        "Noch keine externe Bestätigung von Tor. " + (d.reachability_detail || "");
+        "Noch keine externe Bestätigung von Tor. " + (d.reachability_detail || "")+bootstrap+binding;
     } catch(e) {
       checkText.textContent = "Tor-Prüfung derzeit nicht verfügbar.";
     } finally { check.disabled = false; }
@@ -8069,7 +8071,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       count.textContent=peers.length+" bekannte LXMF-Ziele · direkte Verbindungen nicht ermittelt";
       list.replaceChildren();
       if(!peers.length) {
-        list.textContent="Noch keine LXMF-Announcements empfangen. Erreichbare Interfaces und Transport prüfen.";
+        list.textContent=d.diagnostic || "Keine LXMF-Knoten entdeckt. Prüfe TCP-Uplink und Reticulum-Interfaces.";;
         return;
       }
       for(const peer of peers.slice().sort((a,b)=>(b.last_seen||0)-(a.last_seen||0)).slice(0,50)) {
@@ -8151,7 +8153,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const peer=d.best;
       message.textContent=peer ? "Beste bekannte Route: "+(peer.name||peer.destination)+
         " · "+peer.hops+" Hops · zuletzt gesehen vor "+peer.age_seconds+" s" :
-        "Keine aktuell bekannte erreichbare LXMF-Route. Zuerst Announcements empfangen.";
+        (d.diagnostic || "Keine aktuell bekannte erreichbare LXMF-Route.");
     }catch(_){message.textContent="Knotenbewertung nicht verfügbar."}
   }
   button.addEventListener("click",async ()=>{
