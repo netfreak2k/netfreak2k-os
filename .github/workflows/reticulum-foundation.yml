@@ -20,5 +20,7 @@ jobs:
           python-version: '3.12'
       - name: Compile policy modules
         run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py server/messenger/service.py server/reticulum-lan/service.py
+      - name: Validate Docker Compose configuration
+        run: docker compose -f server/docker-compose.yml config --quiet
       - name: Run foundation unit tests
         run: python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
