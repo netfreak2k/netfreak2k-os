@@ -61,6 +61,7 @@ jobs:
           # Web-container DNS probe is diagnostic only; the HTTP readiness loop below
           # is the authoritative check and prints logs if it fails.
           docker compose -f server/docker-compose.yml ps
+          docker logs --tail 80 netfreak2k-reticulum-lan || true
           ready=0
           for i in {1..40}; do
             if curl -fsS http://127.0.0.1:18080/api/setup | grep -q '"configured":false'; then
@@ -91,7 +92,13 @@ jobs:
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shadow-nodes | grep -q '"enabled":false'
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":true,"peers":[{"transport":"tcp","host":"peer.example.org","port":4243}]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shadow-nodes | grep -q 'peer.example.org'
-          docker exec netfreak2k-reticulum-lan cat /state/shadow-nodes.json | grep -q 'peer.example.org'
+          # Volume readback uses an isolated diagnostic container because RNS may restart.
+          docker run --rm -v netfreak2k-reticulum-lan-data:/state:ro alpine:3.20 cat /state/shadow-nodes.json | grep -q 'peer.example.org'
+          if [[ "$(docker inspect -f '{{.RestartCount}}' netfreak2k-reticulum-lan)" -gt 0 ]]; then
+            docker logs netfreak2k-reticulum-lan || true
+            echo "Reticulum transport restarted unexpectedly"
+            exit 1
+          fi
           curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":false,"peers":[]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
