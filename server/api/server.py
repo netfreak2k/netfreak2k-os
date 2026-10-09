@@ -3057,10 +3057,10 @@ def status_payload():
 SHADOW_STATE = Path("/shadow-state/shadow-nodes.json")
 
 def shadow_validate(data):
-    if not isinstance(data, dict) or set(data) - {"enabled", "tor_enabled", "peers"}:
+    if not isinstance(data, dict) or set(data) - {"enabled", "peers"}:
         raise ValueError("invalid_shadow_settings")
-    enabled, tor = data.get("enabled", False), data.get("tor_enabled", False)
-    if type(enabled) is not bool or type(tor) is not bool:
+    enabled = data.get("enabled", False)
+    if type(enabled) is not bool:
         raise ValueError("invalid_shadow_switch")
     peers = data.get("peers", [])
     if not isinstance(peers, list) or len(peers) > 8:
@@ -3071,9 +3071,9 @@ def shadow_validate(data):
         if not isinstance(peer, dict) or set(peer) != {"host", "port", "transport"}:
             raise ValueError("invalid_shadow_peer")
         mode, host, p = peer["transport"], peer["host"], peer["port"]
-        if mode not in ("tcp", "tor") or not isinstance(host, str):
+        if mode != "tcp" or not isinstance(host, str):
             raise ValueError("invalid_shadow_transport")
-        pattern = r"[a-z2-7]{56}\\.onion" if mode == "tor" else r"[a-zA-Z0-9.-]+"
+        pattern = r"[a-zA-Z0-9.-]+"
         if not re.fullmatch(pattern, host) or len(host) > 253 or ".." in host or host.startswith(("-", ".")):
             raise ValueError("invalid_shadow_host")
         if type(p) is not int or not 1 <= p <= 65535:
@@ -3083,13 +3083,13 @@ def shadow_validate(data):
             raise ValueError("duplicate_shadow_peer")
         found.add(key)
         cleaned.append({"transport": mode, "host": host, "port": p})
-    return {"enabled": enabled, "tor_enabled": tor, "peers": cleaned}
+    return {"enabled": enabled, "peers": cleaned}
 
 def shadow_read():
     try:
         return shadow_validate(json.loads(SHADOW_STATE.read_text(encoding="utf-8")))
     except FileNotFoundError:
-        return {"enabled": False, "tor_enabled": False, "peers": []}
+        return {"enabled": False, "peers": []}
 
 class Handler(BaseHTTPRequestHandler):
     def send_json(self, payload, status=200, extra_headers=None):
