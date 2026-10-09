@@ -3358,6 +3358,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, 200 if result.get("available") else 503)
             return
 
+        if path == "/messenger/node":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                response = urlopen("http://netfreak2k-messenger:8091/node", timeout=4)
+                self.send_json(json.loads(response.read(16384).decode("utf-8")))
+            except (OSError, ValueError, json.JSONDecodeError):
+                self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
         if path == "/messenger/status":
             session = self.require_auth()
             if not session:
@@ -3973,6 +3984,29 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"error":"messenger_rejected_request"}, 400)
                 else:
                     self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
+        if path == "/messenger/node":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                payload = self.read_json()
+                name = payload.get("name")
+                enabled = payload.get("enabled")
+                if not isinstance(name, str) or not 1 <= len(name.strip()) <= 64 or type(enabled) is not bool:
+                    raise ValueError("invalid_node_settings")
+                request = Request("http://netfreak2k-messenger:8091/node",
+                                  data=json.dumps({"name":name,"enabled":enabled}).encode("utf-8"),
+                                  headers={"Content-Type":"application/json"}, method="POST")
+                with urlopen(request, timeout=8) as response:
+                    result = json.loads(response.read(16384).decode("utf-8"))
+                audit_event(session["username"], "meshlink_node_config", "transport:" + str(enabled), self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error":str(exc)},400)
+            except Exception:
+                self.send_json({"error":"native_messenger_unavailable"},503)
             return
 
         if path == "/meshlink/service":
