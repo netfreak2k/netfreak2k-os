@@ -32,15 +32,33 @@ jobs:
       - name: Validate deployment definitions
         run: docker compose -f server/docker-compose.yml config --quiet
       - name: Build API and Reticulum images
-        run: docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan
+        run: docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan netfreak2k-messenger
       - name: Verify runtime module imports
         run: |
           docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation, reticulum_overview, reticulum_beta_gate'
           docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-reticulum-lan -c 'import config_validation'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-messenger -c 'import RNS, LXMF'
       - name: Check beta host agent and API contract
         run: |
           python -m py_compile host/vm-agent.py server/api/server.py
           python -m unittest discover -s integrations/reticulum/tests -p "test_*.py" -v
+      - name: Generate candidate manifest
+        run: |
+          mkdir -p dist
+          python3 - <<'PY'
+          import json, os, pathlib
+          manifest = {
+              "schema": 1,
+              "product": "netfreak2k-server-os",
+              "channel": "reticulum-beta-preview",
+              "revision": os.environ["GITHUB_SHA"],
+              "installable": False,
+              "update_available": False,
+              "production_approved": False,
+              "requires": ["verified_host_backup", "reticulum_identity_backup", "messenger_history_backup", "manual_upgrade_tests", "rollback_test"],
+          }
+          pathlib.Path("dist/reticulum-beta-manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+          PY
       - name: Generate source-only candidate
         run: |
           mkdir -p dist
