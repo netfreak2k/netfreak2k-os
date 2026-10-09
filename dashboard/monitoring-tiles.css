@@ -402,3 +402,16 @@
 .n2k-node-settings .n2k-node-switch{display:flex;align-items:center;gap:10px;line-height:1.5;cursor:pointer}
 .n2k-node-switch input{width:19px;height:19px;flex:0 0 19px;accent-color:#d4ba79}
 .n2k-node-settings .n2k-hub-actions button{min-height:40px}
+
+/* Network Hub: clear stacked service areas, including narrow desktop and phone. */
+#privacy-panel .n2k-hub-tiles{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px!important;align-items:start!important}
+#privacy-panel .n2k-hub-card{min-width:0!important;width:100%!important}
+#privacy-panel .n2k-hub-card .tor-browser-shell{min-width:0!important}
+#privacy-panel .n2k-peer-browser{min-width:0;display:grid;gap:12px;padding:13px;border:1px solid rgba(160,186,225,.18);border-radius:14px;background:rgba(24,42,66,.22)}
+#privacy-panel .n2k-peers-list{display:grid;gap:8px;min-width:0;max-height:310px;overflow-y:auto}
+#privacy-panel .n2k-peer-item{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:10px;border-radius:10px;background:rgba(130,160,200,.08);border:1px solid rgba(145,173,220,.12)}
+#privacy-panel .n2k-peer-info{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+#privacy-panel .n2k-peer-info small{opacity:.75;font-size:11px}
+#privacy-panel .n2k-peer-item button{min-height:38px;flex:0 0 auto}
+#n2k-tor-check-result{font-size:12px;color:#b7cee9;line-height:1.45;margin:0}
+@media(max-width:620px){#privacy-panel .n2k-hub-tiles{gap:12px!important}#privacy-panel .n2k-peer-item{align-items:stretch}#privacy-panel .n2k-peer-item button{min-height:44px}}
