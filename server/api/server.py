@@ -3054,6 +3054,43 @@ def status_payload():
     }
 
 
+SHADOW_STATE = Path("/shadow-state/shadow-nodes.json")
+
+def shadow_validate(data):
+    if not isinstance(data, dict) or set(data) - {"enabled", "tor_enabled", "peers"}:
+        raise ValueError("invalid_shadow_settings")
+    enabled, tor = data.get("enabled", False), data.get("tor_enabled", False)
+    if type(enabled) is not bool or type(tor) is not bool:
+        raise ValueError("invalid_shadow_switch")
+    peers = data.get("peers", [])
+    if not isinstance(peers, list) or len(peers) > 8:
+        raise ValueError("invalid_shadow_peers")
+    found = set()
+    cleaned = []
+    for peer in peers:
+        if not isinstance(peer, dict) or set(peer) != {"host", "port", "transport"}:
+            raise ValueError("invalid_shadow_peer")
+        mode, host, p = peer["transport"], peer["host"], peer["port"]
+        if mode not in ("tcp", "tor") or not isinstance(host, str):
+            raise ValueError("invalid_shadow_transport")
+        pattern = r"[a-z2-7]{56}\\.onion" if mode == "tor" else r"[a-zA-Z0-9.-]+"
+        if not re.fullmatch(pattern, host) or len(host) > 253 or ".." in host or host.startswith(("-", ".")):
+            raise ValueError("invalid_shadow_host")
+        if type(p) is not int or not 1 <= p <= 65535:
+            raise ValueError("invalid_shadow_port")
+        key = (mode, host, p)
+        if key in found:
+            raise ValueError("duplicate_shadow_peer")
+        found.add(key)
+        cleaned.append({"transport": mode, "host": host, "port": p})
+    return {"enabled": enabled, "tor_enabled": tor, "peers": cleaned}
+
+def shadow_read():
+    try:
+        return shadow_validate(json.loads(SHADOW_STATE.read_text(encoding="utf-8")))
+    except FileNotFoundError:
+        return {"enabled": False, "tor_enabled": False, "peers": []}
+
 class Handler(BaseHTTPRequestHandler):
     def send_json(self, payload, status=200, extra_headers=None):
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -3348,6 +3385,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(json.loads(response.read(131072).decode("utf-8")))
             except (OSError, ValueError, json.JSONDecodeError):
                 self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
+        if path == "/shadow-nodes":
+            session = self.require_auth()
+            if not session:
+                return
+            try:
+                self.send_json(dict(shadow_read(), restart_required=True, connection_status="not_measured"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                self.send_json({"error": "shadow_settings_unavailable"}, 503)
             return
 
         if path == "/meshlink/service":
@@ -4109,6 +4156,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":str(exc)},400)
             except Exception:
                 self.send_json({"error":"native_messenger_unavailable"},503)
+            return
+
+        if path == "/shadow-nodes":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                settings = shadow_validate(self.read_json())
+                SHADOW_STATE.parent.mkdir(parents=True, exist_ok=True)
+                temporary = SHADOW_STATE.with_suffix(".tmp")
+                temporary.write_text(json.dumps(settings), encoding="utf-8")
+                temporary.chmod(0o600)
+                temporary.replace(SHADOW_STATE)
+                audit_event(session["username"], "shadow_nodes_settings", "config_updated", self.client_ip())
+                self.send_json({"saved": True, "restart_required": True, "connection_status": "not_measured"})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, 400)
+            except OSError:
+                self.send_json({"error": "shadow_settings_not_writable"}, 503)
             return
 
         if path == "/meshlink/service":
