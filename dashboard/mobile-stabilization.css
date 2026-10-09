@@ -531,3 +531,27 @@
   #n2k-native-contacts button{max-width:100%!important;overflow-wrap:anywhere!important}
   input,textarea,select{max-width:100%!important}
 }
+
+/* RNS iPhone follow-up: native iOS status bar must never overlay scroll content.
+   Reserve the status-bar zone on the scroll container rather than on every card. */
+@media screen and (max-width:620px){
+  html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
+  body{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
+  .workspace main{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
+  .topbar.topbar-desktop{padding-top:calc(12px + env(safe-area-inset-top,0px))!important}
+  /* Prevent the header and RNS panels from sliding under the iPhone system bar. */
+  .workspace main :is(input,button,textarea,select){scroll-margin-top:calc(env(safe-area-inset-top,0px) + 18px)}
+  .n2k-hub-vertical,.n2k-hub-card,.n2k-peer-browser{min-width:0!important;max-width:100%!important}
+  .n2k-hub-card{min-height:0!important;height:auto!important}
+  .n2k-hub-card>canvas{height:48px!important;max-height:48px!important;min-height:0!important}
+  .n2k-hub-card .n2k-hub-stats{margin-bottom:8px!important}
+  .n2k-hub-card .n2k-hub-actions{flex-wrap:wrap!important;gap:8px!important}
+  .n2k-peer-browser{margin-top:12px!important}
+  .n2k-peer-browser :is(h3,strong,p,span){overflow-wrap:anywhere!important}
+  .n2k-peer-browser input{min-width:0!important;width:100%!important}
+  /* Keep all last controls accessible above the fixed navigation. */
+  .workspace main{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))!important}
+  .mobile-bottom-nav,.bottom-nav{z-index:100!important}
+  /* Compact only the top warning; do not hide low-storage alerts. */
+  .topbar .topbar-alert,.topbar .storage-warning{font-size:12px!important;line-height:1.25!important;padding:8px 10px!important;min-height:0!important}
+}
