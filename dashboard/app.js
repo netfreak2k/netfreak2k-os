@@ -7920,7 +7920,6 @@ function n2kUpdateTrafficChart(prefix, text, running) {
 // Container stats are cumulative RX/TX, not a fabricated current speed.
 async function refreshN2KNetworkServices() {
   const specs = [
-    {prefix:"n2k-shadow", path:"/api/tor/relay", type:"shadow"},
     {prefix:"n2k-mesh", path:"/api/meshlink/service", type:"mesh"}
   ];
   await Promise.all(specs.map(async spec => {
@@ -8009,23 +8008,18 @@ async function refreshN2KNetworkServices() {
   }));
 }
 async function setN2KNetworkService(type, enabled) {
-  if (type === "shadow" && enabled) {
-    if (!window.confirm("ShadowNode aktivieren? Dein öffentlicher Anschluss wird als Tor-Relay sichtbar. Es handelt sich ausdrücklich um einen Non-Exit-Knoten. TCP 9001 kann eine Portfreigabe benötigen.")) return;
-  }
-  const path = type === "shadow" ? "/api/tor/relay" : "/api/meshlink/service";
+  const path = "/api/meshlink/service";
   try {
     await request(path, {method:"POST", headers:{"X-CSRF-Token":csrfToken}, body:JSON.stringify({enabled, acknowledged:enabled})});
-    showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + (enabled ? " gestartet" : " ausgeschaltet"));
+    showN2KToast("MeshLink" + (enabled ? " gestartet" : " ausgeschaltet"));
   } catch (err) {
     showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + ": " + (err.message || "Aktion fehlgeschlagen"), "error");
   } finally {
     await refreshN2KNetworkServices();
-    if (type === "shadow") await loadTorRelayStatus();
     if (type === "mesh") await refreshNativeMessenger();
   }
 }
 for (const [id, type, enabled] of [
-  ["n2k-shadow-on", "shadow", true], ["n2k-shadow-off", "shadow", false],
   ["n2k-mesh-on", "mesh", true], ["n2k-mesh-off", "mesh", false]
 ]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
 for (const [id, type, enabled] of [
