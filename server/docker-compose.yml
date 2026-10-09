@@ -34,11 +34,32 @@ services:
       - ALL
     volumes:
       - netfreak2k-messenger-data:/state
+    environment:
+      N2K_LAN_TRANSPORT_HOST: "host.docker.internal"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Local-only by default; configure public access explicitly later.
     ports:
       - "127.0.0.1:4242:4242/tcp"
     networks:
       - netfreak2k
+
+  netfreak2k-reticulum-lan:
+    build:
+      context: ..
+      dockerfile: server/reticulum-lan/Dockerfile
+    container_name: netfreak2k-reticulum-lan
+    labels:
+      netfreak2k.core: "true"
+      netfreak2k.managed: "true"
+    restart: unless-stopped
+    network_mode: host
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - netfreak2k-reticulum-lan-data:/state
 
   netfreak2k-api:
     build:
@@ -101,6 +122,8 @@ networks:
     name: netfreak2k
 
 volumes:
+  netfreak2k-reticulum-lan-data:
+    name: netfreak2k-reticulum-lan-data
   netfreak2k-messenger-data:
     name: netfreak2k-messenger-data
   netfreak2k-data:
