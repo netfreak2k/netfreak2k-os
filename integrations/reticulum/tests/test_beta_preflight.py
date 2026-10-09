@@ -9,14 +9,14 @@ from beta_preflight import inspect_host, assess
 
 
 class PreflightTests(unittest.TestCase):
-    def test_fresh_host_requires_review(self):
+    def test_fresh_host_requires_separate_clean_install_review(self):
         checks = {"netfreak2k-reticulum-lan-data": "absent",
                   "netfreak2k-messenger-data": "absent", "runtime": "absent"}
-        self.assertEqual(assess(checks)[0], "review_required")
+        self.assertEqual(assess(checks)[0], "hold")
 
     def test_existing_identity_requires_backup(self):
         checks = {"netfreak2k-reticulum-lan-data": "existing",
-                  "netfreak2k-messenger-data": "existing", "runtime": "managed"}
+                  "netfreak2k-messenger-data": "existing", "runtime": "managed", "project": "netfreak2k"}
         self.assertEqual(assess(checks)[1], "existing_data_requires_verified_backup")
         self.assertEqual(assess(checks, backup_verified=True)[0], "review_required")
 
