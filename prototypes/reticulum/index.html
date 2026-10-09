@@ -9,9 +9,9 @@ h1{font-size:clamp(24px,4vw,34px);margin:8px 0}h2{font-size:17px;margin:0 0 16px
 small,.muted{color:#9eb0c6}.pill{border:1px solid #52647d;border-radius:30px;padding:7px 12px}
 .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-top:20px}
 .card{background:#142235d9;border:1px solid #334760;border-radius:20px;padding:20px;box-shadow:0 12px 40px #0003}
-button,input,textarea{font:inherit;border-radius:11px}button{background:#275b87;color:white;border:1px solid #5186b1;padding:11px 15px;cursor:pointer}
+button,input,textarea,select{font:inherit;border-radius:11px}button{background:#275b87;color:white;border:1px solid #5186b1;padding:11px 15px;cursor:pointer}
 button.secondary{background:#1a2a3d}button:disabled{opacity:.45;cursor:not-allowed}
-input,textarea{width:100%;padding:12px;background:#0b1828;color:white;border:1px solid #425770;margin:9px 0}
+input,textarea,select{width:100%;padding:12px;background:#0b1828;color:white;border:1px solid #425770;margin:9px 0}
 label{display:block;margin:12px 0}input[type=checkbox]{width:auto;margin-right:8px}
 .chat{height:240px;border:1px solid #334760;border-radius:14px;display:grid;place-items:center;color:#a5b7ce;text-align:center;padding:18px}
 .mesh{height:180px;position:relative;overflow:hidden;background:radial-gradient(circle,#1c3651,#0c1829);border-radius:14px}
@@ -37,7 +37,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 <p class="muted">Animation ist dekorativ. Darunter ausschließlich tatsächlich beobachtete LXMF-Announces; bekannte Routen sind keine bestätigten Verbindungen.</p><div id="peers" role="status" class="muted">Beobachtete Knoten werden geladen …</div><button class="secondary" disabled>Netzwerk vergrößern</button></div>
 <div class="card"><h2>Kontakte</h2><div id="contacts" class="chat">Kontakte werden geladen …</div></div>
 <div class="card"><h2>Nachrichten · LXMF</h2><div class="chat" id="messages">Nachrichten werden geladen …</div><p class="muted" id="lxmf-status">LXMF-Status wird geprüft …</p>
-<div class="row" style="margin-top:12px"><input disabled placeholder="Nachricht schreiben"><button disabled>Senden</button></div></div>
+<div class="row" style="margin-top:12px"><select id="recipient" disabled><option value="">Kontakt auswählen</option></select><input id="outgoing" maxlength="2048" disabled placeholder="Nachricht schreiben"><button id="send" disabled>Senden</button></div><p id="send-notice" role="status" class="muted">Nur Administratoren dürfen Nachrichten senden. Zustellung wird nicht vorgetäuscht.</p></div>
 <div class="card"><h2>Meine Reticulum-Webseite</h2>
 <p class="muted">Geplant: Reticulum-nativer Seiteneditor, Vorschau und Veröffentlichung – ohne öffentliche HTTP-Freigabe.</p>
 <textarea disabled rows="7" placeholder="Seiteninhalt"></textarea><button disabled>Veröffentlichen</button></div>
@@ -45,7 +45,8 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let csrf=null;
+let csrf=null, isAdmin=false, messengerOnline=false;
+function updateSendAccess(){const allowed=isAdmin&&!!csrf&&messengerOnline&&!!$('recipient').value;$('outgoing').disabled=!allowed;$('send').disabled=!allowed;}
 async function jsonRequest(path, options={}){
  const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options});
  if(!response.ok)throw new Error(response.status===401?'Bitte im OS anmelden.':response.status===403?'Zugriff verweigert oder Sitzung abgelaufen.':'API-Fehler '+response.status);
@@ -56,6 +57,8 @@ async function loadPreferences(){
   const session=await jsonRequest('/api/session');
   if(!session.authenticated || !session.csrf)throw new Error('Bitte im OS anmelden.');
   csrf=session.csrf;
+  isAdmin=session.role==='admin';
+  updateSendAccess();
   const p=await jsonRequest('/api/reticulum/preferences');
   $('name').value=p.display_name||'';
   $('enabled').checked=!!p.requested_enabled;
@@ -115,6 +118,11 @@ async function refreshContacts(){
   const data=await jsonRequest('/api/messenger/contacts');
   const rows=Array.isArray(data.contacts)?data.contacts:[];
   const box=$('contacts');box.replaceChildren();box.style.display='block';box.style.overflowY='auto';
+  const recipient=$('recipient'),selected=recipient.value;recipient.replaceChildren();
+  const empty=document.createElement('option');empty.value='';empty.textContent='Kontakt auswählen';recipient.appendChild(empty);
+  for(const item of rows){if(!/^[a-f0-9]{32}$/i.test(String(item.destination||'')))continue;const option=document.createElement('option');option.value=item.destination;option.textContent=String(item.name||item.destination);recipient.appendChild(option)}
+  recipient.value=Array.from(recipient.options).some(o=>o.value===selected)?selected:'';
+  recipient.disabled=!isAdmin||recipient.options.length<2;updateSendAccess();
   if(!rows.length){box.textContent='Noch keine Kontakte gespeichert.';return}
   for(const item of rows.slice(0,100)){
    const p=document.createElement('p');
@@ -130,6 +138,7 @@ async function refreshLXMF(){
    jsonRequest('/api/messenger/messages')
   ]);
   const online=status.online===true;
+  messengerOnline=online;updateSendAccess();
   $('lxmf-status').textContent=online?'LXMF-Router lokal aktiv; Zustellung an andere Knoten nicht bestätigt.':'LXMF-Router nicht aktiv: '+String(status.error||'offline');
   const rows=Array.isArray(messages.messages)?messages.messages.slice(-12):[];
   const box=$('messages');
@@ -144,9 +153,22 @@ async function refreshLXMF(){
   }
  }catch(err){
   $('messages').textContent='Nachrichten nicht verfügbar: '+err.message;
+  messengerOnline=false;updateSendAccess();
   $('lxmf-status').textContent='Keine bestätigte Verbindung zum Messenger.';
  }
 }
+$('recipient').addEventListener('change',updateSendAccess);
+$('send').addEventListener('click',async()=>{
+ const destination=$('recipient').value,content=$('outgoing').value.trim();
+ if(!isAdmin||!csrf||!messengerOnline||!/^[a-f0-9]{32}$/i.test(destination)||!content||content.length>2048){$('send-notice').textContent='Versand nicht erlaubt oder Eingabe ungültig.';return}
+ $('send').disabled=true;
+ try{
+  const result=await jsonRequest('/api/messenger/messages',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({destination,content})});
+  $('send-notice').textContent=result.queued===true?'An LXMF übergeben (Warteschlange); Zustellung noch nicht bestätigt.':'Versandstatus nicht bestätigt.';
+  if(result.queued===true){$('outgoing').value='';await refreshLXMF()}
+ }catch(err){$('send-notice').textContent='Versand fehlgeschlagen: '+err.message}
+ finally{updateSendAccess()}
+});
 loadPreferences();
 refreshLXMF();
 refreshContacts();
