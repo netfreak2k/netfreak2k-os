@@ -31,8 +31,8 @@ def public_status(raw, *, now=None):
         "connected": None,
         "state": state,
         "enabled": enabled,
-        "transport_enabled": False,
+        "transport_enabled": available and raw.get("transport_enabled") is True,
         "interfaces": [],
         "updated_at": timestamp,
-        "note": "Local service only; remote Reticulum path unverified",
+        "note": "Local runtime reported; remote Reticulum path unverified",
     }
