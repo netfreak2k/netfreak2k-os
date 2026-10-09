@@ -7832,3 +7832,60 @@ else n2kConnectPlayerCover();
  setInterval(refresh,30000);
 })();
 
+
+
+// ShadowNode and MeshLink controls use the same authenticated OS APIs as their detail views.
+// Container stats are cumulative RX/TX, not a fabricated current speed.
+async function refreshN2KNetworkServices() {
+  const specs = [
+    {prefix:"n2k-shadow", path:"/api/tor/relay", type:"shadow"},
+    {prefix:"n2k-mesh", path:"/api/meshlink/service", type:"mesh"}
+  ];
+  await Promise.all(specs.map(async spec => {
+    const state = document.getElementById(spec.prefix + "-state");
+    const nodes = document.getElementById(spec.prefix + "-nodes");
+    const traffic = document.getElementById(spec.prefix + "-traffic");
+    const on = document.getElementById(spec.prefix + "-on");
+    const off = document.getElementById(spec.prefix + "-off");
+    const meter = document.getElementById(spec.prefix + "-meter");
+    if (!state) return;
+    try {
+      const data = await request(spec.path);
+      if (!data.available) throw Error(data.error || "Host-Agent offline");
+      state.textContent = data.running ? "● Aktiv" : data.installed ? "○ Ausgeschaltet" : "○ Nicht installiert";
+      if (traffic) traffic.textContent = "RX / TX: " + (data.traffic || "–");
+      if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "Nodes: " + (data.nodes == null ? "nicht verfügbar" : data.nodes);
+      if (meter) meter.style.width = data.running ? "100%" : "0%";
+      if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
+      if (off) off.disabled = !data.running;
+    } catch (_) {
+      state.textContent = "Status nicht verfügbar";
+      if (on) on.disabled = true;
+      if (off) off.disabled = true;
+      if (meter) meter.style.width = "0%";
+      if (traffic) traffic.textContent = "Traffic: –";
+    }
+  }));
+}
+async function setN2KNetworkService(type, enabled) {
+  if (type === "shadow" && enabled) {
+    if (!window.confirm("ShadowNode aktivieren? Dein öffentlicher Anschluss wird als Tor-Relay sichtbar. Es handelt sich ausdrücklich um einen Non-Exit-Knoten. TCP 9001 kann eine Portfreigabe benötigen.")) return;
+  }
+  const path = type === "shadow" ? "/api/tor/relay" : "/api/meshlink/service";
+  try {
+    await request(path, {method:"POST", headers:{"X-CSRF-Token":csrfToken}, body:JSON.stringify({enabled, acknowledged:enabled})});
+    showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + (enabled ? " gestartet" : " ausgeschaltet"));
+  } catch (err) {
+    showN2KToast((type === "shadow" ? "ShadowNode" : "MeshLink") + ": " + (err.message || "Aktion fehlgeschlagen"), "error");
+  } finally {
+    await refreshN2KNetworkServices();
+    if (type === "shadow") await loadTorRelayStatus();
+    if (type === "mesh") await refreshNativeMessenger();
+  }
+}
+for (const [id, type, enabled] of [
+  ["n2k-shadow-on", "shadow", true], ["n2k-shadow-off", "shadow", false],
+  ["n2k-mesh-on", "mesh", true], ["n2k-mesh-off", "mesh", false]
+]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
+refreshN2KNetworkServices();
+setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000);
