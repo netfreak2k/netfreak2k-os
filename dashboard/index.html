@@ -1646,6 +1646,16 @@
                   <div class="n2k-hub-title"><div><small>RETICULUM DISCOVERY</small><h3>Bekannte LXMF-Knoten</h3><span>Über Announcements im erreichbaren Reticulum-Netz gefunden</span></div></div>
                   <div class="n2k-hub-actions"><strong id="n2k-peers-count">0 bekannt · Verbindungen ungeprüft</strong><button id="n2k-peers-refresh" class="secondary compact" type="button">Knoten suchen</button></div>
                   <div id="n2k-peers-list" class="n2k-peers-list" aria-live="polite">Noch keine Knoten entdeckt.</div>
+                  <div class="n2k-public-peer-config">
+                    <strong>Öffentlichem Reticulum-TCP-Knoten beitreten</strong>
+                    <p class="n2k-hub-footnote">Hostname und Port eines vertrauenswürdigen öffentlichen RNS-Transportknotens eingeben. Das aktiviert eine ausgehende Verbindung. Erreichbarkeit und Verbindungsaufbau müssen anschließend geprüft werden.</p>
+                    <div class="n2k-peer-connect-fields">
+                      <label>Hostname <input id="n2k-peer-host" autocomplete="off" placeholder="Hostname des Transportknotens"></label>
+                      <label>Port <input id="n2k-peer-port" type="number" min="1" max="65535" value="4242"></label>
+                    </div>
+                    <div class="n2k-hub-actions"><button type="button" id="n2k-peer-join" class="primary compact">TCP-Knoten verbinden</button><button type="button" id="n2k-peer-leave" class="secondary compact">Verbindung deaktivieren</button></div>
+                    <small id="n2k-peer-join-status" role="status">Kein öffentlicher TCP-Knoten konfiguriert.</small>
+                  </div>
                   <p class="n2k-hub-footnote">Bekannte Ziele sind nicht automatisch direkt verbundene Transportknoten. Ohne öffentlich konfigurierten TCP-Transport können nur über bestehende Interfaces erreichbare Knoten erscheinen.</p>
                 </section>
                 <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
