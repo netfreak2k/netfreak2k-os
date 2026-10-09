@@ -5,7 +5,7 @@
 ## Mandatory before publishing a stable release
 
 - [ ] GitHub Actions test run completed successfully for the exact release commit.
-- [ ] Run Python compile checks, unit tests and Docker Compose config validation.
+- [ ] Run Python compile checks, unit tests, Docker Compose config validation, image builds and module-import smoke tests.
 - [ ] Test clean installation on disposable Linux Mint/Ubuntu host.
 - [ ] Test upgrade with a backup of existing `netfreak2k-reticulum-lan-data` and `netfreak2k-messenger-data` volumes; verify original identity and message history unchanged.
 - [ ] Test Messenger connection to LAN TCP port 4243 after upgrade, including restart.
@@ -18,7 +18,7 @@
 
 ## Known limitations
 
-The preview uses the existing Messenger API. Its send action is admin-only, CSRF protected, and returns *queued*, not delivered. The new activation preference is stored but not applied. Existing persisted RNS configurations missing the Messenger LAN port now fail closed instead of being silently rewritten. The new Reticulum website editor is not implemented. No production installation has been changed.
+The preview uses the existing Messenger API. Its send action is admin-only, CSRF protected, and returns *queued*, not delivered. Activation requests are stored, and an admin-only read-only multi-user activation plan is available; no privileged controller applies them. Existing persisted RNS configurations missing the Messenger LAN port now fail closed instead of being silently rewritten. The new Reticulum website editor is not implemented. No production installation has been changed.
 
 ## Publication options
 
