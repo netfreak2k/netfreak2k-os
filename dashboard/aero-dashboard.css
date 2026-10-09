@@ -219,3 +219,49 @@
 @media(max-width:750px){
  #dashboard-top .n2k-aero-applications .widget-grid>.widget{max-height:none!important}
 }
+
+/* v7: one-screen cockpit at compact desktop widths. No fake telemetry. */
+#dashboard-top .n2k-aero-more{margin-left:auto;min-height:34px;padding:5px 10px;border:1px solid rgba(160,184,230,.22);border-radius:9px;background:rgba(30,50,82,.8);color:#e6f0ff;font-size:12px;cursor:pointer}
+#dashboard-top .n2k-aero-app-title .n2k-aero-open-apps{margin-left:0}
+#dashboard-top .n2k-aero-compact:not(.n2k-aero-expanded)>.widget:not(.ha-widget):not(.n2k-network-service-widget):not(.network-widget){display:none!important}
+@media(min-width:751px){
+ #dashboard-top .n2k-aero-dashboard{grid-template-columns:minmax(0,.85fr) minmax(0,1.2fr)!important;gap:12px!important}
+ #dashboard-top .n2k-aero-system .mini-metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ #dashboard-top .n2k-aero-system .mini-metric{height:112px!important;min-height:112px!important;max-height:112px!important;min-width:0!important;flex-direction:column!important;justify-content:center!important;gap:6px!important;padding:9px!important;text-align:center!important}
+ #dashboard-top .n2k-aero-system .mini-metric .metric-ring{height:51px!important;width:51px!important;min-width:51px!important;margin:0 auto!important}
+ #dashboard-top .n2k-aero-system .mini-metric strong{font-size:12px!important}
+ #dashboard-top .n2k-aero-system .mini-metric span,#dashboard-top .n2k-aero-system .mini-metric small{line-height:1.2}
+ #dashboard-top .n2k-aero-system .n2k-aero-ai-card{flex-direction:row!important;grid-column:1/-1!important;min-height:68px!important;height:68px!important;max-height:68px!important;text-align:left!important;justify-content:flex-start!important}
+ #dashboard-top .n2k-aero-applications .widget-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:stretch!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{height:134px!important;min-height:134px!important;max-height:134px!important;aspect-ratio:auto!important;min-width:0!important;width:100%!important;overflow:hidden!important;padding:11px!important;align-self:stretch!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget h3{font-size:13px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.widget .widget-head{margin-bottom:4px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-graph{gap:3px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget canvas{height:24px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-actions button{min-height:32px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget #network-chart{height:32px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget .widget-detail-lines{display:none!important}
+}
+@media(min-width:751px) and (max-width:1100px){
+ #dashboard-top .n2k-aero-dashboard{grid-template-columns:minmax(0,.9fr) minmax(0,1.15fr)!important}
+ #dashboard-top .n2k-aero-section-title{min-height:44px!important}
+ #dashboard-top .n2k-aero-system .mini-metric{height:98px!important;min-height:98px!important;max-height:98px!important}
+ #dashboard-top .n2k-aero-system .n2k-aero-ai-card{height:64px!important;min-height:64px!important;max-height:64px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{height:120px!important;min-height:120px!important;max-height:120px!important}
+}
+@media(max-width:750px){
+ #dashboard-top .n2k-aero-applications .widget-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.ha-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget,
+ #dashboard-top .n2k-aero-applications .widget-grid>.network-widget{height:auto!important;min-height:150px!important;max-height:none!important;width:100%!important;min-width:0!important;aspect-ratio:auto!important;padding:10px!important}
+ #dashboard-top .n2k-aero-app-title{flex-wrap:wrap}
+ #dashboard-top .n2k-aero-more{min-height:44px!important}
+ #dashboard-top .n2k-aero-applications .widget-grid>.n2k-network-service-widget .n2k-service-actions button{min-height:44px!important}
+}
+@media(max-width:360px){
+ #dashboard-top .n2k-aero-applications .widget-grid{grid-template-columns:minmax(0,1fr)!important}
+}
