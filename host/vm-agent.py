@@ -845,6 +845,7 @@ def tor_relay_set(enabled):
                "--label", "netfreak2k.app=tor-relay",
                "--security-opt", "no-new-privileges:true",
                "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "FOWNER",
+               "--cap-add", "SETUID", "--cap-add", "SETGID",
                "-p", "9001:9001/tcp",
                "-v", "netfreak2k-tor-relay-data:/var/lib/tor",
                "alpine:3.20", "/bin/sh", "-c",
