@@ -58,7 +58,20 @@ jobs:
 
           docker exec netfreak2k-api sh -c 'id && ls -ld /workspace /workspace/users /workspace/shared'
           docker exec netfreak2k-api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/setup').read().decode())"
-          docker exec netfreak2k-web getent hosts netfreak2k-api
+          # A freshly started nginx may briefly restart while its upstream initializes.
+          web_ready=0
+          for i in {1..20}; do
+            if docker exec netfreak2k-web getent hosts netfreak2k-api >/dev/null 2>&1; then
+              web_ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$web_ready" != "1" ]]; then
+            docker compose -f server/docker-compose.yml ps
+            docker logs netfreak2k-web || true
+            exit 1
+          fi
           docker exec netfreak2k-web wget -qO- http://netfreak2k-api:8080/setup || true
 
           ready=0
