@@ -316,5 +316,11 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 if __name__ == "__main__":
-    threading.Thread(target=start_stack, daemon=True).start()
-    ThreadingHTTPServer(("0.0.0.0", 8091), Handler).serve_forever()
+    # Reticulum installs signal handlers; initialisation MUST occur on the main thread.
+    # Keep the internal status API responsive on a separate daemon thread.
+    httpd = ThreadingHTTPServer(("0.0.0.0", 8091), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True, name="n2k-messenger-api").start()
+    start_stack()
+    # Keep the process running after initialisation so the API and LXMF router remain alive.
+    while True:
+        time.sleep(60)
