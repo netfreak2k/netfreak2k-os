@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
   <title>Netfreak2k Server-OS</title>
-  <link rel="stylesheet" href="styles.css?v=20261009-rns-polish1">
+  <link rel="stylesheet" href="styles.css?v=20261009-rns-media-swap2">
   <link rel="stylesheet" href="media-center.css?v=20261007-polish1">
   <link rel="stylesheet" href="mobile.css?v=20261008-mobile-preview1">
   <link rel="stylesheet" href="monitoring-tiles.css?v=20261009-uptime-fixed6">
@@ -283,22 +283,6 @@
               </div>
             </button>
 
-            <section class="widget n2k-network-service-widget n2k-rns-hub-widget" aria-label="RNS Network Hub">
-              <div class="widget-head"><div><small>RETICULUM NETWORK</small><h3>RNS Network Hub</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="RNS Network Hub öffnen">›</button></div>
-              <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
-              <div class="n2k-rns-extra"><div><small>Protokoll</small><strong>Reticulum / LXMF</strong></div><div><small>Erkennung</small><strong id="n2k-rns-discovery">Wird geprüft …</strong></div><div><small>Erreichbare Routen</small><strong id="n2k-rns-routes">–</strong></div></div><div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
-              <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
-            </section>
-            <div class="widget activity-widget">
-              <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
-              <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
-            </div>
-
-            <button class="widget n2k-photo-home-widget" type="button" data-target-view="photos-panel" aria-label="Fotogalerie öffnen">
-              <div class="widget-head"><div><small>FOTO & ALBEN</small><h3>Fotogalerie</h3></div><span class="widget-open-mini">›</span></div>
-              <div class="n2k-photo-home-art" aria-hidden="true"><span>▧</span><span>◩</span><span>▣</span></div>
-              <div class="n2k-service-live"><span>Deine Bilder und Alben</span><strong>Galerie öffnen ›</strong></div>
-            </button>
             <div id="overview-media-widget" class="widget overview-media-widget">
               <div class="widget-head"><div><small>N2K MEDIA</small><h3>Schnellsteuerung</h3></div><button class="widget-open-mini" data-target-view="media-center-panel" title="Media Center öffnen">›</button></div>
               <div class="overview-media-now">
@@ -317,6 +301,23 @@
               </div>
             </div>
 
+
+            <div class="widget activity-widget">
+              <div class="widget-head"><div><small>AKTIVITÄT</small><h3>Was zuletzt passiert ist</h3></div></div>
+              <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
+            </div>
+
+            <button class="widget n2k-photo-home-widget" type="button" data-target-view="photos-panel" aria-label="Fotogalerie öffnen">
+              <div class="widget-head"><div><small>FOTO & ALBEN</small><h3>Fotogalerie</h3></div><span class="widget-open-mini">›</span></div>
+              <div class="n2k-photo-home-art" aria-hidden="true"><span>▧</span><span>◩</span><span>▣</span></div>
+              <div class="n2k-service-live"><span>Deine Bilder und Alben</span><strong>Galerie öffnen ›</strong></div>
+            </button>
+            <section class="widget n2k-network-service-widget n2k-rns-hub-widget" aria-label="RNS Network Hub">
+              <div class="widget-head"><div><small>RETICULUM NETWORK</small><h3>RNS Network Hub</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="RNS Network Hub öffnen">›</button></div>
+              <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
+              <div class="n2k-rns-extra"><div><small>Protokoll</small><strong>Reticulum / LXMF</strong></div><div><small>Erkennung</small><strong id="n2k-rns-discovery">Wird geprüft …</strong></div><div><small>Erreichbare Routen</small><strong id="n2k-rns-routes">–</strong></div></div><div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
+              <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
+            </section>
 
           </div>
 
