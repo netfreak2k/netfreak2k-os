@@ -21,6 +21,27 @@ DELIVERY = None
 LOCK = threading.RLock()
 MESSAGES = STATE / 'messages.json'
 CONTACTS = STATE / 'contacts.json'
+NODE_CONFIG = STATE / 'node.json'
+
+def node_settings():
+    try:
+        value = json.loads(NODE_CONFIG.read_text(encoding='utf-8'))
+        if isinstance(value, dict):
+            return {'name':str(value.get('name','N2K MeshLink'))[:64], 'enabled':value.get('enabled') is True}
+    except (OSError, ValueError):
+        pass
+    return {'name':'N2K MeshLink','enabled':False}
+
+def set_node_settings(name, enabled):
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 64 or any(ord(ch)<32 for ch in name):
+        raise ValueError('invalid_node_name')
+    if type(enabled) is not bool:
+        raise ValueError('invalid_node_state')
+    tmp = NODE_CONFIG.with_suffix('.tmp')
+    tmp.write_text(json.dumps({'name':name.strip(),'enabled':enabled}), encoding='utf-8')
+    tmp.chmod(0o600)
+    tmp.replace(NODE_CONFIG)
+
 
 def read_records(file):
     try:
@@ -54,6 +75,15 @@ def start_stack():
         lxmf_path = STATE / "lxmf"
         rns_path.mkdir(exist_ok=True)
         lxmf_path.mkdir(exist_ok=True)
+        node = node_settings()
+        # Configure transport mode before RNS initialises; applying a change
+        # requires restarting ONLY the MeshLink container.
+        config_file = rns_path / "config"
+        if not config_file.exists():
+            config_file.write_text("[reticulum]\\n  enable_transport = No\\n  share_instance = No\\n\\n[interfaces]\\n", encoding="utf-8")
+        config_text = config_file.read_text(encoding="utf-8")
+        config_text = re.sub(r"(?m)^\\s*enable_transport\\s*=.*$", "  enable_transport = " + ("Yes" if node["enabled"] else "No"), config_text)
+        config_file.write_text(config_text, encoding="utf-8")
         RNS.Reticulum(configdir=str(rns_path))
         identity_file = STATE / "identity"
         if identity_file.exists():
@@ -64,10 +94,10 @@ def start_stack():
             IDENTITY = RNS.Identity()
             IDENTITY.to_file(str(identity_file))
         ROUTER = LXMF.LXMRouter(storagepath=str(lxmf_path))
-        DELIVERY = ROUTER.register_delivery_identity(IDENTITY, display_name="Netfreak2k OS")
+        DELIVERY = ROUTER.register_delivery_identity(IDENTITY, display_name=node["name"])
         ROUTER.register_delivery_callback(on_delivery)
         ROUTER.announce(DELIVERY.hash)
-        RUNTIME.update(online=True, identity=DELIVERY.hash.hex(), error=None)
+        RUNTIME.update(online=True, identity=DELIVERY.hash.hex(), error=None, node_name=node["name"], transport_enabled=node["enabled"])
     except Exception as exc:
         RUNTIME.update(online=False, error=str(exc)[:180])
 
@@ -79,6 +109,8 @@ class Handler(BaseHTTPRequestHandler):
             result = {"messages":read_records(MESSAGES)}
         elif self.path == "/contacts":
             result = {"contacts":read_records(CONTACTS)}
+        elif self.path == "/node":
+            result = dict(node_settings(), applied_name=RUNTIME.get("node_name"), applied_transport=RUNTIME.get("transport_enabled"))
         else:
             self.send_error(404)
             return
@@ -91,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path not in ("/contacts", "/messages"):
+        if self.path not in ("/contacts", "/messages", "/node"):
             self.send_error(404)
             return
         try:
@@ -101,6 +133,13 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("invalid_payload")
+            if self.path == "/node":
+                node = node_settings()
+                name = payload.get("name", node["name"])
+                enabled = payload.get("enabled", node["enabled"])
+                set_node_settings(name, enabled)
+                self.send_result({"saved":True,"restart_required":True})
+                return
             dest = str(payload.get("destination", "")).strip().lower()
             if not re.fullmatch(r"[0-9a-f]{32}", dest):
                 raise ValueError("invalid_destination_hash")
