@@ -1,0 +1,83 @@
+name: Reticulum beta candidate gate
+
+on:
+  push:
+    branches: [feature/reticulum-integration-foundation]
+    paths:
+      - 'integrations/reticulum/**'
+      - 'server/api/**'
+      - 'server/reticulum-lan/**'
+      - 'server/messenger/**'
+      - 'server/docker-compose.yml'
+      - '.github/workflows/reticulum-beta-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source and policy tests
+        run: |
+          python -m compileall -q integrations/reticulum server/api server/messenger server/reticulum-lan host/vm-agent.py
+          python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
+      - name: Validate deployment definitions
+        run: docker compose -f server/docker-compose.yml config --quiet
+      - name: Build API and Reticulum images
+        run: docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan netfreak2k-messenger
+      - name: Verify runtime module imports
+        run: |
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation, reticulum_overview, reticulum_beta_gate'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-reticulum-lan -c 'import config_validation'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-messenger -c 'import RNS, LXMF'
+      - name: Check beta host agent and API contract
+        run: |
+          python -m py_compile host/vm-agent.py server/api/server.py
+          python -m unittest discover -s integrations/reticulum/tests -p "test_*.py" -v
+      - name: Generate candidate manifest
+        run: |
+          mkdir -p dist
+          python3 - <<'PY'
+          import json, os, pathlib
+          manifest = {
+              "schema": 1,
+              "product": "netfreak2k-server-os",
+              "channel": "reticulum-beta-preview",
+              "revision": os.environ["GITHUB_SHA"],
+              "installable": False,
+              "update_available": False,
+              "production_approved": False,
+              "requires": ["verified_host_backup", "reticulum_identity_backup", "messenger_history_backup", "manual_upgrade_tests", "rollback_test"],
+          }
+          pathlib.Path("dist/reticulum-beta-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+      - name: Verify candidate metadata and branch
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          data = json.loads(pathlib.Path("dist/reticulum-beta-manifest.json").read_text(encoding="utf-8"))
+          assert data["revision"] == os.environ["GITHUB_SHA"]
+          assert data["channel"] == "reticulum-beta-preview"
+          assert data["installable"] is False and data["update_available"] is False
+          assert data["production_approved"] is False
+          assert re.fullmatch(r"[0-9a-f]{40}", data["revision"])
+          assert os.environ["GITHUB_REF"] == "refs/heads/feature/reticulum-integration-foundation"
+          PY
+      - name: Generate source-only candidate
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz --prefix=netfreak2k-reticulum-beta-source/ HEAD > dist/netfreak2k-reticulum-beta-source.tar.gz
+          sha256sum dist/netfreak2k-reticulum-beta-source.tar.gz dist/reticulum-beta-manifest.json > dist/SHA256SUMS
+          python3 -c 'import json,pathlib; d=json.loads(pathlib.Path("dist/reticulum-beta-manifest.json").read_text()); assert d["installable"] is False and d["production_approved"] is False and len(d["revision"]) == 40'
+          printf '%s\n' 'SOURCE-ONLY DEVELOPMENT CANDIDATE' 'NOT AN INSTALLABLE UPDATE' 'Do not deploy to a production OS.' > dist/READ_ME_FIRST.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reticulum-source-candidate
+          path: dist/
+          retention-days: 7

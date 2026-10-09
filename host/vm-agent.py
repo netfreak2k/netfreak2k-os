@@ -25,7 +25,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "meshlink_status", "meshlink_set", "meshlink_restart", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "meshlink_status", "meshlink_set", "meshlink_restart", "reticulum_beta_preflight", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -3811,6 +3811,48 @@ def execute(action, request):
         managed_container_state(MESHLINK_CONTAINER)
         run("docker", "restart", "--time", "20", MESHLINK_CONTAINER, check=True, timeout=50)
         return meshlink_status()
+
+    if action == "reticulum_beta_preflight":
+        # The controller is deliberately read-only until upgrade rollback is verified.
+        result = subprocess.run(["docker", "container", "inspect", "netfreak2k-reticulum-lan"],
+                                capture_output=True, text=True, timeout=10, check=False)
+        project = None
+        runtime = "unverified"
+        if result.returncode == 0:
+            try:
+                data = json.loads(result.stdout)
+                labels = data[0].get("Config", {}).get("Labels") or {}
+                project = labels.get("com.docker.compose.project")
+                runtime = ("managed" if len(data) == 1 and project
+                           and data[0].get("Name", "").lstrip("/") == "netfreak2k-reticulum-lan"
+                           and labels.get("com.docker.compose.service") == "netfreak2k-reticulum-lan"
+                           else "external_or_unverified")
+            except (ValueError, TypeError, IndexError, AttributeError):
+                runtime = "unverified"
+        elif "No such object" in result.stderr or "No such container" in result.stderr:
+            runtime = "absent"
+        volumes = {}
+        for short_name in ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data"):
+            if runtime != "managed":
+                volumes[short_name] = "unverified"
+                continue
+            name = project + "_" + short_name
+            item = subprocess.run(["docker", "volume", "inspect", name],
+                                  capture_output=True, text=True, timeout=10, check=False)
+            if item.returncode == 0:
+                try:
+                    data = json.loads(item.stdout)
+                    volumes[short_name] = "existing" if len(data) == 1 and data[0].get("Name") == name else "unverified"
+                except (ValueError, TypeError, AttributeError):
+                    volumes[short_name] = "unverified"
+            elif "No such volume" in item.stderr:
+                volumes[short_name] = "absent"
+            else:
+                volumes[short_name] = "unverified"
+        return {"runtime": runtime, "project": project if runtime == "managed" else None,
+                "volumes": volumes, "beta_install_ready": False,
+                "requires_backup_or_review": True, "host_control_available": False,
+                "note": "Read-only inspection; unverified projects and volumes block activation"}
 
     if action == "meshlink_status":
         return meshlink_status()

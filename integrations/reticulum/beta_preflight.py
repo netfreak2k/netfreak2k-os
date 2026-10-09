@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Read-only host preflight for a Reticulum beta upgrade.
+
+No service changes. Exit 0 only when host conditions can be inspected safely.
+An existing runtime always requires a separately verified backup and operator
+approval before applying an upgrade.
+"""
+import argparse
+import json
+import subprocess
+from pathlib import Path
+
+SERVICE = "netfreak2k-reticulum-lan"
+VOLUMES = ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data")
+
+
+def inspect_host(run=subprocess.run):
+    checks = {}
+    # Compose volume names depend on the installed project name. Resolve the
+    # actual project from a managed container; never guess volume names.
+    try:
+        result = run(["docker", "container", "inspect", SERVICE],
+                     capture_output=True, text=True, timeout=15, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {"runtime": "unverified", "project": None,
+                **{volume: "unverified" for volume in VOLUMES}}
+    project = None
+    if result.returncode == 0:
+        try:
+            rows = json.loads(result.stdout)
+            if len(rows) != 1 or rows[0].get("Name", "").lstrip("/") != SERVICE:
+                raise ValueError("unexpected_container")
+            labels = rows[0].get("Config", {}).get("Labels") or {}
+            project = labels.get("com.docker.compose.project")
+            service = labels.get("com.docker.compose.service")
+            checks["runtime"] = ("managed" if project and service == SERVICE
+                                  else "external_or_unverified")
+        except (ValueError, TypeError, AttributeError, IndexError):
+            checks["runtime"] = "unverified"
+    elif "No such object" in result.stderr or "No such container" in result.stderr:
+        checks["runtime"] = "absent"
+    else:
+        checks["runtime"] = "unverified"
+
+    if checks["runtime"] == "managed":
+        checks["project"] = project
+    else:
+        checks["project"] = None
+    # An absent runtime does not establish which project owns existing volumes.
+    # Never mark unknown data as absent based on a guessed project prefix.
+    if not project or checks["runtime"] != "managed":
+        for volume in VOLUMES:
+            checks[volume] = "unverified"
+        return checks
+    for volume in VOLUMES:
+        actual_name = project + "_" + volume
+        try:
+            item = run(["docker", "volume", "inspect", actual_name],
+                       capture_output=True, text=True, timeout=15, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            checks[volume] = "unverified"
+            continue
+        if item.returncode == 0:
+            try:
+                rows = json.loads(item.stdout)
+                if len(rows) != 1 or rows[0].get("Name") != actual_name:
+                    raise ValueError("unexpected_volume")
+                checks[volume] = "existing"
+            except (ValueError, TypeError, KeyError):
+                checks[volume] = "unverified"
+        elif "No such volume" in item.stderr:
+            checks[volume] = "absent"
+        else:
+            checks[volume] = "unverified"
+    return checks
+
+def assess(checks, *, backup_verified=False):
+    if any(value == "unverified" for value in checks.values()) or checks.get("runtime") == "external_or_unverified":
+        return "hold", "unverified_or_external_runtime"
+    # No managed container means the Compose project and historical volume
+    # ownership cannot be established. A clean install must use a separate
+    # explicit inventory procedure, not this upgrade preflight.
+    if checks.get("runtime") != "managed" or not checks.get("project"):
+        return "hold", "compose_project_not_verified"
+    if not all(checks.get(name) in ("existing", "absent") for name in VOLUMES):
+        return "hold", "volume_inventory_incomplete"
+    existing = any(checks.get(name) == "existing" for name in VOLUMES)
+    if existing and not backup_verified:
+        return "hold", "existing_data_requires_verified_backup"
+    if checks.get("runtime") == "managed" and not backup_verified:
+        return "hold", "existing_runtime_requires_verified_backup"
+    return "review_required", "operator_must_confirm_identity_and_legacy_transport"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--backup-verification-file", type=Path,
+                        help="Path to operator-produced verification record; never treated as deployment authorization")
+    args = parser.parse_args()
+    checks = inspect_host()
+    backup_verified = False
+    if args.backup_verification_file:
+        try:
+            record = json.loads(args.backup_verification_file.read_text(encoding="utf-8"))
+            backup_verified = (record.get("verified") is True
+                               and record.get("reticulum_identity_verified") is True
+                               and record.get("messenger_data_verified") is True)
+        except (OSError, ValueError, AttributeError):
+            pass
+    decision, reason = assess(checks, backup_verified=backup_verified)
+    print(json.dumps({"checks": checks, "decision": decision, "reason": reason,
+                      "apply_permitted": False}, sort_keys=True))
+    return 0 if decision == "review_required" else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

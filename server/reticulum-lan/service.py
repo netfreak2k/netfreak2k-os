@@ -1,24 +1,67 @@
 #!/usr/bin/env python3
-"""Standalone N2K Reticulum LAN transport. No HTTP/API or access to LXMF data."""
+"""N2K Reticulum LAN runtime: opt-in and status-only bridge to OS API."""
+import json
 import os
 import time
 from pathlib import Path
-import RNS
 
-state = Path("/state")
-state.mkdir(parents=True, exist_ok=True)
-config_dir = state / "rns"
-config_dir.mkdir(parents=True, exist_ok=True)
-config = config_dir / "config"
-if not config.exists():
-    config.write_text(
-        "[reticulum]\n  enable_transport = Yes\n  share_instance = No\n\n"
-        "[interfaces]\n  [[N2K LAN Discovery]]\n    type = AutoInterface\n    enabled = Yes\n"
-        "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n"
-        "  [[N2K Bridge Transport]]\n    type = TCPServerInterface\n"
-        "    enabled = Yes\n    listen_ip = 0.0.0.0\n    listen_port = 4243\n",
-        encoding="utf-8",
-    )
-RNS.Reticulum(configdir=str(config_dir))
-while True:
-    time.sleep(60)
+STATE = Path("/state")
+STATE.mkdir(parents=True, exist_ok=True)
+STATUS = STATE / "status.json"
+ENABLED = os.environ.get("N2K_RETICULUM_ENABLED", "").lower() in ("1", "true", "yes")
+TRANSPORT = os.environ.get("N2K_RETICULUM_TRANSPORT", "").lower() in ("1", "true", "yes")
+
+def report(state, *, available=False, transport=False, error=None):
+    payload = {
+        "state": state, "available": available, "enabled": ENABLED,
+        "transport_enabled": transport, "connected": None,
+        "interfaces": [], "updated_at": int(time.time())
+    }
+    if error:
+        payload["error"] = str(error)[:180]
+    tmp = STATUS.with_suffix(".tmp")
+    tmp.write_text(json.dumps(payload), encoding="utf-8")
+    tmp.replace(STATUS)
+
+if not ENABLED:
+    report("disabled")
+    while True:
+        time.sleep(15)
+        report("disabled")
+else:
+    try:
+        import RNS
+        config_dir = STATE / "rns"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config = config_dir / "config"
+        fresh_config = not config.exists()
+        if fresh_config:
+            # Fresh installs may opt in explicitly; never alter persisted settings.
+            config.write_text(
+                "[reticulum]\n  enable_transport = " + ("Yes" if TRANSPORT else "No") + "\n  share_instance = No\n\n"
+                "[interfaces]\n  [[N2K LAN Discovery]]\n"
+                "    type = AutoInterface\n    enabled = Yes\n"
+                "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n"
+                "  [[N2K LAN Transport Server]]\n"
+                "    type = TCPServerInterface\n"
+                "    enabled = Yes\n"
+                "    listen_ip = 0.0.0.0\n"
+                "    listen_port = 4243\n",
+                encoding="utf-8"
+            )
+        # Do not rewrite existing user configuration or claim transport consent.
+        # Existing config may contain transport settings from older installs:
+        # refuse activation until it is reviewed by a migration.
+        existing = config.read_text(encoding="utf-8")
+        from config_validation import validate_config
+        valid, reason = validate_config(existing, TRANSPORT)
+        if not valid:
+            raise RuntimeError("Reticulum configuration requires review: " + reason)
+        RNS.Reticulum(configdir=str(config_dir))
+        while True:
+            report("local_instance_started", available=True, transport=TRANSPORT)
+            time.sleep(15)
+    except Exception as exc:
+        while True:
+            report("error", error=exc)
+            time.sleep(15)
