@@ -7621,7 +7621,7 @@ async function refreshN2KNetworkServices() {
             meshKnownNodes = Math.max(0, Number(peers.known_count));
             const routes = document.getElementById("n2k-rns-routes");
             const discovery = document.getElementById("n2k-rns-discovery");
-            if (routes) routes.textContent = Number.isFinite(Number(peers.connected_count)) ? String(peers.connected_count) : "Nicht gemessen";
+            if (routes) routes.textContent = peers.connected_count != null && Number.isFinite(Number(peers.connected_count)) ? String(peers.connected_count) : "Nicht gemessen";
             if (discovery) discovery.textContent = peers.online ? "Aktiv · LXMF" : "Nicht verfügbar";
           }
         } catch (error) {
