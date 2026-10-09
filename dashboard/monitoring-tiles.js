@@ -13,6 +13,25 @@ return b;
 }
 function decorate(card,type){
 card.classList.add("n2k-monitor-card");card.dataset.metric=type;
+if(type==="uptime"){
+  card.classList.add("n2k-uptime-plain");
+  const title=document.createElement("div");
+  title.className="n2k-monitor-title";
+  title.textContent="UPTIME & KI";
+  const content=document.createElement("div");
+  content.className="n2k-uptime-content";
+  const value=document.createElement("strong");
+  value.id="n2k-uptime-value";
+  value.textContent="Wird geladen …";
+  const line=document.createElement("div");
+  line.className="n2k-uptime-ai";
+  line.innerHTML='<span class="n2k-uptime-ai-row"><i id="n2k-combined-ai-dot" data-state="offline"></i><b id="n2k-combined-ai-status">Ollama wird geprüft …</b></span><small id="n2k-combined-ai-model">Modell: –</small>';
+  content.append(value,line);
+  card.replaceChildren(title,content);
+  card.setAttribute("aria-label","Betriebsdauer und lokaler Ollama-Status");
+  return;
+}
+
 const ring=card.querySelector(".metric-ring");if(!ring)return;
 const other=Array.from(card.children).filter(x=>x!==ring);
 const title=document.createElement("div");title.className="n2k-monitor-title";title.innerHTML='<span>'+names[type]+'</span><span class="n2k-health"><i></i><span id="n2k-'+type+'-status">Warte auf Daten</span></span>';
@@ -27,6 +46,21 @@ function setMetric(type,value,info,detail,max=100){
  const detailNode=document.getElementById("n2k-"+type+"-detail");
  const card=document.querySelector('.n2k-monitor-card[data-metric="'+(type==="fan"?"uptime":type)+'"]');
  if(!card)return;
+ if(type==="uptime"){
+   const label=card.querySelector("#n2k-uptime-value");
+   if(label){
+     if(valid(value)){
+       const seconds=Math.max(0,Math.floor(Number(value)));
+       const days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600),minutes=Math.floor(seconds%3600/60);
+       label.textContent=days>0?days+" T "+hours+" Std":hours+" Std "+minutes+" Min";
+     }else{
+       const existing=document.getElementById("overview-uptime");
+       label.textContent=existing && existing.textContent.trim()!=="–"?existing.textContent:"Nicht verfügbar";
+     }
+   }
+   return;
+ }
+
  if(type==="fan"){
    const fanNumber=card.querySelector("#n2k-combined-fan-value");
    const fanStatus=card.querySelector("#n2k-combined-fan-status");
@@ -143,21 +177,6 @@ wireUpdateShortcut();
 const grid=document.querySelector("#dashboard-top .mini-metrics");if(!grid||grid.dataset.n2kReady)return;grid.dataset.n2kReady="1";
 for(const [i,type] of ["cpu","ram","storage","uptime"].entries())if(grid.children[i])decorate(grid.children[i],type);
 grid.append(makeCard("temperature","n2k-temperature","CPU"));
-const uptimeCard=grid.querySelector('[data-metric="uptime"]');
-if(uptimeCard){
- const heading=uptimeCard.querySelector(".n2k-monitor-title > span");
- if(heading)heading.textContent="UPTIME & KI";
- const ring=uptimeCard.querySelector(".metric-ring");
- if(ring){ring.classList.add("n2k-uptime-text-only");ring.style.setProperty("--n2k-fill","0%");}
- const body=uptimeCard.querySelector(".n2k-monitor-body");
- if(body && !uptimeCard.querySelector(".n2k-uptime-ai")){
-   const ai=document.createElement("div");
-   ai.className="n2k-uptime-ai";
-   ai.innerHTML='<span class="n2k-uptime-ai-row"><i id="n2k-combined-ai-dot" data-state="offline"></i><b id="n2k-combined-ai-status">Ollama wird geprüft …</b></span><small id="n2k-combined-ai-model">Modell: –</small>';
-   body.append(ai);
- }
- uptimeCard.setAttribute("aria-label","Betriebsdauer und lokaler Ollama KI-Status");
-}
 
 poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
