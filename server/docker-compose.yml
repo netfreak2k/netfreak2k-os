@@ -44,7 +44,27 @@ services:
     networks:
       - netfreak2k
 
+  netfreak2k-shadow-state-init:
+    image: alpine:3.20
+    container_name: netfreak2k-shadow-state-init
+    restart: "no"
+    user: "0:0"
+    command: ["sh", "-ec", "chgrp 10002 /state && chmod 2770 /state && if [ -f /state/shadow-nodes.json ]; then chgrp 10002 /state/shadow-nodes.json && chmod 660 /state/shadow-nodes.json; fi"]
+    volumes:
+      - netfreak2k-reticulum-lan-data:/state
+    network_mode: "none"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+
   netfreak2k-reticulum-lan:
+    depends_on:
+      netfreak2k-shadow-state-init:
+        condition: service_completed_successfully
     build:
       context: ..
       dockerfile: server/reticulum-lan/Dockerfile
@@ -62,6 +82,11 @@ services:
       - netfreak2k-reticulum-lan-data:/state
 
   netfreak2k-api:
+    depends_on:
+      netfreak2k-shadow-state-init:
+        condition: service_completed_successfully
+    group_add:
+      - '10002'
     build:
       context: ..
       dockerfile: server/api/Dockerfile
@@ -87,6 +112,7 @@ services:
       - /var/lib/netfreak2k:/host/netfreak2k:ro
       - /srv/netfreak2k:/workspace
       - netfreak2k-data:/data
+      - netfreak2k-reticulum-lan-data:/shadow-state
       - netfreak2k-inventory:/inventory:ro
     healthcheck:
       test:
