@@ -1,0 +1,41 @@
+name: Reticulum beta candidate gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/reticulum-integration-foundation
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source and policy tests
+        run: |
+          python -m compileall -q integrations/reticulum server/api server/messenger server/reticulum-lan
+          python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
+      - name: Validate deployment definitions
+        run: docker compose -f server/docker-compose.yml config --quiet
+      - name: Build API and Reticulum images
+        run: docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan
+      - name: Verify runtime module imports
+        run: |
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-reticulum-lan -c 'import config_validation'
+      - name: Generate source-only candidate
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz --prefix=netfreak2k-reticulum-beta-source/ HEAD > dist/netfreak2k-reticulum-beta-source.tar.gz
+          sha256sum dist/netfreak2k-reticulum-beta-source.tar.gz > dist/SHA256SUMS
+          printf '%s\n' 'SOURCE-ONLY DEVELOPMENT CANDIDATE' 'NOT AN INSTALLABLE UPDATE' 'Do not deploy to a production OS.' > dist/READ_ME_FIRST.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reticulum-source-candidate
+          path: dist/
+          retention-days: 7
