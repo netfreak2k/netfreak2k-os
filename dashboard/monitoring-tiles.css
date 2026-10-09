@@ -389,3 +389,8 @@
 .n2k-hub-footnote{margin:0;font-size:.76rem;line-height:1.5;opacity:.7}
 @media(max-width:980px){.n2k-hub-tiles{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:650px){.n2k-hub-card{padding:12px;gap:12px}.n2k-hub-stats{grid-template-columns:minmax(0,1fr)}.n2k-hub-actions button{min-height:42px}}
+
+.n2k-hub-traffic-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.83rem}
+.n2k-hub-traffic-head span{font-variant-numeric:tabular-nums;opacity:.8}
+.n2k-network-service-widget{cursor:pointer}
+.n2k-network-service-widget:focus-visible{outline:2px solid #d4ba79;outline-offset:3px}
