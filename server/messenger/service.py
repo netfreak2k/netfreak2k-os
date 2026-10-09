@@ -113,11 +113,11 @@ def start_stack():
         config_text = re.sub(r"(?m)^\s*enable_transport\s*=.*$", "  enable_transport = " + ("Yes" if node["enabled"] else "No"), config_text)
         gateway=public_peer()
         # Only the explicitly managed block is changed; preserve user interfaces.
-        config_text=re.sub(r"(?ms)\\n?  \\[\\[N2K Public TCP Peer\\]\\]\\n.*?(?=\\n  \\[\\[|\\Z)", "", config_text)
+        config_text=re.sub(r"(?ms)\n?  \[\[N2K Public TCP Peer\]\]\n.*?(?=\n  \[\[|\Z)", "", config_text)
         if gateway["enabled"] and gateway["host"]:
-            config_text += ("\\n  [[N2K Public TCP Peer]]\\n    type = TCPClientInterface\\n"
-                "    enabled = Yes\\n    target_host = " + gateway["host"] +
-                "\\n    target_port = " + str(gateway["port"]) + "\\n")
+            config_text += ("\n  [[N2K Public TCP Peer]]\n    type = TCPClientInterface\n"
+                "    enabled = Yes\n    target_host = " + gateway["host"] +
+                "\n    target_port = " + str(gateway["port"]) + "\n")
         config_file.write_text(config_text, encoding="utf-8")
         RNS.Reticulum(configdir=str(rns_path))
         RNS.Transport.register_announce_handler(LXMFAnnounces())
