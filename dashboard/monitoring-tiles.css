@@ -494,3 +494,28 @@
 #dashboard-top #n2k-combined-ai-dot[data-state="warning"]{background:#e8b65d}
 #dashboard-top #n2k-combined-ai-dot[data-state="offline"]{background:#8794a8}
 #dashboard-top .n2k-uptime-ai small{font-size:9px;color:#b2c8e6;overflow-wrap:anywhere}
+
+/* v6: actual markup-based Uptime/Ollama tile, no circle/logo dependency */
+#dashboard-top .mini-metric.n2k-monitor-card.n2k-uptime-plain{
+ display:flex!important;flex-direction:column!important;align-items:stretch!important;
+ justify-content:space-between!important;text-align:left!important;gap:7px!important;
+}
+#dashboard-top .n2k-uptime-plain .n2k-monitor-title{
+ display:block!important;font-size:11px!important;font-weight:700!important;line-height:1.25!important;
+}
+#dashboard-top .n2k-uptime-content{
+ display:flex!important;flex-direction:column!important;justify-content:center!important;
+ align-items:flex-start!important;flex:1!important;gap:8px!important;min-width:0!important;
+}
+#dashboard-top #n2k-uptime-value{
+ font-size:clamp(13px,1.25vw,19px)!important;line-height:1.15!important;color:#f0f6ff!important;
+ font-weight:750!important;font-variant-numeric:tabular-nums!important;white-space:normal!important;
+}
+#dashboard-top .n2k-uptime-plain .n2k-uptime-ai{
+ display:flex!important;flex-direction:column!important;gap:4px!important;width:100%!important;
+}
+#dashboard-top .n2k-uptime-plain .n2k-uptime-ai-row{
+ display:flex!important;align-items:center!important;gap:5px!important;min-width:0!important;
+}
+#dashboard-top .n2k-uptime-plain .n2k-uptime-ai-row b{font-size:10px!important;line-height:1.2!important}
+#dashboard-top .n2k-uptime-plain .n2k-uptime-ai small{font-size:9px!important;line-height:1.25!important}
