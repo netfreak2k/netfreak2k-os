@@ -1,6 +1,15 @@
 name: Reticulum beta candidate gate
 
 on:
+  push:
+    branches: [feature/reticulum-integration-foundation]
+    paths:
+      - 'integrations/reticulum/**'
+      - 'server/api/**'
+      - 'server/reticulum-lan/**'
+      - 'server/messenger/**'
+      - 'server/docker-compose.yml'
+      - '.github/workflows/reticulum-beta-candidate.yml'
   workflow_dispatch:
 
 permissions:
