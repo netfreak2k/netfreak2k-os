@@ -4074,6 +4074,45 @@ async function copyText(text) {
   }
 }
 
+// Separate Reticulum transport-node settings. They never touch the HA add-on.
+async function loadMeshLinkNode() {
+  const note = document.getElementById("n2k-node-state");
+  if (!note) return;
+  try {
+    const data = await request("/api/messenger/node");
+    document.getElementById("n2k-node-name").value = data.name || "N2K MeshLink";
+    document.getElementById("n2k-node-enabled").checked = data.enabled === true;
+    note.textContent = data.applied_transport === true ? "● Transportmodus aktiv" :
+      data.enabled === true ? "◷ Neustart erforderlich" : "○ Transportmodus aus";
+  } catch (_) {
+    note.textContent = "Knoteneinstellungen nicht verfügbar";
+  }
+}
+document.getElementById("n2k-node-save")?.addEventListener("click", async () => {
+  const button = document.getElementById("n2k-node-save");
+  const note = document.getElementById("n2k-node-note");
+  const name = document.getElementById("n2k-node-name").value.trim();
+  const enabled = document.getElementById("n2k-node-enabled").checked;
+  if (!name || name.length > 64) {
+    if (note) note.textContent = "Knotenname muss 1–64 Zeichen enthalten.";
+    return;
+  }
+  if (enabled && !confirm("MeshLink als Reticulum-Transportknoten aktivieren? Der Dienst kann künftig Netzwerkverkehr anderer Reticulum-Teilnehmer weiterleiten. Die Netzwerkinterfaces müssen dafür geeignet sein.")) return;
+  button.disabled = true;
+  try {
+    await request("/api/messenger/node", {method:"POST", headers:{"X-CSRF-Token":csrfToken},
+      body:JSON.stringify({name,enabled})});
+    if (note) note.textContent = "Gespeichert. MeshLink wird zum Anwenden neu gestartet.";
+    await request("/api/messenger/node/restart", {method:"POST",headers:{"X-CSRF-Token":csrfToken},body:"{}"});
+    if (note) note.textContent = "Einstellungen angewendet. Transportstatus wird geprüft.";
+    await loadMeshLinkNode();
+    await refreshNativeMessenger();
+  } catch (err) {
+    if (note) note.textContent = "Fehler: " + (err.message || "Neustart oder Speichern fehlgeschlagen");
+  } finally { button.disabled = false; }
+});
+loadMeshLinkNode();
+
 // OS-native messenger; HA bridge stays completely separate.
 async function refreshNativeMessenger() {
   const status = document.getElementById("n2k-native-state");
