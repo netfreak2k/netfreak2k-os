@@ -23,3 +23,12 @@ Home Assistant, Raspberry Pis und andere Projekte dürfen als Referenz für Fehl
 6. Tor-Relay und Home Assistant dürfen in diesem Test nicht verändert werden.
 
 Hinweis: Die Implementierung ist im Repository vorbereitet, aber der Live-Test der Transportinterfaces wurde noch nicht durchgeführt.
+
+## Automatische LAN-Einrichtung ab dieser Version
+Bei einer frischen Netfreak2k-Installation legt Docker Compose automatisch den Dienst `netfreak2k-reticulum-lan` mit eigenem persistentem Volume an. Er läuft im Host-Netzwerk, nutzt Reticuluм AutoInterface zur lokalen Multicast-Erkennung und bietet ausschließlich den nativen Reticulum-TCP-Transport auf Port 4243 an. Er stellt **keine HTTP-API** bereit und verwendet weder LXMF-Nachrichten noch die Messenger-Identität.
+
+Der reguläre `netfreak2k-messenger` bleibt auf dem privaten Docker-Netzwerk. Er verbindet sich über `host.docker.internal:4243` mit dem lokalen Reticulum-LAN-Dienst. Dafür sind keine festen LAN-Adressen oder Macvlan-DHCP-Reservierungen erforderlich. Die bisherige Benutzeridentität bleibt im Volume `netfreak2k-messenger-data` erhalten.
+
+Voraussetzungen: Docker Compose mit `host-gateway`-Unterstützung, IPv6 Link-Local Multicast auf einem unterstützten LAN-Interface sowie eine durch Host-Firewall/Netzwerkregeln erlaubte Verbindung vom Docker-Bridge-Netz zum TCP-Transport. AutoInterface kann nur Knoten sehen, die im Multicast-Bereich erreichbar sind und sich ankündigen. Der TCP-Port 4243 ist auf Host-Netzwerkinterfaces erreichbar; Betreiber müssen die Zugriffspolitik des lokalen Netzes beachten. Kein automatisches Router-Portforwarding wird eingerichtet.
+
+Abnahme nach dem Update: `docker compose ps netfreak2k-reticulum-lan netfreak2k-messenger`, Messenger-`/status`, Reticulum-`/peers`, keine Veröffentlichung des Messenger-HTTP-Ports 8091, LAN-Kommunikation mit einem unabhängigen Testpeer. Der Live-Test ist noch ausstehend.
