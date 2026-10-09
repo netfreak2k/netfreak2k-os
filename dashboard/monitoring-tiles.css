@@ -422,3 +422,28 @@
 #privacy-panel .n2k-peer-connect-fields input{width:100%;max-width:100%;min-width:0;min-height:40px;box-sizing:border-box}
 #privacy-panel #n2k-peer-join-status{font-size:12px;color:#b8cde8;overflow-wrap:anywhere}
 @media(max-width:620px){#privacy-panel .n2k-peer-connect-fields{grid-template-columns:1fr}}
+
+/* Dashboard order: system temperature at left, uptime at right; service placement. */
+@media(min-width:751px){
+ #dashboard-top .mini-metrics{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+ #dashboard-top .mini-metrics>.n2k-monitor-card[data-metric="temperature"]{order:3!important}
+ #dashboard-top .mini-metrics>.n2k-monitor-card[data-metric="uptime"]{order:4!important}
+ #dashboard-top .widget-grid{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:9px!important;align-items:stretch!important}
+ #dashboard-top .widget-grid>.widget{min-width:0!important;max-width:none!important;width:100%!important}
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.matrix-widget{order:2!important}
+ #dashboard-top .widget-grid>.n2k-network-service-widget[aria-label="ShadowNode"]{order:3!important}
+ #dashboard-top .widget-grid>.n2k-network-service-widget[aria-label="MeshLink"]{order:4!important}
+ #dashboard-top .widget-grid>.network-widget{order:5!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important}
+ #dashboard-top .widget-grid>.overview-media-widget{order:7!important}
+ #dashboard-top .widget-grid>.recent-widget{order:8!important}
+ #dashboard-top .widget-grid>.activity-widget{order:9!important}
+ #dashboard-top .widget-grid>.drive-widget{order:10!important}
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.matrix-widget{order:2!important}
+ #dashboard-top .widget-grid>.activity-widget{order:8!important}
+ #dashboard-top .widget-grid>.drive-widget{order:9!important}
+}
