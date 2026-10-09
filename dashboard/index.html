@@ -1645,6 +1645,13 @@
                 <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
               <div class="tor-browser-toolbar"><div><small>STANDARD-MESSENGER · OS NATIV</small><strong>N2K Messenger / LXMF</strong><span id="n2k-native-state">Verbindung wird geprüft …</span></div><button id="n2k-native-refresh" class="secondary compact">Aktualisieren</button></div>
               <p style="margin:0;font-size:.91em">Eigenständiger Messenger mit separater Identität und Datenbank. Die Home-Assistant-DEV-App bleibt unverändert.</p>
+              <section class="n2k-node-settings" aria-label="MeshLink Knoteneinstellungen">
+                <div class="n2k-hub-title"><span class="n2k-hub-symbol">⌁</span><div><small>RETICULUM TRANSPORT NODE</small><h3>MeshLink Knotenpunkt</h3><span id="n2k-node-state">Transportstatus wird geladen …</span></div></div>
+                <label>Sichtbarer Knotenname <input id="n2k-node-name" maxlength="64" placeholder="N2K MeshLink"></label>
+                <label class="n2k-node-switch"><input id="n2k-node-enabled" type="checkbox"><span>Als Reticulum-Transportknoten betreiben</span></label>
+                <p class="n2k-hub-footnote">Der Knoten kann Reticulum-Verkehr anderer Teilnehmer weiterleiten, sofern passende Netzwerkinterfaces und Verbindungen eingerichtet sind. Der Messenger bleibt unabhängig davon nutzbar. Transportmodus ist standardmäßig aus.</p>
+                <div class="n2k-hub-actions"><button type="button" id="n2k-node-save" class="primary compact">Knoteneinstellungen speichern</button><span id="n2k-node-note" role="status"></span></div>
+              </section>
               <label>Eigene LXMF-Adresse <input id="n2k-native-id" type="text" readonly placeholder="Noch nicht bereit"></label>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
                 <div style="display:grid;gap:8px"><strong>Kontakt speichern</strong><input id="n2k-contact-name" placeholder="Kontaktname" maxlength="80"><input id="n2k-contact-dest" placeholder="LXMF-Zielhash (32 Hex-Zeichen)" maxlength="32"><button id="n2k-contact-save" class="secondary compact">Kontakt speichern</button><div id="n2k-native-contacts" aria-live="polite">Noch keine Kontakte</div></div>
