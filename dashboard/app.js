@@ -7834,6 +7834,49 @@ else n2kConnectPlayerCover();
 
 
 
+// Chart samples come from observed changes in cumulative Docker network counters.
+const n2kServiceSamples = {};
+function n2kNetworkBytes(text) {
+  if (typeof text !== "string") return null;
+  const match = text.trim().match(/^([\d.,]+)\s*([kKmMgGtT]?i?[bB])$/);
+  if (!match) return null;
+  const value = Number(match[1].replace(",", "."));
+  const unit = match[2].toLowerCase();
+  const exponent = {"b":0,"kb":1,"mb":2,"gb":3,"tb":4,"kib":1,"mib":2,"gib":3,"tib":4}[unit];
+  return Number.isFinite(value) && exponent !== undefined ? value * Math.pow(unit.includes("i") ? 1024 : 1000, exponent) : null;
+}
+function n2kUpdateTrafficChart(prefix, text, running) {
+  const canvas = document.getElementById(prefix + "-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const halves = String(text || "").split("/");
+  const total = halves.length === 2 ? halves.map(v => n2kNetworkBytes(v)) : [];
+  const sample = total.length === 2 && total.every(Number.isFinite) ? total[0] + total[1] : null;
+  const record = n2kServiceSamples[prefix] || {last:null,values:[]};
+  if (!running || sample === null) {
+    record.last = null;
+    if (!running) record.values = [];
+  } else {
+    const delta = record.last === null || sample < record.last ? 0 : sample - record.last;
+    record.values.push(delta);
+    record.values = record.values.slice(-24);
+    record.last = sample;
+  }
+  n2kServiceSamples[prefix] = record;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (record.values.length < 2) return;
+  const max = Math.max(...record.values, 1);
+  ctx.beginPath();
+  record.values.forEach((value,index) => {
+    const x = index * (canvas.width - 6) / (record.values.length - 1) + 3;
+    const y = canvas.height - 4 - (value / max) * (canvas.height - 10);
+    if (index === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = "#c6b27c";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
 // ShadowNode and MeshLink controls use the same authenticated OS APIs as their detail views.
 // Container stats are cumulative RX/TX, not a fabricated current speed.
 async function refreshN2KNetworkServices() {
@@ -7854,6 +7897,7 @@ async function refreshN2KNetworkServices() {
       if (!data.available) throw Error(data.error || "Host-Agent offline");
       state.textContent = data.running ? "● Aktiv" : data.installed ? "○ Ausgeschaltet" : "○ Nicht installiert";
       if (traffic) traffic.textContent = "RX / TX: " + (data.traffic || "–");
+      n2kUpdateTrafficChart(spec.prefix, data.traffic, data.running);
       if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "Nodes: " + (data.nodes == null ? "nicht verfügbar" : data.nodes);
       if (meter) meter.style.width = data.running ? "100%" : "0%";
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
