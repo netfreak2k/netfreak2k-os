@@ -61,14 +61,14 @@
      const ms=typeof data.latency_ms==="number" && Number.isFinite(data.latency_ms)?data.latency_ms:null;
      status.textContent=online?(data.ready?"Bereit":"Online"):"Offline";
      dot.classList.toggle("is-online",online);
-     models.textContent="Modelle: "+(count===null?"–":count);
+     models.textContent="Modell: "+(online ? (data.ready ? (data.model || data.models?.[0] || "Bereit") : (data.models?.[0] || "Kein Modell bereit")) : "–");
      latency.textContent=online && ms!==null?"API: "+Math.round(ms)+" ms":"API: –";
      bar.style.width=online?"100%":"0%";
      bar.title=online?"Ollama-API erreichbar":"Ollama nicht erreichbar";
    }catch(_){
      status.textContent="Nicht erreichbar";
      dot.classList.remove("is-online");
-     models.textContent="Modelle: –";
+     models.textContent="Modell: –";
      latency.textContent="API: –";
      bar.style.width="0%";
    }finally{clearTimeout(timeout);busy=false}
