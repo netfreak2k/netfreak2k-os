@@ -154,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path not in ("/contacts", "/messages", "/node"):
+        if self.path not in ("/contacts", "/messages", "/node", "/peers/request"):
             self.send_error(404)
             return
         try:
@@ -164,6 +164,19 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("invalid_payload")
+            if self.path == "/peers/request":
+                dest = str(payload.get("destination", "")).strip().lower()
+                if not re.fullmatch(r"[0-9a-f]{32}", dest):
+                    raise ValueError("invalid_destination")
+                if not any(x.get("destination") == dest for x in read_records(PEERS)):
+                    raise ValueError("peer_not_discovered")
+                h = bytes.fromhex(dest)
+                if not RUNTIME["online"]:
+                    raise ValueError("reticulum_offline")
+                RNS.Transport.request_path(h)
+                self.send_result({"requested":True,"path_known":bool(RNS.Transport.has_path(h)),
+                                  "note":"route requested; not a confirmed direct connection"})
+                return
             if self.path == "/node":
                 node = node_settings()
                 name = payload.get("name", node["name"])
