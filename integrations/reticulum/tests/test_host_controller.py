@@ -20,6 +20,14 @@ class HostControllerTests(unittest.TestCase):
             conn.executemany("INSERT INTO user_preferences VALUES (?,?,?)", [
                 (username, "reticulum_requested_enabled", str(enabled).lower()),
                 (username, "reticulum_requested_transport", str(transport).lower())])
+    def test_empty_preferences_cannot_stop_service(self):
+        with self.assertRaisesRegex(ValueError, "no_reticulum_preferences_configured"):
+            decide(self.db)
+    def test_incomplete_preferences_cannot_stop_service(self):
+        with sqlite3.connect(self.db) as conn:
+            conn.execute("INSERT INTO user_preferences VALUES (?,?,?)", ("a", "reticulum_requested_transport", "false"))
+        with self.assertRaisesRegex(ValueError, "missing_enabled_preference"):
+            decide(self.db)
     def test_missing_database_is_not_created(self):
         with self.assertRaises(FileNotFoundError):
             read_requests(self.db.parent / "missing.db")
