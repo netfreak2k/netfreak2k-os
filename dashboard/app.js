@@ -7942,9 +7942,22 @@ async function refreshN2KNetworkServices() {
       const hubState = document.getElementById(hubPrefix + (spec.type === "shadow" ? "-status" : "-state"));
       if (hubTraffic) hubTraffic.textContent = data.traffic || "–";
       if (hubState) hubState.textContent = data.running ? "● Aktiv" : data.installed ? "○ Aus" : "○ Nicht installiert";
+      let meshKnownNodes = data.nodes;
+      if (spec.type === "mesh" && data.running) {
+        // Host agent reports container state, but does not know Reticulum routes.
+        // Fetch the actual observed LXMF announces via the authenticated messenger API.
+        try {
+          const peers = await request("/api/messenger/peers");
+          if (peers.online && Number.isFinite(Number(peers.known_count))) {
+            meshKnownNodes = Math.max(0, Number(peers.known_count));
+          }
+        } catch (error) {
+          console.debug("MeshLink peer count unavailable:", error);
+        }
+      }
       if (spec.type === "mesh") {
         const hubNodes = document.getElementById("n2k-hub-mesh-nodes");
-        if (hubNodes) hubNodes.textContent = data.nodes == null ? "Nicht verfügbar" : String(data.nodes);
+        if (hubNodes) hubNodes.textContent = meshKnownNodes == null ? "Nicht verfügbar" : String(meshKnownNodes);
       }
       const hubOn = document.getElementById(hubPrefix + "-on");
       const hubOff = document.getElementById(hubPrefix + "-off");
@@ -7982,7 +7995,7 @@ async function refreshN2KNetworkServices() {
         }
       }
       n2kUpdateTrafficChart(hubPrefix, data.traffic, data.running);
-      if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "Nodes: " + (data.nodes == null ? "nicht verfügbar" : data.nodes);
+      if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "LXMF-Knoten: " + (meshKnownNodes == null ? "nicht verfügbar" : meshKnownNodes);
       if (meter) meter.style.width = data.running ? "100%" : "0%";
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
       if (off) off.disabled = !data.running;
