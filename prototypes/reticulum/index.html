@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Netfreak2k OS · Reticulum</title>
+<style>
+:root{color-scheme:dark;font:15px system-ui,sans-serif;background:#0a111d;color:#edf3ff}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 80% 0%,#1d3552 0%,#0a111d 58%);min-height:100vh}
+main{max-width:1150px;margin:auto;padding:24px}header,.row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+h1{font-size:clamp(24px,4vw,34px);margin:8px 0}h2{font-size:17px;margin:0 0 16px}
+small,.muted{color:#9eb0c6}.pill{border:1px solid #52647d;border-radius:30px;padding:7px 12px}
+.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-top:20px}
+.card{background:#142235d9;border:1px solid #334760;border-radius:20px;padding:20px;box-shadow:0 12px 40px #0003}
+button,input,textarea{font:inherit;border-radius:11px}button{background:#275b87;color:white;border:1px solid #5186b1;padding:11px 15px;cursor:pointer}
+button.secondary{background:#1a2a3d}button:disabled{opacity:.45;cursor:not-allowed}
+input,textarea{width:100%;padding:12px;background:#0b1828;color:white;border:1px solid #425770;margin:9px 0}
+label{display:block;margin:12px 0}input[type=checkbox]{width:auto;margin-right:8px}
+.chat{height:240px;border:1px solid #334760;border-radius:14px;display:grid;place-items:center;color:#a5b7ce;text-align:center;padding:18px}
+.mesh{height:180px;position:relative;overflow:hidden;background:radial-gradient(circle,#1c3651,#0c1829);border-radius:14px}
+.node{position:absolute;top:50%;left:50%;width:18px;height:18px;transform:translate(-50%,-50%);border-radius:50%;background:#79d8e9;box-shadow:0 0 0 12px #79d8e912,0 0 35px #79d8e9;animation:pulse 2.8s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 26px #79d8e900,0 0 12px #79d8e9}}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
+@media(max-width:740px){main{padding:14px}.grid{grid-template-columns:1fr}.card{padding:16px}}
+@media(prefers-reduced-motion:reduce){.node{animation:none}}
+</style></head><body><main>
+<header><div><small>NETFREAK2K OS · ENTWICKLUNGSVORSCHAU</small><h1>Reticulum</h1></div><span class="pill" id="state">Nicht verbunden</span></header>
+<p class="muted">Oberflächenprototyp. Kein Reticulum-Dienst ist angeschlossen; es werden keine Knoten oder Nachrichten simuliert.</p>
+<section class="grid">
+<div class="card"><h2>Dein Reticulum</h2>
+<label>Öffentlicher Anzeigename<input id="name" maxlength="64" autocomplete="nickname" placeholder="Dein Name"></label>
+<label><input type="checkbox" id="enabled">Reticulum aktivieren (Vormerkung)</label>
+<label><input type="checkbox" id="transport">Als Transportknoten helfen (separate Zustimmung)</label>
+<p class="muted">Ein Transportknoten kann fremden Reticulum-Verkehr weiterleiten. Das verbraucht Netzwerkbandbreite und Energie. Die Aktivierung erfolgt erst nach Anbindung des Dienstes.</p>
+<button id="save">Einstellungen lokal vormerken</button><p id="notice" role="status" class="muted"></p>
+<div class="row"><div><h2>Mein Profil</h2><small>Adresse und Kontakt-QR werden nach sicherer Identitätserzeugung angezeigt.</small></div><button disabled>QR-Code anzeigen</button></div>
+<pre id="profile">Noch keine Reticulum-Identität</pre>
+</div>
+<div class="card"><h2>Living Mesh</h2><div class="mesh" aria-label="Dekorative Animation, keine echte Topologie"><span class="node"></span></div>
+<p class="muted">Dekorative Vorschau. Echte Peers und Verbindungen erscheinen erst nach Telemetrie-Anbindung.</p><button class="secondary" disabled>Netzwerk vergrößern</button></div>
+<div class="card"><h2>Nachrichten · LXMF</h2><div class="chat">Chat wird nach Verbindung zum lokalen LXMF-Dienst verfügbar.</div>
+<div class="row" style="margin-top:12px"><input disabled placeholder="Nachricht schreiben"><button disabled>Senden</button></div></div>
+<div class="card"><h2>Meine Reticulum-Webseite</h2>
+<p class="muted">Geplant: Reticulum-nativer Seiteneditor, Vorschau und Veröffentlichung – ohne öffentliche HTTP-Freigabe.</p>
+<textarea disabled rows="7" placeholder="Seiteninhalt"></textarea><button disabled>Veröffentlichen</button></div>
+</section></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), key='n2k-reticulum-ui-preferences';
+try{const v=JSON.parse(localStorage.getItem(key)||'{}');$('name').value=v.name||'';$('enabled').checked=!!v.enabled;$('transport').checked=!!v.transport}catch{}
+$('save').addEventListener('click',()=>{
+ const name=$('name').value.trim();if(!name){$('notice').textContent='Bitte einen Anzeigenamen eingeben.';return}
+ localStorage.setItem(key,JSON.stringify({name,enabled:$('enabled').checked,transport:$('transport').checked}));
+ $('notice').textContent='Nur lokale UI-Vormerkung gespeichert. Reticulum wurde nicht gestartet.';
+ $('profile').textContent='Anzeigename: '+name+'\nIdentität: noch nicht erzeugt';
+});
+</script></body></html>
