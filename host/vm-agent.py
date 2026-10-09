@@ -794,6 +794,13 @@ def tor_relay_status():
                       or "orport is not reachable from the outside" in lower):
                     reachability = "unreachable"
                     reachability_detail = "Tor meldet Probleme bei der externen ORPort-Erreichbarkeit. Portweiterleitung und Firewall prüfen."
+    port_binding = None
+    if state == "running":
+        mapping = run("docker", "port", TOR_RELAY_CONTAINER, "9001/tcp", timeout=5)
+        port_binding = mapping.stdout.strip() if mapping.returncode == 0 else None
+        if not port_binding:
+            reachability_detail += " Docker veröffentlicht TCP 9001 nicht auf dem Host."
+    
     return {
         "installed": state is not None,
         "running": state == "running",
@@ -803,6 +810,7 @@ def tor_relay_status():
         "reachability_detail": reachability_detail,
         "bootstrap_percent": bootstrap_percent,
         "port": TOR_RELAY_PORT,
+        "port_binding": port_binding,
         "mode": "non-exit",
         "started_at": started,
     }
