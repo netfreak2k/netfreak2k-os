@@ -17,9 +17,7 @@ class LANContractTests(unittest.TestCase):
 
     def test_listener_validation_is_interface_scoped(self):
         source = (ROOT / "server/reticulum-lan/service.py").read_text()
-        self.assertIn("listener_valid = any(", source)
-        self.assertIn("for section in sections", source)
-        self.assertIn("if not listener_valid:", source)
+        self.assertIn("validate_config(existing, TRANSPORT)", source)
 
     def test_compose_uses_host_gateway(self):
         source = (ROOT / "server/docker-compose.yml").read_text()
