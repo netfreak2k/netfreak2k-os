@@ -371,3 +371,5 @@
 .n2k-service-actions button{min-height:35px;flex:1;border-radius:9px;border:1px solid rgba(180,195,212,.2);background:rgba(120,145,170,.13);color:inherit;cursor:pointer}
 .n2k-service-actions button:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:650px){.n2k-network-service-widget{min-height:0;padding:12px}.n2k-service-actions button{min-height:42px}}
+
+.n2k-service-graph canvas{display:block;width:100%;height:46px;max-width:100%;opacity:.95}
