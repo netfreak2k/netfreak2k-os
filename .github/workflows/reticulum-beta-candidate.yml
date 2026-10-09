@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
       - name: Verify source and policy tests
         run: |
-          python -m compileall -q integrations/reticulum server/api server/messenger server/reticulum-lan
+          python -m compileall -q integrations/reticulum server/api server/messenger server/reticulum-lan host/vm-agent.py
           python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
       - name: Validate deployment definitions
         run: docker compose -f server/docker-compose.yml config --quiet
@@ -35,8 +35,12 @@ jobs:
         run: docker compose -f server/docker-compose.yml build netfreak2k-api netfreak2k-reticulum-lan
       - name: Verify runtime module imports
         run: |
-          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation'
+          docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-api -c 'import reticulum_status, reticulum_activation, reticulum_overview, reticulum_beta_gate'
           docker compose -f server/docker-compose.yml run --rm --no-deps --entrypoint python netfreak2k-reticulum-lan -c 'import config_validation'
+      - name: Check beta host agent and API contract
+        run: |
+          python -m py_compile host/vm-agent.py server/api/server.py
+          python -m unittest discover -s integrations/reticulum/tests -p "test_*.py" -v
       - name: Generate source-only candidate
         run: |
           mkdir -p dist
