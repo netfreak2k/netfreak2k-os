@@ -3986,6 +3986,18 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"error":"native_messenger_unavailable"}, 503)
             return
 
+        if path == "/messenger/node/restart":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            result = vm_agent("meshlink_restart")
+            if not result.get("available"):
+                self.send_json(result, 503)
+                return
+            audit_event(session["username"], "meshlink_node_restart", "configuration_apply", self.client_ip())
+            self.send_json(result)
+            return
+
         if path == "/messenger/node":
             session = self.require_auth()
             if not session or not self.require_admin(session) or not self.require_csrf(session):
