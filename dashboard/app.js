@@ -8196,7 +8196,6 @@ async function n2kLoadShadowSettings() {
     const data = await request("/api/shadow-nodes");
     n2kShadowPeers = Array.isArray(data.peers) ? data.peers : [];
     document.getElementById("n2k-shadow-enabled").checked = data.enabled === true;
-    document.getElementById("n2k-shadow-tor-enabled").checked = data.tor_enabled === true;
     status.textContent = "Konfiguration geladen · Neustart des LAN-Transports zum Anwenden erforderlich · Live-Verbindungen nicht gemessen";
     n2kRenderShadowPeers();
   } catch (e) {
@@ -8231,12 +8230,10 @@ function n2kRenderShadowPeers() {
 document.getElementById("n2k-shadow-peer-add")?.addEventListener("click", () => {
   const host = document.getElementById("n2k-shadow-peer-host").value.trim().toLowerCase();
   const port = Number(document.getElementById("n2k-shadow-peer-port").value);
-  const transport = document.getElementById("n2k-shadow-peer-transport").value;
-  const isOnion = transport === "tor";
-  const valid = isOnion ? /^[a-z2-7]{56}\.onion$/.test(host)
-    : /^(?![-.])[a-z0-9.-]{1,253}$/.test(host) && !host.includes("..");
+  const transport = "tcp";
+  const valid = /^(?![-.])[a-z0-9.-]{1,253}$/.test(host) && !host.includes("..");
   if (!valid || !Number.isInteger(port) || port < 1 || port > 65535) {
-    document.getElementById("n2k-shadow-settings-status").textContent = "Ungültiger Hostname oder Port (Tor benötigt eine v3-Onion-Adresse).";
+    document.getElementById("n2k-shadow-settings-status").textContent = "Ungültiger TCP-Hostname oder Port.";
     return;
   }
   if (n2kShadowPeers.length >= 8) {
@@ -8251,11 +8248,10 @@ document.getElementById("n2k-shadow-save")?.addEventListener("click", async () =
   const button = document.getElementById("n2k-shadow-save");
   const status = document.getElementById("n2k-shadow-settings-status");
   const enabled = document.getElementById("n2k-shadow-enabled").checked;
-  const tor_enabled = document.getElementById("n2k-shadow-tor-enabled").checked;
-  if ((enabled || tor_enabled) && !confirm("Shadow Nodes aktivieren? Nur selbst eingetragene Peers werden kontaktiert. Tor benötigt einen lokalen SOCKS5-Dienst. Einstellungen erst nach Neustart des LAN-Transport-Dienstes aktiv.")) return;
+  if (enabled && !confirm("Shadow Nodes aktivieren? Nur selbst eingetragene Reticulum-TCP-Peers werden kontaktiert. Neustart des LAN-Transport-Dienstes erforderlich.")) return;
   button.disabled = true;
   try {
-    await request("/api/shadow-nodes", {method:"POST", headers:{"X-CSRF-Token":csrfToken}, body:JSON.stringify({enabled,tor_enabled,peers:n2kShadowPeers})});
+    await request("/api/shadow-nodes", {method:"POST", headers:{"X-CSRF-Token":csrfToken}, body:JSON.stringify({enabled,peers:n2kShadowPeers})});
     status.textContent = "Gespeichert. Neustart von netfreak2k-reticulum-lan erforderlich. Verbindung nicht bestätigt.";
   } catch (e) {
     status.textContent = "Speichern fehlgeschlagen: " + (e.message || "Fehler");
