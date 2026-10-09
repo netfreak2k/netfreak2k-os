@@ -69,7 +69,11 @@ def main():
     parser.add_argument("--confirm-service", default="", help="Must equal netfreak2k-reticulum-lan when applying")
     parser.add_argument("--legacy-transport-detected", action="store_true")
     parser.add_argument("--legacy-checked", action="store_true", help="Host operator confirms legacy transport was checked")
+    parser.add_argument("--existing-runtime-reviewed", action="store_true", help="Operator verified existing container state and identity")
     args = parser.parse_args()
+    if not args.existing_runtime_reviewed:
+        print("HOLD: existing runtime and identity must be reviewed")
+        return 2
     if not args.legacy_checked:
         print("HOLD: legacy transport inventory must be checked before proceeding")
         return 2
