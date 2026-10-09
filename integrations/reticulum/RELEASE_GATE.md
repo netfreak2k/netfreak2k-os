@@ -26,7 +26,7 @@
 
 ## Read-only beta preflight
 
-Run `python3 integrations/reticulum/beta_preflight.py` on a disposable test host before considering an upgrade. It inspects the exact managed container and two named persistent volumes without changing them. An existing volume requires an independently verified identity and data backup. A reported `review_required` state is **not deployment authorization**: legacy transport, port conflicts, live peer checks, rollback, and manual controller approval still need validation. The preflight never issues Docker start, stop or compose commands.
+Run `python3 integrations/reticulum/beta_preflight.py` on a disposable test host before considering an upgrade. It resolves the Docker Compose project from the exact managed container and inspects its two project-prefixed persistent volumes without changing them. When the container is absent, the project cannot be inferred safely: the preflight returns HOLD and a clean-install inventory is required. An existing volume requires an independently verified identity and data backup. A reported `review_required` state is **not deployment authorization**: legacy transport, port conflicts, live peer checks, rollback, and manual controller approval still need validation. The preflight never issues Docker start, stop or compose commands.
 
 ## Known limitations
 
