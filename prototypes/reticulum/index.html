@@ -34,7 +34,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 <pre id="profile">Noch keine Reticulum-Identität</pre><p class="muted" id="service">Reticulum-Dienst: Status wird abgefragt …</p>
 </div>
 <div class="card"><h2>Living Mesh</h2><div class="mesh" aria-label="Dekorative Animation, keine echte Topologie"><span class="node"></span></div>
-<p class="muted">Dekorative Vorschau. Echte Peers und Verbindungen erscheinen erst nach Telemetrie-Anbindung.</p><button class="secondary" disabled>Netzwerk vergrößern</button></div>
+<p class="muted">Animation ist dekorativ. Darunter ausschließlich tatsächlich beobachtete LXMF-Announces; bekannte Routen sind keine bestätigten Verbindungen.</p><div id="peers" role="status" class="muted">Beobachtete Knoten werden geladen …</div><button class="secondary" disabled>Netzwerk vergrößern</button></div>
 <div class="card"><h2>Kontakte</h2><div id="contacts" class="chat">Kontakte werden geladen …</div></div>
 <div class="card"><h2>Nachrichten · LXMF</h2><div class="chat" id="messages">Nachrichten werden geladen …</div><p class="muted" id="lxmf-status">LXMF-Status wird geprüft …</p>
 <div class="row" style="margin-top:12px"><input disabled placeholder="Nachricht schreiben"><button disabled>Senden</button></div></div>
@@ -94,6 +94,22 @@ $('save').addEventListener('click',async()=>{
  }catch(err){$('notice').textContent='Speichern fehlgeschlagen: '+err.message}
  finally{$('save').disabled=false}
 });
+async function refreshPeers(){
+ try{
+  const data=await jsonRequest('/api/messenger/peers');
+  const rows=Array.isArray(data.peers)?data.peers:[];
+  const box=$('peers');box.replaceChildren();
+  const summary=document.createElement('p');
+  summary.textContent=rows.length+' beobachtete LXMF-Knoten · '+rows.filter(p=>p.path_known===true).length+' bekannte Routen (keine Verbindungsgarantie)';
+  box.appendChild(summary);
+  for(const peer of rows.slice(0,8)){
+   const line=document.createElement('p');
+   const hops=Number.isInteger(peer.hops)&&peer.hops>=0?peer.hops+' Hops':'Hops unbekannt';
+   line.textContent=String(peer.name||'Unbenannt')+' · '+(peer.path_known===true?hops:'Route unbekannt');
+   box.appendChild(line);
+  }
+ }catch(err){$('peers').textContent='Netzwerkdaten nicht verfügbar: '+err.message}
+}
 async function refreshContacts(){
  try{
   const data=await jsonRequest('/api/messenger/contacts');
@@ -134,8 +150,10 @@ async function refreshLXMF(){
 loadPreferences();
 refreshLXMF();
 refreshContacts();
+refreshPeers();
 refreshStatus();
 setInterval(refreshStatus,15000);
 setInterval(refreshLXMF,15000);
 setInterval(refreshContacts,30000);
+setInterval(refreshPeers,30000);
 </script></body></html>
