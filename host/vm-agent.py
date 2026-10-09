@@ -25,7 +25,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "meshlink_status", "meshlink_set", "meshlink_restart", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "meshlink_status", "meshlink_set", "meshlink_restart", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -754,110 +754,6 @@ def container_state(name):
 
 
 
-# The relay is independent of the browser and is ALWAYS a non-exit relay.
-TOR_RELAY_CONTAINER = "netfreak2k-tor-relay"
-TOR_RELAY_PORT = 9001
-
-def tor_relay_status():
-    state = container_state(TOR_RELAY_CONTAINER)
-    started = None
-    if state is not None:
-        managed_container_state(TOR_RELAY_CONTAINER)
-        info = run("docker", "inspect", "--format", "{{.State.StartedAt}}", TOR_RELAY_CONTAINER)
-        started = info.stdout.strip() if info.returncode == 0 else None
-    traffic = None
-    reachability = "stopped" if state != "running" else "checking"
-    reachability_detail = "Relay ist ausgeschaltet." if state != "running" else "Tor prüft die öffentliche ORPort-Erreichbarkeit."
-    bootstrap_percent = None
-    if state == "running":
-        stats = run("docker", "stats", "--no-stream", "--format", "{{.NetIO}}", TOR_RELAY_CONTAINER, timeout=12)
-        if stats.returncode == 0:
-            traffic = stats.stdout.strip() or None
-        # Tor's external ORPort self-test is stronger evidence than a local bind()
-        # or a public IP lookup. Read logs only for the CURRENT container run.
-        log_args = ["docker", "logs", "--tail", "600"]
-        if started and started.startswith("20"):
-            log_args.extend(["--since", started])
-        log_args.append(TOR_RELAY_CONTAINER)
-        logs = run(*log_args, timeout=10)
-        if logs.returncode == 0:
-            output = ((logs.stdout or "") + "\n" + (logs.stderr or ""))[-90000:]
-            for line in output.splitlines():
-                lower = line.lower()
-                progress = re.search(r"bootstrapped (\d{1,3})%", lower)
-                if progress:
-                    bootstrap_percent = min(100, int(progress.group(1)))
-                if "self-testing indicates your orport is reachable from the outside" in lower:
-                    reachability = "reachable"
-                    reachability_detail = "Tor-Selbsttest: ORPort von außen erreichbar."
-                elif ("your server has not managed to confirm that its orport is reachable" in lower
-                      or "orport is not reachable from the outside" in lower):
-                    reachability = "unreachable"
-                    reachability_detail = "Tor meldet Probleme bei der externen ORPort-Erreichbarkeit. Portweiterleitung und Firewall prüfen."
-    port_binding = None
-    if state == "running":
-        mapping = run("docker", "port", TOR_RELAY_CONTAINER, "9001/tcp", timeout=5)
-        port_binding = mapping.stdout.strip() if mapping.returncode == 0 else None
-        if not port_binding:
-            reachability_detail += " Docker veröffentlicht TCP 9001 nicht auf dem Host."
-    
-    return {
-        "installed": state is not None,
-        "running": state == "running",
-        "state": state or "not_installed",
-        "traffic": traffic,
-        "reachability": reachability,
-        "reachability_detail": reachability_detail,
-        "bootstrap_percent": bootstrap_percent,
-        "port": TOR_RELAY_PORT,
-        "port_binding": port_binding,
-        "mode": "non-exit",
-        "started_at": started,
-    }
-
-def tor_relay_set(enabled):
-    if type(enabled) is not bool:
-        raise RuntimeError("invalid_relay_state")
-    state = container_state(TOR_RELAY_CONTAINER)
-    if state is not None:
-        managed_container_state(TOR_RELAY_CONTAINER)
-    if not enabled:
-        if state == "running":
-            run("docker", "stop", "--time", "20", TOR_RELAY_CONTAINER, check=True, timeout=40)
-        return tor_relay_status()
-    if state is None:
-        if not port_available(TOR_RELAY_PORT):
-            raise RuntimeError("relay_port_in_use")
-        # Only the ORPort is exposed; SOCKS, control and DNS listeners stay disabled.
-        # ExitPolicy enforces that user traffic NEVER exits to the clearnet.
-        torrc = ("SocksPort 0\nControlPort 0\nDNSPort 0\n"
-                 "ORPort 9001\nExitRelay 0\nExitPolicy reject *:*\n"
-                 "Nickname Netfreak2kRelay\n"
-                 "DataDirectory /var/lib/tor\n"
-                 "RelayBandwidthRate 512 KB\nRelayBandwidthBurst 1 MB\n"
-                 "Log notice stdout\n")
-        # Alpine installs Tor on start; no host-level Tor changes.
-        run("docker", "volume", "create", "netfreak2k-tor-relay-data", check=True)
-        cmd = ["docker", "run", "-d", "--name", TOR_RELAY_CONTAINER,
-               "--restart", "unless-stopped",
-               "--memory", "256m", "--pids-limit", "128",
-               "--label", "netfreak2k.managed=true",
-               "--label", "netfreak2k.app=tor-relay",
-               "--security-opt", "no-new-privileges:true",
-               "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "FOWNER",
-               "--cap-add", "SETUID", "--cap-add", "SETGID",
-               "-p", "9001:9001/tcp",
-               "-v", "netfreak2k-tor-relay-data:/var/lib/tor",
-               "alpine:3.20", "/bin/sh", "-c",
-               "apk add --no-cache tor su-exec >/dev/null && chown -R tor:tor /var/lib/tor && printf '%s' " +
-               __import__("shlex").quote(torrc) +
-               " > /tmp/torrc && exec su-exec tor tor -f /tmp/torrc"]
-        run(*cmd, check=True, timeout=120)
-    elif state != "running":
-        run("docker", "start", TOR_RELAY_CONTAINER, check=True, timeout=60)
-    return tor_relay_status()
-
-MESHLINK_CONTAINER = "netfreak2k-messenger"
 
 def meshlink_status():
     state = container_state(MESHLINK_CONTAINER)
@@ -3934,12 +3830,6 @@ def execute(action, request):
 
     if action == "meshlink_set":
         return meshlink_set(request.get("enabled"))
-
-    if action == "tor_relay_status":
-        return tor_relay_status()
-
-    if action == "tor_relay_set":
-        return tor_relay_set(request.get("enabled"))
 
     if action == "app_catalog":
         return catalog_payload()
