@@ -44,7 +44,7 @@ def lxmf_display_name(app_data):
         name = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
         name = "".join(ch for ch in name if ch.isprintable()).strip()
         return name[:80] or "Unbenannter LXMF-Knoten"
-    except (ValueError, TypeError, IndexError, UnicodeError, Exception):
+    except Exception:
         return "Unbenannter LXMF-Knoten"
 
 
