@@ -32,9 +32,7 @@ function setMetric(type,value,info,detail,max=100){
    const fanStatus=card.querySelector("#n2k-combined-fan-status");
    const ok=valid(value);
    if(fanNumber)fanNumber.textContent=ok?Math.round(Number(value)).toLocaleString("de-DE")+" RPM":"– RPM";
-   if(fanStatus)fanStatus.textContent=ok?"RPM live":"RPM nicht verfügbar";
-   if(ok){const data=history.fan||(history.fan=[]);data.push(Number(value));if(data.length>50)data.shift();}
-   draw(card.querySelector("canvas.n2k-fan-curve"),history.fan||[],5000);
+   if(fanStatus)fanStatus.textContent=ok?"Live · "+(info||"Sensor"):"Kein RPM-Sensor";
    card.classList.toggle("n2k-fan-available",ok);
    return;
  }
@@ -149,8 +147,16 @@ const combined=grid.querySelector('[data-metric="uptime"]');
 if(combined){
  combined.classList.add("n2k-uptime-fan");
  const heading=combined.querySelector(".n2k-monitor-title > span");
- if(heading)heading.textContent="Uptime";
- combined.setAttribute("aria-label","Betriebsdauer");
+ if(heading)heading.textContent="Uptime & Lüfter";
+ const fanArea=document.createElement("div");
+ fanArea.className="n2k-combined-fan";
+ fanArea.innerHTML='<span class="n2k-combined-fan-icon" aria-hidden="true">✣</span><div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">Sensor wird geprüft</small></div>';
+ combined.appendChild(fanArea);
+ const aiArea=document.createElement("div");
+ aiArea.className="n2k-combined-ai";
+ aiArea.innerHTML='<span class="n2k-combined-ai-dot" id="n2k-combined-ai-dot" data-state="offline" aria-hidden="true"></span><div class="n2k-combined-ai-data"><strong id="n2k-combined-ai-status">KI wird geprüft</strong><small id="n2k-combined-ai-model">Ollama · lokal</small></div>';
+ combined.appendChild(aiArea);
+ combined.setAttribute("aria-label","Betriebsdauer, Lüfterdrehzahl und lokaler KI-Status");
 }
 poll();pollLocalAi();setInterval(poll,10000);setInterval(pollLocalAi,15000);window.addEventListener("resize",()=>document.querySelectorAll(".n2k-monitor-card canvas").forEach(c=>draw(c,history[c.dataset.spark]||[],c.dataset.spark==="fan"?5000:100)));
 }
