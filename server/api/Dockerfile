@@ -2,6 +2,7 @@ FROM python:3.13-alpine
 
 WORKDIR /app
 COPY server/api/server.py /app/server.py
+COPY server/api/reticulum_clean.py /app/reticulum_clean.py
 
 RUN pip install --no-cache-dir mutagen==1.47.0
 
