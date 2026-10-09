@@ -94,6 +94,8 @@
         <button class="nav-item" data-target="media-center-panel"><span>♪</span>Media Center</button>
         <button class="nav-item" data-target="photos-panel"><span>▧</span>Fotogalery</button>
         <button class="nav-item" data-target="apps-panel"><span>▦</span>Apps</button>
+        <button class="nav-item nav-subitem" data-target="privacy-panel"><span>◈</span>ShadowNode</button>
+        <button class="nav-item nav-subitem" data-target="reticulum-panel"><span>✉</span>MeshLink</button>
         <div id="system-nav-group" class="nav-group">
           <button id="system-nav-toggle" class="nav-item nav-group-toggle" type="button" aria-expanded="false">
             <span>▣</span><b>System</b><i>⌄</i>
@@ -101,7 +103,6 @@
           <div class="nav-submenu">
             <button class="nav-item nav-subitem" data-target="health-panel"><span>♥</span>Systemstatus</button>
             <button class="nav-item nav-subitem" data-target="vms-panel"><span>▣</span>VMs</button>
-            <button class="nav-item nav-subitem" data-target="reticulum-panel"><span>✉</span>Reticulum Messenger</button>
             <button class="nav-item nav-subitem" data-target="storage-panel"><span>◉</span>Speicher</button>
             <button class="nav-item nav-subitem" data-target="backups-panel"><span>↺</span>Backups</button>
             <button class="nav-item nav-subitem" data-target="network-panel"><span>⌁</span>Netzwerk</button>
@@ -305,6 +306,18 @@
               <div id="overview-activity" class="overview-list"><div class="widget-empty">Aktivität wird geladen.</div></div>
             </div>
 
+            <section class="widget n2k-network-service-widget" aria-label="ShadowNode">
+              <div class="widget-head"><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="ShadowNode öffnen">›</button></div>
+              <div class="n2k-service-live"><span id="n2k-shadow-state">Status wird geprüft …</span><strong id="n2k-shadow-nodes">Tor-Relay · Non-Exit</strong></div>
+              <div class="n2k-service-graph"><span id="n2k-shadow-traffic">Traffic: –</span><div class="n2k-service-track"><i id="n2k-shadow-meter"></i></div></div>
+              <div class="n2k-service-actions"><button type="button" id="n2k-shadow-on" disabled>Ein</button><button type="button" id="n2k-shadow-off" disabled>Aus</button></div>
+            </section>
+            <section class="widget n2k-network-service-widget" aria-label="MeshLink">
+              <div class="widget-head"><div><small>MESH COMMUNICATION</small><h3>MeshLink</h3></div><button class="widget-open-mini" data-target-view="reticulum-panel" title="MeshLink öffnen">›</button></div>
+              <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
+              <div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
+              <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
+            </section>
             <button class="widget matrix-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="300" height="110" aria-label="Underground Animation"></canvas>
               <div class="matrix-overlay">
@@ -999,7 +1012,7 @@
 
           <article id="reticulum-panel" class="panel section-anchor">
             <div class="panel-head">
-              <div><p class="eyebrow">N2K MESH COMMUNICATION</p><h2>Reticulum Messenger</h2><p>Unser N2K RNS Gateway DEV · LXMF-Nachrichten über Reticulum.</p></div>
+              <div><p class="eyebrow">MESHLINK · MESH COMMUNICATION</p><h2>MeshLink</h2><p>Unser N2K RNS Gateway DEV · LXMF-Nachrichten über Reticulum.</p></div>
               <span class="panel-symbol">✉</span>
             </div>
             <section class="tor-browser-shell" style="padding:18px;display:grid;gap:12px;margin-bottom:14px">
@@ -1694,7 +1707,7 @@
 
             <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
               <div class="tor-browser-toolbar">
-                <div><small>OPTIONALES TOR-NETZWERK</small><strong>Tor-Knotenpunkt (Non-Exit-Relay)</strong><span id="tor-relay-status">Status wird geladen …</span></div>
+                <div><small>SHADOWNODE · PRIVACY NETWORK</small><strong>ShadowNode · Tor-Knotenpunkt (Non-Exit-Relay)</strong><span id="tor-relay-status">Status wird geladen …</span></div>
                 <div class="tor-browser-actions">
                   <button type="button" id="tor-relay-enable" class="primary compact" disabled>Aktivieren</button>
                   <button type="button" id="tor-relay-disable" class="secondary compact" disabled>Deaktivieren</button>
