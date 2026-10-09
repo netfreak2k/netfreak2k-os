@@ -8136,3 +8136,37 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   leave.addEventListener("click",()=>save(false));
   load();
 })();
+
+
+// MeshLink chooses the best observed LXMF route, not an unverified TCP connection.
+(() => {
+  const button=document.getElementById("n2k-peers-auto");
+  const message=document.getElementById("n2k-peer-best-status");
+  const refresh=document.getElementById("n2k-peers-refresh");
+  if(!button||!message)return;
+  async function best() {
+    try{
+      const d=await request("/api/messenger/peers/best");
+      if(d.error)throw Error(d.error);
+      const peer=d.best;
+      message.textContent=peer ? "Beste bekannte Route: "+(peer.name||peer.destination)+
+        " · "+peer.hops+" Hops · zuletzt gesehen vor "+peer.age_seconds+" s" :
+        "Keine aktuell bekannte erreichbare LXMF-Route. Zuerst Announcements empfangen.";
+    }catch(_){message.textContent="Knotenbewertung nicht verfügbar."}
+  }
+  button.addEventListener("click",async ()=>{
+    button.disabled=true;message.textContent="Besten beobachteten Pfad auswählen …";
+    try{
+      const d=await request("/api/messenger/peers/auto",{method:"POST",
+        headers:{"X-CSRF-Token":csrfToken},body:"{}"});
+      if(d.error)throw Error(d.error);
+      message.textContent=d.selected ?
+        "Pfad zu "+d.selected.slice(0,16)+"… angefragt · "+
+        (d.path_known?"Route bekannt":"Verbindung noch nicht bestätigt"):
+        "Keine kürzlich entdeckten LXMF-Knoten vorhanden.";
+    }catch(_){message.textContent="Automatische Pfadanfrage nicht möglich."}
+    finally{button.disabled=false}
+  });
+  refresh?.addEventListener("click",()=>setTimeout(best,700));
+  best();
+})();
