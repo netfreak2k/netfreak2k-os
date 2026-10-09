@@ -1612,6 +1612,20 @@
             <div class="n2k-hub-tiles n2k-hub-vertical">
               <section class="n2k-hub-card" aria-label="ShadowNode Steuerung">
                 <div class="n2k-hub-title"><span class="n2k-hub-symbol">◈</span><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3><span>Tor Non-Exit-Relay</span></div></div>
+<section class="n2k-public-peer-config" aria-label="Shadow Nodes verwalten">
+<strong>Shadow Nodes · TCP und Tor</strong>
+<p class="n2k-hub-footnote">Nur freigegebene Peer-Adressen. Automatische Wiederverbindung über Reticulum. Tor benötigt einen lokal laufenden SOCKS5-Dienst. Änderungen benötigen einen Neustart des LAN-Transport-Containers.</p>
+<div class="n2k-peer-connect-fields">
+<label><input id="n2k-shadow-enabled" type="checkbox"> Shadow Nodes aktiv</label>
+<label><input id="n2k-shadow-tor-enabled" type="checkbox"> Tor für Onion-Peers zulassen</label>
+<label>Peer-Adresse <input id="n2k-shadow-peer-host" autocomplete="off" placeholder="Hostname oder v3 .onion"></label>
+<label>Port <input id="n2k-shadow-peer-port" type="number" min="1" max="65535" value="4243"></label>
+<label>Transport <select id="n2k-shadow-peer-transport"><option value="tcp">TCP</option><option value="tor">Tor / Onion</option></select></label>
+</div>
+<div class="n2k-hub-actions"><button type="button" id="n2k-shadow-peer-add" class="secondary compact">Peer hinzufügen</button><button type="button" id="n2k-shadow-save" class="primary compact">Konfiguration speichern</button></div>
+<div id="n2k-shadow-peer-list" class="n2k-peers-list" aria-live="polite"></div>
+<small id="n2k-shadow-settings-status" role="status">Einstellungen werden geladen …</small>
+</section>
                 <section class="tor-browser-shell" aria-label="Tor Relay Verwaltung" style="margin-bottom:16px;padding:18px;display:grid;gap:12px">
               <div class="tor-browser-toolbar">
                 <div><small>SHADOWNODE · PRIVACY NETWORK</small><strong>ShadowNode · Tor-Knotenpunkt (Non-Exit-Relay)</strong><span id="tor-relay-status">Status wird geladen …</span></div>
