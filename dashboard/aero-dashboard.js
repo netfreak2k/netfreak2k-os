@@ -37,3 +37,42 @@
    button.textContent = expanded ? "Weniger anzeigen" : "Weitere Widgets";
  });
 })();
+
+/* Live, non-invasive AI health: Ollama's local status API only. */
+(() => {
+ const status=document.getElementById("n2k-ai-local-status");
+ const dot=document.getElementById("n2k-ai-local-dot");
+ const models=document.getElementById("n2k-ai-models");
+ const latency=document.getElementById("n2k-ai-latency");
+ const bar=document.getElementById("n2k-ai-meter-fill");
+ if(!status || !dot || !models || !latency || !bar) return;
+ let busy=false;
+ async function refresh(){
+   if(busy || document.hidden) return;
+   busy=true;
+   const controller=new AbortController();
+   const timeout=setTimeout(()=>controller.abort(),7000);
+   try{
+     const response=await fetch("/api/ollama/status",{credentials:"same-origin",cache:"no-store",signal:controller.signal});
+     if(!response.ok) throw Error("unavailable");
+     const data=await response.json();
+     const online=data.available!==false && data.running===true;
+     const count=Array.isArray(data.models)?data.models.length:null;
+     const ms=typeof data.latency_ms==="number" && Number.isFinite(data.latency_ms)?data.latency_ms:null;
+     status.textContent=online?(data.ready?"Bereit":"Online"):"Offline";
+     dot.classList.toggle("is-online",online);
+     models.textContent="Modelle: "+(count===null?"–":count);
+     latency.textContent=online && ms!==null?"API: "+Math.round(ms)+" ms":"API: –";
+     bar.style.width=online?"100%":"0%";
+     bar.title=online?"Ollama-API erreichbar":"Ollama nicht erreichbar";
+   }catch(_){
+     status.textContent="Nicht erreichbar";
+     dot.classList.remove("is-online");
+     models.textContent="Modelle: –";
+     latency.textContent="API: –";
+     bar.style.width="0%";
+   }finally{clearTimeout(timeout);busy=false}
+ }
+ refresh();
+ setInterval(refresh,30000);
+})();
