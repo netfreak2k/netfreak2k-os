@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="photos.css?v=20261008-10">
   <link rel="stylesheet" href="ollama-chat.css?v=20261008-terminal1">
   <link rel="stylesheet" href="mobile-stabilization.css?v=20261008-all-mobile4">
+  <link rel="stylesheet" href="aero-dashboard.css?v=20261009-1">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -218,6 +219,9 @@
             <span id="overview-health-copy">Systemstatus wird geprüft …</span>
           </div>
 
+          <div class="n2k-aero-dashboard">
+            <section class="n2k-aero-system" aria-label="System Hub">
+              <div class="n2k-aero-section-title"><span class="n2k-aero-mark">◉</span><div><h2>System Hub</h2><p>Echtzeit-Überblick über deinen Server</p></div></div>
           <div class="mini-metrics">
             <button class="mini-metric" data-view="system">
               <div class="metric-ring" id="cpu-ring"><span id="overview-cpu">–</span></div>
@@ -237,6 +241,9 @@
             </button>
           </div>
 
+            </section>
+            <section class="n2k-aero-applications" aria-label="Anwendungen">
+              <div class="n2k-aero-section-title n2k-aero-app-title"><span class="n2k-aero-mark">▦</span><div><h2>Anwendungen</h2><p>Deine Services. Immer unter Kontrolle.</p></div><button class="n2k-aero-open-apps" type="button" data-target-view="apps-panel">Apps öffnen ↗</button></div>
           <div class="widget-grid">
             <button class="widget drive-widget" data-target-view="workspace-panel">
               <div class="widget-head"><div><small>N2K DRIVE</small><h3>Arbeitsplatz</h3></div><span>›</span></div>
@@ -321,11 +328,14 @@
             <button class="widget matrix-widget" data-target-view="privacy-panel">
               <canvas id="matrix-canvas" width="300" height="110" aria-label="Network Hub Animation"></canvas>
               <div class="matrix-overlay">
-                <small>N2K UNDERGROUND</small>
+                <small>N2K NETWORK HUB</small>
                 <strong>N2K Network Hub</strong>
                 <span>ShadowNode · MeshLink</span>
               </div>
             </button>
+          </div>
+
+            </section>
           </div>
 
           <div class="overview-statusbar">
