@@ -30,6 +30,38 @@ class PreflightTests(unittest.TestCase):
                   "netfreak2k-messenger-data": "absent", "runtime": "absent"}
         self.assertEqual(assess(checks, backup_verified=True)[0], "hold")
 
+    def test_managed_custom_project_resolves_volume_names(self):
+        commands = []
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            if command[1] == "container":
+                payload = [{"Name": "/netfreak2k-reticulum-lan",
+                            "Config": {"Labels": {
+                                "com.docker.compose.project": "custom-n2k",
+                                "com.docker.compose.service": "netfreak2k-reticulum-lan"}}}]
+                return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="No such volume")
+        checks = inspect_host(run=fake_run)
+        self.assertEqual(checks["runtime"], "managed")
+        self.assertEqual(checks["project"], "custom-n2k")
+        self.assertEqual(checks["netfreak2k-reticulum-lan-data"], "absent")
+        self.assertEqual(checks["netfreak2k-messenger-data"], "absent")
+        self.assertEqual(commands[1][-1], "custom-n2k_netfreak2k-reticulum-lan-data")
+        self.assertEqual(commands[2][-1], "custom-n2k_netfreak2k-messenger-data")
+
+    def test_unknown_container_owner_blocks_all_volumes(self):
+        commands = []
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            payload = [{"Name": "/netfreak2k-reticulum-lan",
+                        "Config": {"Labels": {"com.docker.compose.project": "foreign"}}}]
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+        checks = inspect_host(run=fake_run)
+        self.assertEqual(checks["runtime"], "external_or_unverified")
+        self.assertEqual(checks["netfreak2k-reticulum-lan-data"], "unverified")
+        self.assertEqual(assess(checks)[0], "hold")
+        self.assertEqual(len(commands), 1)
+
     def test_docker_inspection_read_only(self):
         commands = []
         def fake_run(command, **kwargs):
