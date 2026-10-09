@@ -40,7 +40,7 @@ else:
                 "[reticulum]\n  enable_transport = No\n  share_instance = No\n\n"
                 "[interfaces]\n  [[N2K LAN Discovery]]\n"
                 "    type = AutoInterface\n    enabled = Yes\n"
-                "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n",
+                "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n"\n                "  [[N2K LAN Transport Server]]\n"\n                "    type = TCPServerInterface\n"\n                "    enabled = Yes\n"\n                "    listen_ip = 0.0.0.0\n"\n                "    listen_port = 4243\n",
                 encoding="utf-8"
             )
         # Do not rewrite existing user configuration or claim transport consent.
