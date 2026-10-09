@@ -781,10 +781,10 @@ def tor_relay_status():
         log_args.append(TOR_RELAY_CONTAINER)
         logs = run(*log_args, timeout=10)
         if logs.returncode == 0:
-            output = ((logs.stdout or "") + "\\n" + (logs.stderr or ""))[-90000:]
+            output = ((logs.stdout or "") + "\n" + (logs.stderr or ""))[-90000:]
             for line in output.splitlines():
                 lower = line.lower()
-                progress = re.search(r"bootstrapped (\\d{1,3})%", lower)
+                progress = re.search(r"bootstrapped (\d{1,3})%", lower)
                 if progress:
                     bootstrap_percent = min(100, int(progress.group(1)))
                 if "self-testing indicates your orport is reachable from the outside" in lower:
