@@ -7612,7 +7612,7 @@ async function refreshN2KNetworkServices() {
       if (hubTraffic) hubTraffic.textContent = data.traffic || "–";
       if (hubState) hubState.textContent = data.running ? "● Aktiv" : data.installed ? "○ Aus" : "○ Nicht installiert";
       let meshKnownNodes = data.nodes;
-      if (spec.type === "mesh" && data.running) {
+      if (spec.type === "mesh") {
         // Host agent reports container state, but does not know Reticulum routes.
         // Fetch the actual observed LXMF announces via the authenticated messenger API.
         try {
@@ -7621,8 +7621,8 @@ async function refreshN2KNetworkServices() {
             meshKnownNodes = Math.max(0, Number(peers.known_count));
             const routes = document.getElementById("n2k-rns-routes");
             const discovery = document.getElementById("n2k-rns-discovery");
-            if (routes) routes.textContent = peers.connected_count != null && Number.isFinite(Number(peers.connected_count)) ? String(peers.connected_count) : "Nicht gemessen";
-            if (discovery) discovery.textContent = peers.online ? "Aktiv · LXMF" : "Nicht verfügbar";
+            if (routes) routes.textContent = peers.reachable_route_count != null && Number.isFinite(Number(peers.reachable_route_count)) ? String(peers.reachable_route_count) : "Nicht gemessen";
+            if (discovery) discovery.textContent = peers.online ? "Aktiv · " + meshKnownNodes + " erkannt" : "Nicht verfügbar";
           }
         } catch (error) {
           console.debug("MeshLink peer count unavailable:", error);
@@ -7673,7 +7673,21 @@ async function refreshN2KNetworkServices() {
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
       if (off) off.disabled = !data.running;
     } catch (_) {
-      state.textContent = "Status nicht verfügbar";
+      const discovery = document.getElementById("n2k-rns-discovery");
+      const routes = document.getElementById("n2k-rns-routes");
+      if (discovery) discovery.textContent = "API nicht erreichbar";
+      if (routes) routes.textContent = "–";
+      if (nodes) nodes.textContent = "Nodes: nicht verfügbar";
+      // The messenger may still be healthy when host-agent Docker metrics fail.
+      try {
+        const peers = await request("/api/messenger/peers");
+        if (peers.online) {
+          if (nodes && Number.isFinite(Number(peers.known_count))) nodes.textContent = "LXMF-Knoten: " + Number(peers.known_count);
+          if (routes && peers.reachable_route_count != null) routes.textContent = String(peers.reachable_route_count);
+          if (discovery) discovery.textContent = "Aktiv · LXMF";
+        }
+      } catch (_) { /* Explicit unavailable state already shown. */ }
+      state.textContent = "Host-Monitoring nicht verfügbar";
       if (on) on.disabled = true;
       if (off) off.disabled = true;
       if (meter) meter.style.width = "0%";

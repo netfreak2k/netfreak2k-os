@@ -3433,3 +3433,14 @@ body::after{
 .n2k-photo-home-widget .n2k-photo-home-art span:first-child{color:#ffc5e9}.n2k-photo-home-widget .n2k-photo-home-art span:nth-child(2){color:#ffe3a0}.n2k-photo-home-widget .n2k-photo-home-art span:nth-child(3){color:#a9f7ff}
 @media(max-width:900px){.overview-screen .widget-grid .n2k-rns-hub-widget{grid-column:span 6}}
 @media(max-width:700px){.overview-screen .widget-grid .n2k-rns-hub-widget,.overview-screen .widget-grid .n2k-photo-home-widget{grid-column:span 12!important}.n2k-rns-extra{gap:4px}.n2k-rns-extra small{font-size:8px}.n2k-rns-extra strong{font-size:10px}}
+
+
+/* Explicit placement: N2K Media takes the former RNS slot; RNS moves to Media slot. */
+@media (min-width:701px) {
+  .overview-screen .widget-grid > .overview-media-widget { order:3 !important; grid-column:span 3; }
+  .overview-screen .widget-grid > .n2k-rns-hub-widget { order:12 !important; grid-column:span 6 !important; width:100%; }
+}
+@media (max-width:700px) {
+  .overview-screen .widget-grid > .overview-media-widget { order:3 !important; }
+  .overview-screen .widget-grid > .n2k-rns-hub-widget { order:12 !important; grid-column:span 12 !important; }
+}
