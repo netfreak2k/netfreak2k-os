@@ -7612,7 +7612,7 @@ async function refreshN2KNetworkServices() {
       if (hubTraffic) hubTraffic.textContent = data.traffic || "–";
       if (hubState) hubState.textContent = data.running ? "● Aktiv" : data.installed ? "○ Aus" : "○ Nicht installiert";
       let meshKnownNodes = data.nodes;
-      if (spec.type === "mesh" && data.running) {
+      if (spec.type === "mesh") {
         // Host agent reports container state, but does not know Reticulum routes.
         // Fetch the actual observed LXMF announces via the authenticated messenger API.
         try {
@@ -7678,7 +7678,16 @@ async function refreshN2KNetworkServices() {
       if (discovery) discovery.textContent = "API nicht erreichbar";
       if (routes) routes.textContent = "–";
       if (nodes) nodes.textContent = "Nodes: nicht verfügbar";
-      state.textContent = "Status nicht verfügbar";
+      // The messenger may still be healthy when host-agent Docker metrics fail.
+      try {
+        const peers = await request("/api/messenger/peers");
+        if (peers.online) {
+          if (nodes && Number.isFinite(Number(peers.known_count))) nodes.textContent = "LXMF-Knoten: " + Number(peers.known_count);
+          if (routes && peers.reachable_route_count != null) routes.textContent = String(peers.reachable_route_count);
+          if (discovery) discovery.textContent = "Aktiv · LXMF";
+        }
+      } catch (_) { /* Explicit unavailable state already shown. */ }
+      state.textContent = "Host-Monitoring nicht verfügbar";
       if (on) on.disabled = true;
       if (off) off.disabled = true;
       if (meter) meter.style.width = "0%";
