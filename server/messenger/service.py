@@ -23,6 +23,17 @@ MESSAGES = STATE / 'messages.json'
 CONTACTS = STATE / 'contacts.json'
 NODE_CONFIG = STATE / 'node.json'
 PEERS = STATE / 'peers.json'
+GATEWAY = STATE / 'public-peer.json'
+
+def public_peer():
+    try:
+        data=json.loads(GATEWAY.read_text(encoding='utf-8'))
+        if isinstance(data,dict):
+            return {'host':str(data.get('host',''))[:253], 'port':data.get('port',4242), 'enabled':data.get('enabled') is True}
+    except (OSError,ValueError):
+        pass
+    return {'host':'','port':4242,'enabled':False}
+
 
 class LXMFAnnounces:
     aspect_filter = 'lxmf.delivery'
@@ -100,6 +111,13 @@ def start_stack():
             config_file.write_text("[reticulum]\n  enable_transport = No\n  share_instance = No\n\n[interfaces]\n  [[N2K AutoInterface]]\n    type = AutoInterface\n    enabled = Yes\n", encoding="utf-8")
         config_text = config_file.read_text(encoding="utf-8")
         config_text = re.sub(r"(?m)^\s*enable_transport\s*=.*$", "  enable_transport = " + ("Yes" if node["enabled"] else "No"), config_text)
+        gateway=public_peer()
+        # Only the explicitly managed block is changed; preserve user interfaces.
+        config_text=re.sub(r"(?ms)\\n?  \\[\\[N2K Public TCP Peer\\]\\]\\n.*?(?=\\n  \\[\\[|\\Z)", "", config_text)
+        if gateway["enabled"] and gateway["host"]:
+            config_text += ("\\n  [[N2K Public TCP Peer]]\\n    type = TCPClientInterface\\n"
+                "    enabled = Yes\\n    target_host = " + gateway["host"] +
+                "\\n    target_port = " + str(gateway["port"]) + "\\n")
         config_file.write_text(config_text, encoding="utf-8")
         RNS.Reticulum(configdir=str(rns_path))
         RNS.Transport.register_announce_handler(LXMFAnnounces())
@@ -127,6 +145,8 @@ class Handler(BaseHTTPRequestHandler):
             result = {"messages":read_records(MESSAGES)}
         elif self.path == "/contacts":
             result = {"contacts":read_records(CONTACTS)}
+        elif self.path == "/gateway":
+            result=dict(public_peer(), applied=RUNTIME.get("online",False))
         elif self.path == "/peers":
             peers=[]
             for item in read_records(PEERS):
@@ -154,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path not in ("/contacts", "/messages", "/node", "/peers/request"):
+        if self.path not in ("/contacts", "/messages", "/node", "/peers/request", "/gateway"):
             self.send_error(404)
             return
         try:
@@ -164,6 +184,21 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("invalid_payload")
+            if self.path == "/gateway":
+                host=str(payload.get("host","")).strip().lower()
+                port=payload.get("port")
+                enabled=payload.get("enabled")
+                if (type(enabled) is not bool or type(port) is not int or not 1<=port<=65535
+                        or len(host)>253 or (enabled and not host)
+                        or (host and not re.fullmatch(r"[a-z0-9.-]+",host))
+                        or (host and (".." in host or host.startswith(("-", ".")) or host.endswith(("-", "."))))):
+                    raise ValueError("invalid_public_peer")
+                tmp=GATEWAY.with_suffix(".tmp")
+                tmp.write_text(json.dumps({"host":host,"port":port,"enabled":enabled}),encoding="utf-8")
+                tmp.chmod(0o600)
+                tmp.replace(GATEWAY)
+                self.send_result({"saved":True,"restart_required":True})
+                return
             if self.path == "/peers/request":
                 dest = str(payload.get("destination", "")).strip().lower()
                 if not re.fullmatch(r"[0-9a-f]{32}", dest):
