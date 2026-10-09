@@ -3,6 +3,7 @@ FROM python:3.13-alpine
 WORKDIR /app
 COPY server/api/server.py /app/server.py
 COPY server/api/reticulum_status.py /app/reticulum_status.py
+COPY server/api/reticulum_activation.py /app/reticulum_activation.py
 
 RUN pip install --no-cache-dir mutagen==1.47.0
 
