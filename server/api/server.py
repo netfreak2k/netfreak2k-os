@@ -24,6 +24,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
 from reticulum_status import public_status
 from reticulum_activation import plan_activation
+from reticulum_overview import activation_overview
 
 try:
     from mutagen import File as MutagenFile
@@ -3408,6 +3409,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "forbidden"}, 403)
                 return
             self.send_json(reticulum_preferences(session["username"]))
+            return
+
+        if path == "/reticulum/overview":
+            session = self.require_auth()
+            if not session:
+                return
+            if session.get("role") == "guest":
+                self.send_json({"error": "forbidden"}, 403)
+                return
+            with db_connect() as conn:
+                rows = conn.execute(
+                    "SELECT username,pref_key,pref_value FROM user_preferences "
+                    "WHERE pref_key IN ('reticulum_requested_enabled','reticulum_requested_transport')"
+                ).fetchall()
+            try:
+                raw = json.loads(Path("/reticulum-state/status.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                raw = None
+            self.send_json(activation_overview(rows, raw, username=session["username"]))
             return
 
         if path == "/reticulum/activation-plan":
