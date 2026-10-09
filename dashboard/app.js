@@ -5669,50 +5669,6 @@ document.getElementById("open-onion")?.addEventListener("click", () => {
 document.getElementById("tor-project")?.addEventListener("click", () => {
   window.open("https://www.torproject.org/download/", "_blank", "noopener");
 });
-// Non-exit Tor relay: a separate service, never linked to browser controls.
-async function loadTorRelayStatus() {
-  const status = document.getElementById("tor-relay-status");
-  const enable = document.getElementById("tor-relay-enable");
-  const disable = document.getElementById("tor-relay-disable");
-  if (!status) return;
-  try {
-    const result = await request("/api/tor/relay");
-    if (!result.available) throw Error(result.error || "Host-Agent nicht erreichbar");
-    status.textContent = result.running ? "● Aktiv · TCP " + result.port : result.installed ? "○ Installiert · ausgeschaltet" : "○ Aus · nicht installiert";
-    const up = document.getElementById("tor-relay-uptime");
-    const traffic = document.getElementById("tor-relay-traffic");
-    if (up) {
-      const seconds = result.running && result.started_at ? Math.max(0, Math.floor((Date.now() - Date.parse(result.started_at)) / 1000)) : 0;
-      up.textContent = result.running && Number.isFinite(seconds) ? "Laufzeit: " + Math.floor(seconds / 3600) + " h " + Math.floor(seconds % 3600 / 60) + " min" : "Laufzeit: –";
-    }
-    if (traffic) traffic.textContent = result.running && result.traffic ? "Netzwerk RX / TX: " + result.traffic : "Netzwerk: –";
-    enable.disabled = Boolean(result.running);
-    disable.disabled = !result.running;
-  } catch (error) {
-    status.textContent = "Status nicht verfügbar";
-    enable.disabled = true;
-    disable.disabled = true;
-  }
-}
-async function setTorRelay(enabled) {
-  if (enabled && !window.confirm("Tor-Relay aktivieren? Deine öffentliche IP wird als Tor-Relay sichtbar und dein Server stellt TCP-Port 9001 bereit. Upload-Bandbreite wird genutzt. Der Knoten ist KEIN Exit-Relay. Fortfahren?")) return;
-  const enable = document.getElementById("tor-relay-enable");
-  const disable = document.getElementById("tor-relay-disable");
-  enable.disabled = true;
-  disable.disabled = true;
-  try {
-    await request("/api/tor/relay", {method:"POST",body:JSON.stringify({enabled,acknowledged:enabled}),headers:{"X-CSRF-Token":csrfToken}});
-    showN2KToast(enabled ? "Tor-Relay wird gestartet" : "Tor-Relay ausgeschaltet");
-  } catch (error) {
-    showN2KToast("Tor-Relay: " + (error.message || "Aktion fehlgeschlagen"), "error");
-  } finally { await loadTorRelayStatus(); }
-}
-document.getElementById("tor-relay-enable")?.addEventListener("click", () => setTorRelay(true));
-document.getElementById("tor-relay-disable")?.addEventListener("click", () => setTorRelay(false));
-document.getElementById("tor-relay-refresh")?.addEventListener("click", loadTorRelayStatus);
-loadTorRelayStatus();
-setInterval(() => { if (!document.hidden && document.getElementById("tor-relay-status")) loadTorRelayStatus(); }, 30000);
-
 function setTorControlState({installed=false, running=false, error=false} = {}) {
   const dot = document.getElementById("overview-tor-dot");
   const overviewState = document.getElementById("overview-tor-status");
@@ -5755,7 +5711,6 @@ function setTorControlState({installed=false, running=false, error=false} = {}) 
 }
 
 async function loadTorBrowserStatus() {
-  loadTorRelayStatus();
   const state = document.getElementById("tor-browser-state");
   const wrap = document.getElementById("tor-browser-frame-wrap");
   if (!state || !wrap) return;
