@@ -3,7 +3,8 @@
 Implementation branch: `feature/shadow-nodes-design`. **Not automatically deployed.**
 This first stage implements persistent remote Reticulum transport peer configuration,
 local RNS autodiscovery (already present), and a Tor SOCKS5 tunnel for optional .onion peers.
-UI/API controls, peer approval workflow, onion publishing, and validated connection metrics
+Dashboard config controls and authenticated API are present; peer approval workflow,
+onion publishing, automatic LAN-container restart and validated live connection metrics
 are not implemented yet. Do not treat this as a finished release.
 
 ## Configure
@@ -75,6 +76,7 @@ failed onion connections to normal TCP.
 
 ## Next milestones
 
-Dashboard Shadow Node controls, CSRF-protected management API, onion
-service provisioning, transport health checks and end-to-end tests
-are required before merging into the stable release.
+Dashboard settings and CSRF-protected management API have been added. Persisted
+settings currently require a manual restart of the LAN container. Onion service
+provisioning, connection health checks and end-to-end tests remain required before
+merging into the stable release.
