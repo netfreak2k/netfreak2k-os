@@ -26,7 +26,13 @@ if(type==="uptime"){
   const line=document.createElement("div");
   line.className="n2k-uptime-ai";
   line.innerHTML='<span class="n2k-uptime-ai-row"><i id="n2k-combined-ai-dot" data-state="offline"></i><b id="n2k-combined-ai-status">Ollama wird geprüft …</b></span><small id="n2k-combined-ai-model">Modell: –</small>';
-  content.append(value,line);
+  // app.js still writes its uptime value before updating network and HAOS.
+  // Preserve this legacy node to prevent loadOverview() from aborting.
+  const legacy=document.createElement("span");
+  legacy.id="overview-uptime";
+  legacy.hidden=true;
+  legacy.setAttribute("aria-hidden","true");
+  content.append(value,line,legacy);
   card.replaceChildren(title,content);
   card.setAttribute("aria-label","Betriebsdauer und lokaler Ollama-Status");
   return;
