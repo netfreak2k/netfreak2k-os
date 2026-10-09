@@ -3815,7 +3815,7 @@ def execute(action, request):
     if action == "reticulum_beta_preflight":
         # Read-only inventory. Never authorize or apply changes from this action.
         volumes = {}
-        for name in ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data"):
+        for name in ("netfreak2k_netfreak2k-reticulum-lan-data", "netfreak2k_netfreak2k-messenger-data"):
             result = subprocess.run(["docker", "volume", "inspect", name],
                                     capture_output=True, text=True, timeout=10, check=False)
             if result.returncode == 0:
