@@ -8097,3 +8097,42 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   loadPeers();
   setInterval(()=>{if(!document.hidden)loadPeers()},30000);
 })();
+
+/* Explicit Reticulum public TCP peer: configuration, not an invented connection. */
+(() => {
+  const host=document.getElementById("n2k-peer-host");
+  const port=document.getElementById("n2k-peer-port");
+  const state=document.getElementById("n2k-peer-join-status");
+  const join=document.getElementById("n2k-peer-join");
+  const leave=document.getElementById("n2k-peer-leave");
+  if(!host||!port||!state||!join||!leave)return;
+  async function load(){
+    try{
+      const data=await request("/api/messenger/gateway");
+      if(data.error) throw Error(data.error);
+      host.value=data.host||"";
+      port.value=String(data.port||4242);
+      state.textContent=data.enabled?"TCP-Ziel konfiguriert: "+data.host+":"+data.port+" · Verbindung nicht bestätigt":
+        "Kein öffentlicher TCP-Knoten aktiv.";
+    }catch(_){state.textContent="TCP-Konfiguration nicht verfügbar"}
+  }
+  async function save(enabled){
+    const address=host.value.trim().toLowerCase();
+    const number=Number(port.value);
+    if(enabled && !/^[a-z0-9.-]{1,253}$/.test(address)){state.textContent="Bitte gültigen Hostnamen oder IPv4-Adresse angeben.";return}
+    if(!Number.isInteger(number)||number<1||number>65535){state.textContent="Ungültiger Port.";return}
+    if(enabled&&!confirm("Ausgehende MeshLink-Verbindung zu "+address+":"+number+" konfigurieren und nur den MeshLink-Dienst neu starten?"))return;
+    join.disabled=true;leave.disabled=true;
+    try{
+      await request("/api/messenger/gateway",{method:"POST",headers:{"X-CSRF-Token":csrfToken},
+        body:JSON.stringify({host:address,port:number,enabled})});
+      state.textContent="Gespeichert. MeshLink wird neu gestartet …";
+      await request("/api/messenger/node/restart",{method:"POST",headers:{"X-CSRF-Token":csrfToken},body:"{}"});
+      state.textContent=enabled?"Verbindungsversuch konfiguriert. Announcements und Pfade prüfen; keine Verbindung bestätigt.":"Öffentliche TCP-Verbindung deaktiviert.";
+    }catch(e){state.textContent="Änderung fehlgeschlagen: "+(e.message||"API nicht erreichbar")}
+    finally{join.disabled=false;leave.disabled=false}
+  }
+  join.addEventListener("click",()=>save(true));
+  leave.addEventListener("click",()=>save(false));
+  load();
+})();
