@@ -468,3 +468,29 @@
 #dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only:after{display:none!important}
 #dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:19px!important;font-weight:750!important}
 #dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{font-size:10px!important}
+
+/* Uptime + genuine local Ollama health. No logo, no ring or synthetic status. */
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-body{
+ display:flex!important;flex-direction:column!important;align-items:stretch!important;
+ justify-content:center!important;gap:5px!important;padding:4px 0!important;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only{
+ flex:none!important;align-self:start!important;justify-content:flex-start!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ height:auto!important;min-height:0!important;border:none!important;box-shadow:none!important;
+ background:none!important;padding:0!important;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .metric-ring.n2k-uptime-text-only>span{
+ display:flex!important;align-items:baseline!important;gap:5px!important;text-align:left!important;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-value{font-size:18px!important}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .ring-unit{font-size:10px!important}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-monitor-copy{display:none!important}
+#dashboard-top .n2k-uptime-ai{display:flex;flex-direction:column;gap:3px;min-width:0;text-align:left}
+#dashboard-top .n2k-uptime-ai-row{display:flex;align-items:center;gap:5px;min-width:0}
+#dashboard-top .n2k-uptime-ai-row b{font-size:10px;line-height:1.2;font-weight:600;overflow-wrap:anywhere}
+#dashboard-top #n2k-combined-ai-dot{height:7px;width:7px;min-width:7px;display:block;border-radius:50%;background:#8491a5}
+#dashboard-top #n2k-combined-ai-dot[data-state="ready"]{background:#35d991;box-shadow:0 0 6px rgba(53,217,145,.45)}
+#dashboard-top #n2k-combined-ai-dot[data-state="warning"]{background:#e8b65d}
+#dashboard-top #n2k-combined-ai-dot[data-state="offline"]{background:#8794a8}
+#dashboard-top .n2k-uptime-ai small{font-size:9px;color:#b2c8e6;overflow-wrap:anywhere}
