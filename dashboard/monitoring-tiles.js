@@ -32,7 +32,9 @@ function setMetric(type,value,info,detail,max=100){
    const fanStatus=card.querySelector("#n2k-combined-fan-status");
    const ok=valid(value);
    if(fanNumber)fanNumber.textContent=ok?Math.round(Number(value)).toLocaleString("de-DE")+" RPM":"– RPM";
-   if(fanStatus)fanStatus.textContent=ok?"Live · "+(info||"Sensor"):"Kein RPM-Sensor";
+   if(fanStatus)fanStatus.textContent=ok?"RPM live":"RPM nicht verfügbar";
+   if(ok){const data=history.fan||(history.fan=[]);data.push(Number(value));if(data.length>50)data.shift();}
+   draw(card.querySelector("canvas.n2k-fan-curve"),history.fan||[],5000);
    card.classList.toggle("n2k-fan-available",ok);
    return;
  }
@@ -147,10 +149,10 @@ const combined=grid.querySelector('[data-metric="uptime"]');
 if(combined){
  combined.classList.add("n2k-uptime-fan");
  const heading=combined.querySelector(".n2k-monitor-title > span");
- if(heading)heading.textContent="Uptime & Lüfter";
+ if(heading)heading.textContent="Uptime";
  const fanArea=document.createElement("div");
  fanArea.className="n2k-combined-fan";
- fanArea.innerHTML='<span class="n2k-combined-fan-icon" aria-hidden="true">✣</span><div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">Sensor wird geprüft</small></div>';
+ fanArea.innerHTML='<div class="n2k-combined-fan-data"><strong id="n2k-combined-fan-value">– RPM</strong><small id="n2k-combined-fan-status">RPM wird geprüft</small></div><canvas class="n2k-fan-curve" data-spark="fan" aria-label="Lüfterdrehzahl-Verlauf"></canvas>';
  combined.appendChild(fanArea);
  const aiArea=document.createElement("div");
  aiArea.className="n2k-combined-ai";
