@@ -31,11 +31,11 @@ class ConfigValidationTests(unittest.TestCase):
         self.assertEqual(validate_config(BASE, True)[1], "transport_mode_mismatch")
 
     def test_disabled_listener(self):
-        self.assertEqual(validate_config(BASE.replace("type = TCPServerInterface\\n    enabled = Yes", "type = TCPServerInterface\\n    enabled = No"), False)[1], "missing_messenger_listener")
+        self.assertEqual(validate_config(BASE.replace("type = TCPServerInterface\n    enabled = Yes", "type = TCPServerInterface\n    enabled = No"), False)[1], "missing_messenger_listener")
 
     def test_port_in_different_interface(self):
         changed = BASE.replace("listen_port = 4243", "listen_port = 4244")
-        changed += "  [[Other Interface]]\\n    type = AutoInterface\\n    enabled = Yes\\n    listen_port = 4243\\n"
+        changed += "  [[Other Interface]]\n    type = AutoInterface\n    enabled = Yes\n    listen_port = 4243\n"
         self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
 
     def test_missing_mode_is_rejected(self):
