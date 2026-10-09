@@ -35,7 +35,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 </div>
 <div class="card"><h2>Living Mesh</h2><div class="mesh" aria-label="Dekorative Animation, keine echte Topologie"><span class="node"></span></div>
 <p class="muted">Dekorative Vorschau. Echte Peers und Verbindungen erscheinen erst nach Telemetrie-Anbindung.</p><button class="secondary" disabled>Netzwerk vergrößern</button></div>
-<div class="card"><h2>Nachrichten · LXMF</h2><div class="chat">Chat wird nach Verbindung zum lokalen LXMF-Dienst verfügbar.</div>
+<div class="card"><h2>Nachrichten · LXMF</h2><div class="chat" id="messages">Nachrichten werden geladen …</div><p class="muted" id="lxmf-status">LXMF-Status wird geprüft …</p>
 <div class="row" style="margin-top:12px"><input disabled placeholder="Nachricht schreiben"><button disabled>Senden</button></div></div>
 <div class="card"><h2>Meine Reticulum-Webseite</h2>
 <p class="muted">Geplant: Reticulum-nativer Seiteneditor, Vorschau und Veröffentlichung – ohne öffentliche HTTP-Freigabe.</p>
@@ -93,7 +93,33 @@ $('save').addEventListener('click',async()=>{
  }catch(err){$('notice').textContent='Speichern fehlgeschlagen: '+err.message}
  finally{$('save').disabled=false}
 });
+async function refreshLXMF(){
+ try{
+  const [status, messages]=await Promise.all([
+   jsonRequest('/api/messenger/status'),
+   jsonRequest('/api/messenger/messages')
+  ]);
+  const online=status.online===true;
+  $('lxmf-status').textContent=online?'LXMF-Router lokal aktiv; Zustellung an andere Knoten nicht bestätigt.':'LXMF-Router nicht aktiv: '+String(status.error||'offline');
+  const rows=Array.isArray(messages.messages)?messages.messages.slice(-12):[];
+  const box=$('messages');
+  box.replaceChildren();
+  box.style.display='block';
+  box.style.overflowY='auto';
+  if(!rows.length){box.textContent='Noch keine gespeicherten LXMF-Nachrichten.';return}
+  for(const m of rows){
+   const line=document.createElement('p');
+   line.textContent=(m.direction==='in'?'Empfangen':'Gesendet')+' · '+String(m.status||'Status unbekannt')+' — '+String(m.content||'');
+   box.appendChild(line);
+  }
+ }catch(err){
+  $('messages').textContent='Nachrichten nicht verfügbar: '+err.message;
+  $('lxmf-status').textContent='Keine bestätigte Verbindung zum Messenger.';
+ }
+}
 loadPreferences();
+refreshLXMF();
 refreshStatus();
 setInterval(refreshStatus,15000);
+setInterval(refreshLXMF,15000);
 </script></body></html>
