@@ -447,3 +447,13 @@
  #dashboard-top .widget-grid>.activity-widget{order:8!important}
  #dashboard-top .widget-grid>.drive-widget{order:9!important}
 }
+
+/* Overview cleanup: omit duplicate Drive and recently-added panels; activity next to Media. */
+#dashboard-top .widget-grid>.drive-widget,
+#dashboard-top .widget-grid>.recent-widget{display:none!important}
+#dashboard-top .widget-grid>.overview-media-widget{order:7!important}
+#dashboard-top .widget-grid>.activity-widget{order:8!important}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.overview-media-widget{order:7!important}
+ #dashboard-top .widget-grid>.activity-widget{order:8!important}
+}
