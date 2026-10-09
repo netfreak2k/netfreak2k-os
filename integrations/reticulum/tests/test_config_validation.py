@@ -49,6 +49,10 @@ class ConfigValidationTests(unittest.TestCase):
         changed = BASE.replace("listen_port = 4243", "listen_port = 4244")
         self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
 
+    def test_listener_bound_to_wrong_host_is_rejected(self):
+        changed = BASE.replace("listen_port = 4243", "listen_ip = 127.0.0.1\\n    listen_port = 4243")
+        self.assertEqual(validate_config(changed, False)[1], "missing_messenger_listener")
+
     def test_invalid_flag_type_is_rejected(self):
         self.assertEqual(validate_config(BASE, "false")[1], "invalid_input")
 
