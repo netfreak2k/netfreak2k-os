@@ -5,10 +5,24 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server" / "api"))
-from reticulum_clean import status_from_file
+from reticulum_clean import status_from_file, status_from_runtime
 
 
 class ReticulumCleanTests(unittest.TestCase):
+    def test_live_runtime_normalization(self):
+        result = status_from_runtime({"online": True, "transport_enabled": False,
+                                      "identity": "abcd", "node_name": "N2K"})
+        self.assertTrue(result["available"])
+        self.assertTrue(result["connected"])
+        self.assertFalse(result["transport_enabled"])
+        self.assertEqual(result["identity"], "abcd")
+        self.assertTrue(result["read_only"])
+
+    def test_live_runtime_unavailable(self):
+        result = status_from_runtime(None)
+        self.assertFalse(result["available"])
+        self.assertFalse(result["connected"])
+
     def test_missing_status_is_safe(self):
         with tempfile.TemporaryDirectory() as directory:
             result = status_from_file(Path(directory) / "missing.json")
