@@ -26,3 +26,20 @@ def status_from_file(path):
             "source": "unavailable",
             "read_only": True,
         }
+
+
+def status_from_runtime(data):
+    """Normalize live Messenger /status without exposing internal errors."""
+    if not isinstance(data, dict):
+        return {"available": False, "connected": False,
+                "transport_enabled": False, "read_only": True,
+                "source": "unavailable"}
+    return {
+        "available": True,
+        "connected": data.get("online") is True,
+        "transport_enabled": data.get("transport_enabled") is True,
+        "identity": str(data.get("identity") or "")[:128],
+        "node_name": str(data.get("node_name") or "")[:64],
+        "read_only": True,
+        "source": "messenger_runtime",
+    }
