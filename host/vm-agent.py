@@ -25,7 +25,7 @@ UPDATE_COMMAND = "/usr/local/sbin/netfreak2k-update"
 ALLOWED = {
     "status", "start", "shutdown", "restart", "update_netfreak2k", "update_preflight", "update_safe_netfreak2k", "check_updates", "linux_upgrade_start", "ollama_local_status", "ollama_local_chat", "n2k_ai_context",
     "app_start", "app_stop", "app_restart",
-    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
+    "app_catalog", "app_install", "tor_relay_status", "tor_relay_set", "meshlink_status", "meshlink_set", "app_diagnostics", "app_logs", "app_update_check", "storage_status", "storage_mount", "storage_unmount",
     "backup_list", "backup_create", "backup_restore", "backup_verify", "backup_test_restore", "backup_policy_get", "backup_policy_set", "backup_prune", "backup_scheduled_tick", "vm_list", "vm_action", "vm_snapshot_create",
     "audio_status", "audio_set_default", "bluetooth_connect", "bluetooth_disconnect",
     "audio_multiroom_set", "audio_multiroom_clear",
@@ -820,6 +820,33 @@ def tor_relay_set(enabled):
     elif state != "running":
         run("docker", "start", TOR_RELAY_CONTAINER, check=True, timeout=60)
     return tor_relay_status()
+
+MESHLINK_CONTAINER = "netfreak2k-messenger"
+
+def meshlink_status():
+    state = container_state(MESHLINK_CONTAINER)
+    stats = None
+    if state is not None:
+        # Verify ownership before reporting or touching a container.
+        managed_container_state(MESHLINK_CONTAINER)
+        if state == "running":
+            result = run("docker", "stats", "--no-stream", "--format", "{{.NetIO}}", MESHLINK_CONTAINER, timeout=12)
+            stats = result.stdout.strip() if result.returncode == 0 else None
+    return {"installed": state is not None, "running": state == "running",
+            "state": state or "not_installed", "traffic": stats, "nodes": None}
+
+def meshlink_set(enabled):
+    if type(enabled) is not bool:
+        raise RuntimeError("invalid_meshlink_state")
+    state = container_state(MESHLINK_CONTAINER)
+    if state is None:
+        raise RuntimeError("meshlink_not_installed")
+    managed_container_state(MESHLINK_CONTAINER)
+    if enabled and state != "running":
+        run("docker", "start", MESHLINK_CONTAINER, check=True, timeout=50)
+    elif not enabled and state == "running":
+        run("docker", "stop", "--time", "20", MESHLINK_CONTAINER, check=True, timeout=40)
+    return meshlink_status()
 
 def catalog_payload():
     apps = []
@@ -3858,6 +3885,12 @@ def execute(action, request):
 
     if action in {"app_start", "app_stop", "app_restart"}:
         return app_action(action, str(request.get("name", "")))
+
+    if action == "meshlink_status":
+        return meshlink_status()
+
+    if action == "meshlink_set":
+        return meshlink_set(request.get("enabled"))
 
     if action == "tor_relay_status":
         return tor_relay_status()
