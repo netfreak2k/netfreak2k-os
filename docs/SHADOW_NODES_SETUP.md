@@ -1,3 +1,5 @@
+> Architecture decision (2026-10-09): Tor is a completely separate non-exit relay service. MeshLink / Reticulum Shadow Nodes use only direct TCP and LAN discovery. No SOCKS5 bridge or onion peer support is part of Shadow Nodes. The independent Tor relay is controlled via the existing /tor/relay API.
+
 # Shadow Nodes (experimental)
 
 Implementation branch: `feature/shadow-nodes-design`. **Not automatically deployed.**
