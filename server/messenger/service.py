@@ -22,6 +22,23 @@ LOCK = threading.RLock()
 MESSAGES = STATE / 'messages.json'
 CONTACTS = STATE / 'contacts.json'
 NODE_CONFIG = STATE / 'node.json'
+PEERS = STATE / 'peers.json'
+
+class LXMFAnnounces:
+    aspect_filter = 'lxmf.delivery'
+    def received_announce(self, destination_hash, announced_identity, app_data):
+        try:
+            name = app_data.decode('utf-8',errors='replace')[:80] if isinstance(app_data,bytes) else str(app_data or '')[:80]
+            with LOCK:
+                rows = [x for x in read_records(PEERS) if x.get('destination') != destination_hash.hex()]
+                rows.append({'destination':destination_hash.hex(),'name':name or 'Unbenannter LXMF-Knoten','last_seen':int(time.time())})
+                tmp=PEERS.with_suffix('.tmp')
+                tmp.write_text(json.dumps(rows[-150:],ensure_ascii=False),encoding='utf-8')
+                tmp.chmod(0o600)
+                tmp.replace(PEERS)
+        except Exception:
+            pass
+
 
 def node_settings():
     try:
@@ -85,6 +102,7 @@ def start_stack():
         config_text = re.sub(r"(?m)^\s*enable_transport\s*=.*$", "  enable_transport = " + ("Yes" if node["enabled"] else "No"), config_text)
         config_file.write_text(config_text, encoding="utf-8")
         RNS.Reticulum(configdir=str(rns_path))
+        RNS.Transport.register_announce_handler(LXMFAnnounces())
         identity_file = STATE / "identity"
         if identity_file.exists():
             IDENTITY = RNS.Identity.from_file(str(identity_file))
@@ -109,6 +127,19 @@ class Handler(BaseHTTPRequestHandler):
             result = {"messages":read_records(MESSAGES)}
         elif self.path == "/contacts":
             result = {"contacts":read_records(CONTACTS)}
+        elif self.path == "/peers":
+            peers=[]
+            for item in read_records(PEERS):
+                entry=dict(item)
+                try:
+                    h=bytes.fromhex(entry["destination"])
+                    entry["path_known"]=bool(RNS.Transport.has_path(h))
+                    entry["hops"]=RNS.Transport.hops_to(h) if entry["path_known"] else None
+                except Exception:
+                    entry["path_known"]=False
+                    entry["hops"]=None
+                peers.append(entry)
+            result={"peers":peers,"known_count":len(peers),"connected_count":None,"online":RUNTIME["online"],"note":"path_known means a route is known, not an established TCP peer connection"}
         elif self.path == "/node":
             result = dict(node_settings(), applied_name=RUNTIME.get("node_name"), applied_transport=RUNTIME.get("transport_enabled"))
         else:
