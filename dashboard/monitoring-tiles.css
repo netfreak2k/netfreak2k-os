@@ -519,3 +519,25 @@
 }
 #dashboard-top .n2k-uptime-plain .n2k-uptime-ai-row b{font-size:10px!important;line-height:1.2!important}
 #dashboard-top .n2k-uptime-plain .n2k-uptime-ai small{font-size:9px!important;line-height:1.25!important}
+
+
+/* RNS Hub spans two of the six actual monitoring-grid columns.
+   This selector must override the generic square widget rule. */
+@media (min-width:751px) {
+  #dashboard-top .widget-grid > .n2k-rns-hub-widget {
+    grid-column:span 2 !important;
+    aspect-ratio:auto !important;
+    height:auto !important;
+    min-height:145px !important;
+    max-height:none !important;
+    width:100% !important;
+  }
+}
+@media (max-width:750px) {
+  #dashboard-top .widget-grid > .n2k-rns-hub-widget {
+    grid-column:1 / -1 !important;
+    aspect-ratio:auto !important;
+    height:auto !important;
+    max-height:none !important;
+  }
+}
