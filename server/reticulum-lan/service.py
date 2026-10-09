@@ -53,21 +53,10 @@ else:
         # Existing config may contain transport settings from older installs:
         # refuse activation until it is reviewed by a migration.
         existing = config.read_text(encoding="utf-8")
-        import re
-        persisted_transport = bool(re.search(r"(?im)^\s*enable_transport\s*=\s*(yes|true|1)\s*$", existing))
-        if not fresh_config and persisted_transport != TRANSPORT:
-            raise RuntimeError("Persisted transport mode differs from requested mode; migration required")
-        # The listener and its port must belong to the SAME enabled interface.
-        # Do not silently rewrite a user configuration during upgrade.
-        sections = re.split(r"(?m)^\s*\[\[[^\n]+\]\]\s*$", existing)
-        listener_valid = any(
-            re.search(r"(?im)^\s*type\s*=\s*TCPServerInterface\s*$", section)
-            and re.search(r"(?im)^\s*listen_port\s*=\s*4243\s*$", section)
-            and re.search(r"(?im)^\s*enabled\s*=\s*(yes|true|1)\s*$", section)
-            for section in sections
-        )
-        if not listener_valid:
-            raise RuntimeError("Existing RNS config lacks Messenger LAN TCP 4243; migration required")
+        from config_validation import validate_config
+        valid, reason = validate_config(existing, TRANSPORT)
+        if not valid:
+            raise RuntimeError("Reticulum configuration requires review: " + reason)
         RNS.Reticulum(configdir=str(config_dir))
         while True:
             report("local_instance_started", available=True, transport=TRANSPORT)
