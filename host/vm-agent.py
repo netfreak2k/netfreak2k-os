@@ -3813,46 +3813,46 @@ def execute(action, request):
         return meshlink_status()
 
     if action == "reticulum_beta_preflight":
-        # Read-only inventory. Never authorize or apply changes from this action.
-        volumes = {}
-        for name in ("netfreak2k_netfreak2k-reticulum-lan-data", "netfreak2k_netfreak2k-messenger-data"):
-            result = subprocess.run(["docker", "volume", "inspect", name],
-                                    capture_output=True, text=True, timeout=10, check=False)
-            if result.returncode == 0:
-                try:
-                    data = json.loads(result.stdout)
-                    volumes[name] = "existing" if len(data) == 1 and data[0].get("Name") == name else "unverified"
-                except (ValueError, TypeError, AttributeError):
-                    volumes[name] = "unverified"
-            elif "No such volume" in result.stderr:
-                volumes[name] = "absent"
-            else:
-                volumes[name] = "unverified"
+        # The controller is deliberately read-only until upgrade rollback is verified.
         result = subprocess.run(["docker", "container", "inspect", "netfreak2k-reticulum-lan"],
                                 capture_output=True, text=True, timeout=10, check=False)
+        project = None
         runtime = "unverified"
         if result.returncode == 0:
             try:
                 data = json.loads(result.stdout)
                 labels = data[0].get("Config", {}).get("Labels") or {}
-                runtime = ("managed" if len(data) == 1
+                project = labels.get("com.docker.compose.project")
+                runtime = ("managed" if len(data) == 1 and project
                            and data[0].get("Name", "").lstrip("/") == "netfreak2k-reticulum-lan"
-                           and labels.get("com.docker.compose.project") == "netfreak2k"
                            and labels.get("com.docker.compose.service") == "netfreak2k-reticulum-lan"
                            else "external_or_unverified")
             except (ValueError, TypeError, IndexError, AttributeError):
                 runtime = "unverified"
         elif "No such object" in result.stderr or "No such container" in result.stderr:
             runtime = "absent"
-        blocked = (runtime not in ("managed", "absent")
-                   or any(value == "unverified" for value in volumes.values())
-                   or runtime == "managed"
-                   or any(value == "existing" for value in volumes.values()))
-        return {"runtime": runtime, "volumes": volumes,
-                "beta_install_ready": False,
-                "requires_backup_or_review": blocked,
-                "host_control_available": False,
-                "note": "Read-only inspection; never an installation approval"}
+        volumes = {}
+        for short_name in ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data"):
+            if runtime != "managed":
+                volumes[short_name] = "unverified"
+                continue
+            name = project + "_" + short_name
+            item = subprocess.run(["docker", "volume", "inspect", name],
+                                  capture_output=True, text=True, timeout=10, check=False)
+            if item.returncode == 0:
+                try:
+                    data = json.loads(item.stdout)
+                    volumes[short_name] = "existing" if len(data) == 1 and data[0].get("Name") == name else "unverified"
+                except (ValueError, TypeError, AttributeError):
+                    volumes[short_name] = "unverified"
+            elif "No such volume" in item.stderr:
+                volumes[short_name] = "absent"
+            else:
+                volumes[short_name] = "unverified"
+        return {"runtime": runtime, "project": project if runtime == "managed" else None,
+                "volumes": volumes, "beta_install_ready": False,
+                "requires_backup_or_review": True, "host_control_available": False,
+                "note": "Read-only inspection; unverified projects and volumes block activation"}
 
     if action == "meshlink_status":
         return meshlink_status()
