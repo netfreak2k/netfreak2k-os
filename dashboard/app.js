@@ -7898,6 +7898,20 @@ async function refreshN2KNetworkServices() {
       state.textContent = data.running ? "● Aktiv" : data.installed ? "○ Ausgeschaltet" : "○ Nicht installiert";
       if (traffic) traffic.textContent = "RX / TX: " + (data.traffic || "–");
       n2kUpdateTrafficChart(spec.prefix, data.traffic, data.running);
+      const hubPrefix = spec.type === "shadow" ? "n2k-hub-shadow" : "n2k-hub-mesh";
+      const hubTraffic = document.getElementById(hubPrefix + "-traffic");
+      const hubState = document.getElementById(hubPrefix + (spec.type === "shadow" ? "-status" : "-state"));
+      if (hubTraffic) hubTraffic.textContent = data.traffic || "–";
+      if (hubState) hubState.textContent = data.running ? "● Aktiv" : data.installed ? "○ Aus" : "○ Nicht installiert";
+      if (spec.type === "mesh") {
+        const hubNodes = document.getElementById("n2k-hub-mesh-nodes");
+        if (hubNodes) hubNodes.textContent = data.nodes == null ? "Nicht verfügbar" : String(data.nodes);
+      }
+      const hubOn = document.getElementById(hubPrefix + "-on");
+      const hubOff = document.getElementById(hubPrefix + "-off");
+      if (hubOn) hubOn.disabled = data.running || (spec.type === "mesh" && !data.installed);
+      if (hubOff) hubOff.disabled = !data.running;
+      n2kUpdateTrafficChart(hubPrefix, data.traffic, data.running);
       if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "Nodes: " + (data.nodes == null ? "nicht verfügbar" : data.nodes);
       if (meter) meter.style.width = data.running ? "100%" : "0%";
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
@@ -7930,6 +7944,9 @@ async function setN2KNetworkService(type, enabled) {
 for (const [id, type, enabled] of [
   ["n2k-shadow-on", "shadow", true], ["n2k-shadow-off", "shadow", false],
   ["n2k-mesh-on", "mesh", true], ["n2k-mesh-off", "mesh", false]
+]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
+for (const [id, type, enabled] of [
+  ["n2k-hub-mesh-on", "mesh", true], ["n2k-hub-mesh-off", "mesh", false]
 ]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
 refreshN2KNetworkServices();
 setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000);
