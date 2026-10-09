@@ -8035,3 +8035,65 @@ for (const card of document.querySelectorAll(".n2k-network-service-widget")) {
 }
 refreshN2KNetworkServices();
 setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000);
+
+/* Network Hub diagnostics: real Tor self-test and observed LXMF announces. */
+(() => {
+  const check = document.getElementById("n2k-tor-check");
+  const checkText = document.getElementById("n2k-tor-check-result");
+  async function checkTor() {
+    if (!check || !checkText) return;
+    check.disabled = true;
+    checkText.textContent = "Tor-Selbsttest wird ausgewertet …";
+    try {
+      const d = await request("/api/tor/relay");
+      const state = d.reachability || "checking";
+      checkText.textContent = state === "reachable" ? "Tor bestätigt: ORPort öffentlich erreichbar." :
+        state === "unreachable" ? "Tor meldet: ORPort nicht erreichbar. Firewall / Portfreigabe prüfen." :
+        state === "stopped" ? "ShadowNode ist ausgeschaltet." :
+        "Noch keine externe Bestätigung von Tor. " + (d.reachability_detail || "");
+    } catch(e) {
+      checkText.textContent = "Tor-Prüfung derzeit nicht verfügbar.";
+    } finally { check.disabled = false; }
+  }
+  check?.addEventListener("click",checkTor);
+
+  const refresh = document.getElementById("n2k-peers-refresh");
+  const count = document.getElementById("n2k-peers-count");
+  const list = document.getElementById("n2k-peers-list");
+  async function loadPeers() {
+    if(!list || !count) return;
+    try {
+      const d=await request("/api/messenger/peers");
+      if(d.error) throw Error(d.error);
+      const peers=Array.isArray(d.peers)?d.peers:[];
+      count.textContent=peers.length+" bekannte LXMF-Ziele · direkte Verbindungen nicht ermittelt";
+      list.replaceChildren();
+      if(!peers.length) {
+        list.textContent="Noch keine LXMF-Announcements empfangen. Erreichbare Interfaces und Transport prüfen.";
+        return;
+      }
+      for(const peer of peers.slice().sort((a,b)=>(b.last_seen||0)-(a.last_seen||0)).slice(0,50)) {
+        const row=document.createElement("div");row.className="n2k-peer-item";
+        const info=document.createElement("div");info.className="n2k-peer-info";
+        const name=document.createElement("strong");name.textContent=peer.name||"Unbenannter Knoten";
+        const details=document.createElement("small");
+        details.textContent=String(peer.destination||"").slice(0,16)+"… · "+(peer.path_known?"Route bekannt":"Route unbekannt")+(Number.isInteger(peer.hops)?" · "+peer.hops+" Hops":"");
+        info.append(name,details);row.append(info);
+        const action=document.createElement("button");action.type="button";action.className="secondary compact";action.textContent="Pfad anfragen";
+        action.addEventListener("click",async ()=>{
+          action.disabled=true;
+          try {
+            await request("/api/messenger/peers/request",{method:"POST",headers:{"X-CSRF-Token":csrfToken},
+              body:JSON.stringify({destination:peer.destination})});
+            action.textContent="Angefragt";
+            await loadPeers();
+          }catch(e){action.textContent="Nicht möglich";action.disabled=false}
+        });
+        row.append(action);list.append(row);
+      }
+    }catch(e){count.textContent="Knotenstatus nicht verfügbar";list.textContent="Reticulum-Discovery momentan nicht erreichbar."}
+  }
+  refresh?.addEventListener("click",loadPeers);
+  loadPeers();
+  setInterval(()=>{if(!document.hidden)loadPeers()},30000);
+})();
