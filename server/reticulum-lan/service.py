@@ -38,7 +38,7 @@ else:
         if fresh_config:
             # Fresh installs may opt in explicitly; never alter persisted settings.
             config.write_text(
-                "[reticulum]\n  " + ("Yes" if TRANSPORT else "No") + "\n  share_instance = No\n\n"
+                "[reticulum]\n  enable_transport = " + ("Yes" if TRANSPORT else "No") + "\n  share_instance = No\n\n"
                 "[interfaces]\n  [[N2K LAN Discovery]]\n"
                 "    type = AutoInterface\n    enabled = Yes\n"
                 "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n"
