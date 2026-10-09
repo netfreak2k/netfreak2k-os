@@ -14,11 +14,7 @@ BASE = """[reticulum]
   [[N2K Discovery]]
     type = AutoInterface
     enabled = Yes
-  [[N2K LAN Server]]
-    type = TCPServerInterface
-    enabled = Yes
-    listen_port = 4243
-"""
+  [[N2K LAN Server]]\n    type = TCPServerInterface\n    enabled = Yes\n    listen_port = 4243\n"""
 
 class ConfigValidationTests(unittest.TestCase):
     def test_valid_client(self):
