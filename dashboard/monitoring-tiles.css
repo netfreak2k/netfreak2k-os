@@ -394,3 +394,11 @@
 .n2k-hub-traffic-head span{font-variant-numeric:tabular-nums;opacity:.8}
 .n2k-network-service-widget{cursor:pointer}
 .n2k-network-service-widget:focus-visible{outline:2px solid #d4ba79;outline-offset:3px}
+
+/* MeshLink native transport-node controls */
+.n2k-node-settings{display:grid;gap:12px;padding:14px;border:1px solid rgba(180,195,212,.18);border-radius:14px;background:rgba(120,145,170,.08);min-width:0}
+.n2k-node-settings label{display:grid;gap:6px;font-size:.86rem}
+.n2k-node-settings input[type=text]{width:100%;min-height:40px;box-sizing:border-box}
+.n2k-node-settings .n2k-node-switch{display:flex;align-items:center;gap:10px;line-height:1.5;cursor:pointer}
+.n2k-node-switch input{width:19px;height:19px;flex:0 0 19px;accent-color:#d4ba79}
+.n2k-node-settings .n2k-hub-actions button{min-height:40px}
