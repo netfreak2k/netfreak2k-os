@@ -7926,6 +7926,13 @@ async function refreshN2KNetworkServices() {
         assign("n2k-shadow-hub-mode", data.mode === "non-exit" ? "Non-Exit" : "Nicht bestätigt");
         assign("n2k-shadow-hub-peers", "Nicht verfügbar");
         assign("n2k-shadow-hub-container", data.state || "Unbekannt");
+        const reach = data.reachability;
+        const reachLabel = reach === "reachable" ? "● Öffentlich erreichbar" :
+          reach === "unreachable" ? "● Nicht erreichbar" :
+          reach === "checking" ? "◷ Tor prüft Erreichbarkeit" : "○ Relay ausgeschaltet";
+        assign("n2k-shadow-hub-reachability", reachLabel);
+        assign("n2k-shadow-hub-reachability-detail", data.reachability_detail || "Tor-Selbsttest nicht verfügbar.");
+
         const current = n2kServiceSamples[hubPrefix];
         const rate = document.getElementById("n2k-shadow-hub-rate");
         if (rate) {
