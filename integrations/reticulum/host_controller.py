@@ -54,7 +54,7 @@ def compose_command(compose_file, action):
     if action == "start_client":
         # Never turn on RNS transport automatically.
         return ["docker", "compose", "-f", str(compose_file), "up", "-d",
-                "--no-deps", "--no-build", "netfreak2k-reticulum-lan"]
+                "--no-deps", "--no-build", "--force-recreate", "netfreak2k-reticulum-lan"]
     if action == "stop":
         return ["docker", "compose", "-f", str(compose_file), "stop",
                 "netfreak2k-reticulum-lan"]
@@ -111,7 +111,8 @@ def main():
     env.pop("COMPOSE_FILE", None)
     env.pop("COMPOSE_PROJECT_NAME", None)
     env.pop("COMPOSE_PROFILES", None)
-    subprocess.run(command, check=True, env=env, timeout=120)
+    # Compose must resolve relative env_file and project resources from its own directory.
+    subprocess.run(command, check=True, env=env, timeout=120, cwd=str(compose_file.parent))
     return 0
 
 
