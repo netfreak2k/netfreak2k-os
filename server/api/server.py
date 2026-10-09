@@ -3350,6 +3350,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":"native_messenger_unavailable"}, 503)
             return
 
+        if path == "/meshlink/service":
+            session = self.require_auth()
+            if not session:
+                return
+            result = vm_agent("meshlink_status")
+            self.send_json(result, 200 if result.get("available") else 503)
+            return
+
         if path == "/messenger/status":
             session = self.require_auth()
             if not session:
@@ -3965,6 +3973,24 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"error":"messenger_rejected_request"}, 400)
                 else:
                     self.send_json({"error":"native_messenger_unavailable"}, 503)
+            return
+
+        if path == "/meshlink/service":
+            session = self.require_auth()
+            if not session or not self.require_admin(session) or not self.require_csrf(session):
+                return
+            try:
+                enabled = self.read_json().get("enabled")
+                if type(enabled) is not bool:
+                    raise ValueError("invalid_meshlink_state")
+                result = vm_agent("meshlink_set", {"enabled": enabled})
+                if not result.get("available"):
+                    self.send_json(result, 503)
+                    return
+                audit_event(session["username"], "meshlink_set", "enabled" if enabled else "disabled", self.client_ip())
+                self.send_json(result)
+            except ValueError as exc:
+                self.send_json({"error":str(exc)}, 400)
             return
 
         if path == "/tor/relay":
