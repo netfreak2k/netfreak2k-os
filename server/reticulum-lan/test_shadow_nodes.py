@@ -22,20 +22,15 @@ class ShadowSettingsTests(unittest.TestCase):
 
     def test_default_opt_in(self):
         self.assertFalse(self.parse({})["enabled"])
-        self.assertFalse(self.parse({})["tor_enabled"])
+        self.assertEqual(self.parse({})["peers"], [])
 
-    def test_valid_tor(self):
-        data = {"enabled": True, "tor_enabled": True, "peers": [
-            {"transport": "tor", "host": "a" * 56 + ".onion", "port": 4243}]}
-        self.assertEqual(self.parse(data)["peers"][0]["transport"], "tor")
-
-    def test_reject_non_v3_onion(self):
+    def test_reject_tor_peer(self):
         with self.assertRaises(ValueError):
-            self.parse({"peers": [{"transport": "tor", "host": "short.onion", "port": 4243}]})
+            self.parse({"peers": [{"transport": "tor", "host": "node.onion", "port": 4243}]})
 
-    def test_reject_remote_socks(self):
+    def test_reject_tor_switch(self):
         with self.assertRaises(ValueError):
-            self.parse({"socks_host": "0.0.0.0"})
+            self.parse({"tor_enabled": True})
 
     def test_reject_bad_port(self):
         with self.assertRaises(ValueError):
@@ -57,10 +52,6 @@ class ShadowSettingsTests(unittest.TestCase):
             {"transport": "tcp", "host": "node.example.org", "port": 4243}]})
         self.assertIn("target_host = node.example.org", service.managed_config(settings))
 
-    def test_tor_disabled_skips_onion(self):
-        settings = self.parse({"enabled": True, "tor_enabled": False, "peers": [
-            {"transport": "tor", "host": "b" * 56 + ".onion", "port": 4243}]})
-        self.assertNotIn("N2K Shadow Peer", service.managed_config(settings))
 
 
 if __name__ == "__main__":
