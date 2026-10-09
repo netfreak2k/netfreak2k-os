@@ -22,7 +22,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 @media(prefers-reduced-motion:reduce){.node{animation:none}}
 </style></head><body><main>
 <header><div><small>NETFREAK2K OS · ENTWICKLUNGSVORSCHAU</small><h1>Reticulum</h1></div><span class="pill" id="state">Nicht verbunden</span></header>
-<p class="muted">Oberflächenprototyp. Kein Reticulum-Dienst ist angeschlossen; es werden keine Knoten oder Nachrichten simuliert.</p>
+<p class="muted">Entwicklungsvorschau: Der lokale Reticulum-Status wird abgefragt. Chat und Transport bleiben deaktiviert; es werden keine Knoten oder Nachrichten simuliert.</p>
 <section class="grid">
 <div class="card"><h2>Dein Reticulum</h2>
 <label>Öffentlicher Anzeigename<input id="name" maxlength="64" autocomplete="nickname" placeholder="Dein Name"></label>
@@ -31,7 +31,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 <p class="muted">Ein Transportknoten kann fremden Reticulum-Verkehr weiterleiten. Das verbraucht Netzwerkbandbreite und Energie. Die Aktivierung erfolgt erst nach Anbindung des Dienstes.</p>
 <button id="save">Einstellungen lokal vormerken</button><p id="notice" role="status" class="muted"></p>
 <div class="row"><div><h2>Mein Profil</h2><small>Adresse und Kontakt-QR werden nach sicherer Identitätserzeugung angezeigt.</small></div><button disabled>QR-Code anzeigen</button></div>
-<pre id="profile">Noch keine Reticulum-Identität</pre>
+<pre id="profile">Noch keine Reticulum-Identität</pre><p class="muted" id="service">Reticulum-Dienst: Status wird abgefragt …</p>
 </div>
 <div class="card"><h2>Living Mesh</h2><div class="mesh" aria-label="Dekorative Animation, keine echte Topologie"><span class="node"></span></div>
 <p class="muted">Dekorative Vorschau. Echte Peers und Verbindungen erscheinen erst nach Telemetrie-Anbindung.</p><button class="secondary" disabled>Netzwerk vergrößern</button></div>
@@ -44,6 +44,25 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#b7c9db}
 <script>
 'use strict';
 const $=id=>document.getElementById(id), key='n2k-reticulum-ui-preferences';
+async function refreshStatus(){
+ try {
+  const response=await fetch('/api/reticulum/status',{cache:'no-store'});
+  if(!response.ok)throw new Error('Status unavailable');
+  const data=await response.json();
+  if(data.available===true){
+   $('state').textContent='Lokaler Dienst erkannt';
+   $('service').textContent='Reticulum lokal erreichbar; externe Netzwerkverbindung nicht bestätigt.';
+  }else{
+   $('state').textContent='Nicht verbunden';
+   $('service').textContent='Reticulum: '+String(data.state||'nicht erreichbar');
+  }
+ }catch{
+  $('state').textContent='Status unbekannt';
+  $('service').textContent='Status-API nicht erreichbar. Starte die lokale Entwicklungsvorschau.';
+ }
+}
+refreshStatus();
+setInterval(refreshStatus,15000);
 try{const v=JSON.parse(localStorage.getItem(key)||'{}');$('name').value=v.name||'';$('enabled').checked=!!v.enabled;$('transport').checked=!!v.transport}catch{}
 $('save').addEventListener('click',()=>{
  const name=$('name').value.trim();if(!name){$('notice').textContent='Bitte einen Anzeigenamen eingeben.';return}
