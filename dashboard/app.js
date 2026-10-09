@@ -7621,8 +7621,8 @@ async function refreshN2KNetworkServices() {
             meshKnownNodes = Math.max(0, Number(peers.known_count));
             const routes = document.getElementById("n2k-rns-routes");
             const discovery = document.getElementById("n2k-rns-discovery");
-            if (routes) routes.textContent = peers.connected_count != null && Number.isFinite(Number(peers.connected_count)) ? String(peers.connected_count) : "Nicht gemessen";
-            if (discovery) discovery.textContent = peers.online ? "Aktiv · LXMF" : "Nicht verfügbar";
+            if (routes) routes.textContent = peers.reachable_route_count != null && Number.isFinite(Number(peers.reachable_route_count)) ? String(peers.reachable_route_count) : "Nicht gemessen";
+            if (discovery) discovery.textContent = peers.online ? "Aktiv · " + meshKnownNodes + " erkannt" : "Nicht verfügbar";
           }
         } catch (error) {
           console.debug("MeshLink peer count unavailable:", error);
@@ -7673,6 +7673,11 @@ async function refreshN2KNetworkServices() {
       if (on) on.disabled = data.running || (spec.type === "mesh" && !data.installed);
       if (off) off.disabled = !data.running;
     } catch (_) {
+      const discovery = document.getElementById("n2k-rns-discovery");
+      const routes = document.getElementById("n2k-rns-routes");
+      if (discovery) discovery.textContent = "API nicht erreichbar";
+      if (routes) routes.textContent = "–";
+      if (nodes) nodes.textContent = "Nodes: nicht verfügbar";
       state.textContent = "Status nicht verfügbar";
       if (on) on.disabled = true;
       if (off) off.disabled = true;
