@@ -63,7 +63,11 @@ def main():
     parser.add_argument("--compose-file", required=True)
     parser.add_argument("--apply", action="store_true", help="Explicit host-side authorization")
     parser.add_argument("--legacy-transport-detected", action="store_true")
+    parser.add_argument("--legacy-checked", action="store_true", help="Host operator confirms legacy transport was checked")
     args = parser.parse_args()
+    if not args.legacy_checked:
+        print("HOLD: legacy transport inventory must be checked before proceeding")
+        return 2
     decision = decide(args.database, legacy_transport_detected=args.legacy_transport_detected)
     print(f"decision={decision.action} reason={decision.reason}")
     if decision.action == "hold":
