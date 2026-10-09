@@ -309,13 +309,13 @@
             <section class="widget n2k-network-service-widget" aria-label="ShadowNode">
               <div class="widget-head"><div><small>PRIVACY NETWORK</small><h3>ShadowNode</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="ShadowNode öffnen">›</button></div>
               <div class="n2k-service-live"><span id="n2k-shadow-state">Status wird geprüft …</span><strong id="n2k-shadow-nodes">Tor-Relay · Non-Exit</strong></div>
-              <div class="n2k-service-graph"><span id="n2k-shadow-traffic">Traffic: –</span><div class="n2k-service-track"><i id="n2k-shadow-meter"></i></div></div>
+              <div class="n2k-service-graph"><span id="n2k-shadow-traffic">Traffic: –</span><canvas id="n2k-shadow-chart" width="280" height="46" aria-label="ShadowNode Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-shadow-meter"></i></div></div>
               <div class="n2k-service-actions"><button type="button" id="n2k-shadow-on" disabled>Ein</button><button type="button" id="n2k-shadow-off" disabled>Aus</button></div>
             </section>
             <section class="widget n2k-network-service-widget" aria-label="MeshLink">
               <div class="widget-head"><div><small>MESH COMMUNICATION</small><h3>MeshLink</h3></div><button class="widget-open-mini" data-target-view="reticulum-panel" title="MeshLink öffnen">›</button></div>
               <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
-              <div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
+              <div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
               <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
             </section>
             <button class="widget matrix-widget" data-target-view="privacy-panel">
