@@ -766,15 +766,42 @@ def tor_relay_status():
         info = run("docker", "inspect", "--format", "{{.State.StartedAt}}", TOR_RELAY_CONTAINER)
         started = info.stdout.strip() if info.returncode == 0 else None
     traffic = None
+    reachability = "stopped" if state != "running" else "checking"
+    reachability_detail = "Relay ist ausgeschaltet." if state != "running" else "Tor prüft die öffentliche ORPort-Erreichbarkeit."
+    bootstrap_percent = None
     if state == "running":
         stats = run("docker", "stats", "--no-stream", "--format", "{{.NetIO}}", TOR_RELAY_CONTAINER, timeout=12)
         if stats.returncode == 0:
             traffic = stats.stdout.strip() or None
+        # Tor's external ORPort self-test is stronger evidence than a local bind()
+        # or a public IP lookup. Read logs only for the CURRENT container run.
+        log_args = ["docker", "logs", "--tail", "600"]
+        if started and started.startswith("20"):
+            log_args.extend(["--since", started])
+        log_args.append(TOR_RELAY_CONTAINER)
+        logs = run(*log_args, timeout=10)
+        if logs.returncode == 0:
+            output = ((logs.stdout or "") + "\\n" + (logs.stderr or ""))[-90000:]
+            for line in output.splitlines():
+                lower = line.lower()
+                progress = re.search(r"bootstrapped (\\d{1,3})%", lower)
+                if progress:
+                    bootstrap_percent = min(100, int(progress.group(1)))
+                if "self-testing indicates your orport is reachable from the outside" in lower:
+                    reachability = "reachable"
+                    reachability_detail = "Tor-Selbsttest: ORPort von außen erreichbar."
+                elif ("your server has not managed to confirm that its orport is reachable" in lower
+                      or "orport is not reachable from the outside" in lower):
+                    reachability = "unreachable"
+                    reachability_detail = "Tor meldet Probleme bei der externen ORPort-Erreichbarkeit. Portweiterleitung und Firewall prüfen."
     return {
         "installed": state is not None,
         "running": state == "running",
         "state": state or "not_installed",
         "traffic": traffic,
+        "reachability": reachability,
+        "reachability_detail": reachability_detail,
+        "bootstrap_percent": bootstrap_percent,
         "port": TOR_RELAY_PORT,
         "mode": "non-exit",
         "started_at": started,
