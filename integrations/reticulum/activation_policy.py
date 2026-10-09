@@ -13,6 +13,12 @@ class Decision:
 def reconcile(*, requested_enabled: bool, requested_transport: bool,
               active_users: int, legacy_transport_detected: bool,
               controller_authorized: bool) -> Decision:
+    # Reject malformed controller input rather than relying on truthiness.
+    if any(type(flag) is not bool for flag in (
+        requested_enabled, requested_transport, legacy_transport_detected,
+        controller_authorized
+    )) or type(active_users) is not int or active_users < 0:
+        return Decision("hold", "invalid_controller_input")
     if not controller_authorized:
         return Decision("hold", "controller_not_authorized")
     if legacy_transport_detected:
