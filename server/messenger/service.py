@@ -10,6 +10,7 @@ from pathlib import Path
 
 import RNS
 import LXMF
+import RNS.vendor.umsgpack as msgpack
 
 STATE = Path("/state")
 STATE.mkdir(parents=True, exist_ok=True)
@@ -35,11 +36,23 @@ def public_peer():
     return {'host':'','port':4242,'enabled':False}
 
 
+def lxmf_display_name(app_data):
+    """Decode the LXMF msgpack announce (name, stamp cost, extensions)."""
+    try:
+        payload = msgpack.unpackb(app_data) if isinstance(app_data, bytes) else app_data
+        raw = payload[0] if isinstance(payload, (list, tuple)) and payload else payload
+        name = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+        name = "".join(ch for ch in name if ch.isprintable()).strip()
+        return name[:80] or "Unbenannter LXMF-Knoten"
+    except (ValueError, TypeError, IndexError, UnicodeError, Exception):
+        return "Unbenannter LXMF-Knoten"
+
+
 class LXMFAnnounces:
     aspect_filter = 'lxmf.delivery'
     def received_announce(self, destination_hash, announced_identity, app_data):
         try:
-            name = app_data.decode('utf-8',errors='replace')[:80] if isinstance(app_data,bytes) else str(app_data or '')[:80]
+            name = lxmf_display_name(app_data)
             with LOCK:
                 rows = [x for x in read_records(PEERS) if x.get('destination') != destination_hash.hex()]
                 rows.append({'destination':destination_hash.hex(),'name':name or 'Unbenannter LXMF-Knoten','last_seen':int(time.time())})
