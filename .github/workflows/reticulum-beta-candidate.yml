@@ -63,7 +63,8 @@ jobs:
         run: |
           mkdir -p dist
           git archive --format=tar.gz --prefix=netfreak2k-reticulum-beta-source/ HEAD > dist/netfreak2k-reticulum-beta-source.tar.gz
-          sha256sum dist/netfreak2k-reticulum-beta-source.tar.gz > dist/SHA256SUMS
+          sha256sum dist/netfreak2k-reticulum-beta-source.tar.gz dist/reticulum-beta-manifest.json > dist/SHA256SUMS
+          python3 -c 'import json,pathlib; d=json.loads(pathlib.Path("dist/reticulum-beta-manifest.json").read_text()); assert d["installable"] is False and d["production_approved"] is False and len(d["revision"]) == 40'
           printf '%s\n' 'SOURCE-ONLY DEVELOPMENT CANDIDATE' 'NOT AN INSTALLABLE UPDATE' 'Do not deploy to a production OS.' > dist/READ_ME_FIRST.txt
       - uses: actions/upload-artifact@v4
         with:
