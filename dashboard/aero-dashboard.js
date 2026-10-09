@@ -23,3 +23,17 @@
     if (event.matches) close();
   });
 })();
+
+/* Secondary overview cards are accessible on demand; core services always visible. */
+(() => {
+ const grid = document.querySelector("#dashboard-top .n2k-aero-applications .widget-grid");
+ const button = document.querySelector("#dashboard-top .n2k-aero-more");
+ if(!grid || !button) return;
+ grid.id = "n2k-aero-extra-widgets";
+ grid.classList.add("n2k-aero-compact");
+ button.addEventListener("click", () => {
+   const expanded = grid.classList.toggle("n2k-aero-expanded");
+   button.setAttribute("aria-expanded", String(expanded));
+   button.textContent = expanded ? "Weniger anzeigen" : "Weitere Widgets";
+ });
+})();
