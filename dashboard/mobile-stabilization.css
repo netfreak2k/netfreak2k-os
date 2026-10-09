@@ -429,3 +429,89 @@
     padding:10px 2px calc(12px + env(safe-area-inset-bottom))!important
   }
 }
+
+/* RNS Premium Control Center / smartphone only / October 2026 */
+@media screen and (max-width:620px){
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{
+  position:relative!important;isolation:isolate;overflow:hidden!important;
+  padding:16px!important;gap:11px!important;
+  border:1px solid rgba(177,201,225,.25)!important;border-radius:22px!important;
+  background:radial-gradient(ellipse at 92% -10%,rgba(98,161,218,.19),transparent 57%),
+             radial-gradient(ellipse at 10% 110%,rgba(55,175,155,.10),transparent 52%),
+             linear-gradient(152deg,#14283a,#0b1b2b 75%)!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.10),0 14px 34px rgba(0,0,0,.23)!important;
+ }
+ #dashboard-top .n2k-rns-hub-widget::before{
+  content:"";position:absolute;pointer-events:none;z-index:-1;
+  top:-92px;right:-72px;width:220px;height:220px;border-radius:50%;
+  border:1px solid rgba(149,192,224,.14);
+  box-shadow:0 0 0 29px rgba(149,192,224,.045),0 0 0 64px rgba(149,192,224,.027);
+ }
+ #dashboard-top .n2k-rns-hub-widget .widget-head{align-items:center!important;gap:10px!important}
+ #dashboard-top .n2k-rns-hub-widget .widget-head small{
+  font-size:10px!important;letter-spacing:.16em!important;color:#9cbbd2!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .widget-head h3{
+  font-size:19px!important;line-height:1.23!important;letter-spacing:-.025em!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .widget-open-mini{
+  width:43px!important;min-width:43px!important;height:43px!important;min-height:43px!important;
+  border-radius:14px!important;background:rgba(151,190,220,.09)!important;
+  border:1px solid rgba(171,202,225,.19)!important;color:#e5d5ac!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-live{
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;
+  justify-content:flex-start!important;gap:7px!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-live>span,
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-live>strong{
+  flex:0 1 auto!important;min-width:0!important;max-width:100%!important;
+  border-radius:999px!important;padding:7px 10px!important;
+  border:1px solid rgba(155,188,209,.16)!important;
+  background:rgba(17,35,51,.66)!important;
+  font-size:11px!important;line-height:1.35!important;overflow-wrap:anywhere!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-live>strong{color:#b8d9db!important}
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>div{
+  min-width:0!important;padding:12px!important;border-radius:15px!important;
+  border:1px solid rgba(161,190,211,.14)!important;
+  background:linear-gradient(160deg,rgba(17,38,55,.94),rgba(12,29,43,.92))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035)!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>div:nth-child(3){grid-column:1/-1!important}
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra small{
+  display:block!important;margin-bottom:5px!important;text-transform:uppercase;
+  letter-spacing:.075em!important;color:#95abc0!important;font-size:10px!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra strong{
+  font-size:15px!important;line-height:1.3!important;color:#d6f4ee!important;
+  overflow-wrap:anywhere!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-graph{
+  gap:6px!important;margin:0!important;padding:11px 12px!important;
+  border:1px solid rgba(157,185,211,.14)!important;border-radius:15px!important;
+  background:rgba(7,22,35,.48)!important;min-height:0!important
+ }
+ #dashboard-top .n2k-rns-hub-widget #n2k-mesh-traffic{
+  font-size:12px!important;font-weight:650!important;color:#abc4d7!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-graph canvas{
+  height:44px!important;max-height:44px!important;min-height:0!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-track{
+  height:5px!important;background:rgba(160,185,208,.12)!important;border-radius:10px!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-track i{
+  background:linear-gradient(90deg,#4ac6a8,#81abd9)!important
+ }
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-actions{margin-top:0!important}
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-actions button:disabled{display:none!important}
+ #dashboard-top .n2k-rns-hub-widget .n2k-service-actions:not(:has(button:not(:disabled))){display:none!important}
+}
+@media screen and (max-width:360px){
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{grid-template-columns:minmax(0,1fr)!important}
+ #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>div:nth-child(3){grid-column:auto!important}
+}
