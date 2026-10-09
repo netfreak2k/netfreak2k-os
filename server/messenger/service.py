@@ -80,7 +80,7 @@ def start_stack():
         # requires restarting ONLY the MeshLink container.
         config_file = rns_path / "config"
         if not config_file.exists():
-            config_file.write_text("[reticulum]\n  enable_transport = No\n  share_instance = No\n\n[interfaces]\n", encoding="utf-8")
+            config_file.write_text("[reticulum]\n  enable_transport = No\n  share_instance = No\n\n[interfaces]\n  [[N2K AutoInterface]]\n    type = AutoInterface\n    enabled = Yes\n", encoding="utf-8")
         config_text = config_file.read_text(encoding="utf-8")
         config_text = re.sub(r"(?m)^\s*enable_transport\s*=.*$", "  enable_transport = " + ("Yes" if node["enabled"] else "No"), config_text)
         config_file.write_text(config_text, encoding="utf-8")
