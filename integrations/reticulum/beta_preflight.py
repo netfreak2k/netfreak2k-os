@@ -18,8 +18,12 @@ def inspect_host(run=subprocess.run):
     checks = {}
     # Compose volume names depend on the installed project name. Resolve the
     # actual project from a managed container; never guess volume names.
-    result = run(["docker", "container", "inspect", SERVICE],
-                 capture_output=True, text=True, timeout=15, check=False)
+    try:
+        result = run(["docker", "container", "inspect", SERVICE],
+                     capture_output=True, text=True, timeout=15, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {"runtime": "unverified", "project": None,
+                **{volume: "unverified" for volume in VOLUMES}}
     project = None
     if result.returncode == 0:
         try:
@@ -50,8 +54,12 @@ def inspect_host(run=subprocess.run):
         return checks
     for volume in VOLUMES:
         actual_name = project + "_" + volume
-        item = run(["docker", "volume", "inspect", actual_name],
-                   capture_output=True, text=True, timeout=15, check=False)
+        try:
+            item = run(["docker", "volume", "inspect", actual_name],
+                       capture_output=True, text=True, timeout=15, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            checks[volume] = "unverified"
+            continue
         if item.returncode == 0:
             try:
                 rows = json.loads(item.stdout)
