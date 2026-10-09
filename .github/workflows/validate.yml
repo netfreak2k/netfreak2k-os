@@ -102,10 +102,10 @@ jobs:
 
           # Shadow settings: auth, persisted readback, and CSRF-protected write
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shadow-nodes | grep -q '"enabled":false'
-          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":true,"tor_enabled":false,"peers":[{"transport":"tcp","host":"peer.example.org","port":4243}]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":true,"peers":[{"transport":"tcp","host":"peer.example.org","port":4243}]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
           curl -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/shadow-nodes | grep -q 'peer.example.org'
           docker exec netfreak2k-reticulum-lan cat /state/shadow-nodes.json | grep -q 'peer.example.org'
-          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":false,"tor_enabled":false,"peers":[]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
+          curl -fsS -b /tmp/n2k-cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"enabled":false,"peers":[]}' http://127.0.0.1:18080/api/shadow-nodes | grep -q '"saved":true'
 
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/status | grep -q '"product":"Netfreak2k Server-OS"'
           curl --retry 5 --retry-delay 1 --retry-all-errors -fsS -b /tmp/n2k-cookies.txt http://127.0.0.1:18080/api/overview | grep -q '"network":'
