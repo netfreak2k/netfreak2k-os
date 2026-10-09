@@ -317,3 +317,47 @@
 }
 
 @media screen and (max-width:620px){#dashboard-top .mini-metric:has(#overview-uptime)>.mini-icon{display:none!important}}
+
+
+/* N2K phone refinement 2026-10-09: preserve desktop layout and live values. */
+@media screen and (max-width:620px){
+  html,body{max-width:100%;overflow-x:clip}
+  #dashboard-top,.overview-screen,.widget-grid,.mini-metrics{min-width:0;max-width:100%}
+  /* Real telemetry stays visible; the RNS Hub gets a legible full-width card. */
+  #dashboard-top .widget-grid>.n2k-rns-hub-widget{
+    grid-column:1/-1!important;width:100%!important;max-width:100%!important;
+    min-height:0!important;height:auto!important;aspect-ratio:auto!important;
+    padding:15px!important;overflow:visible!important
+  }
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;min-width:0
+  }
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra>*{min-width:0;overflow-wrap:anywhere}
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra small{font-size:11px!important;line-height:1.35!important}
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra strong{font-size:14px!important;line-height:1.3!important}
+  /* Keep metric pairs compact while allowing long CPU/storage readings to wrap. */
+  #dashboard-top .mini-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  #dashboard-top .mini-metrics>.mini-metric{
+    width:100%!important;min-width:0!important;max-width:100%!important;
+    min-height:148px!important;height:auto!important;overflow:hidden!important
+  }
+  #dashboard-top .mini-metric :is(strong,small,.n2k-monitor-title,#n2k-uptime-value){
+    max-width:100%;overflow-wrap:anywhere;word-break:normal
+  }
+  /* Touch friendly buttons, controls and usable safe area above the navigation dock. */
+  .workspace{padding-bottom:calc(94px + env(safe-area-inset-bottom))!important}
+  #dashboard-top .widget-grid>.widget{min-width:0!important}
+  #dashboard-top .widget-grid>.widget :is(button,a){min-height:38px;touch-action:manipulation}
+  :is(#privacy-panel,#photos-panel,#media-center-panel) :is(input,select,textarea){
+    box-sizing:border-box;min-width:0;max-width:100%
+  }
+  #privacy-panel .n2k-hub-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #privacy-panel .n2k-hub-stats>div{min-width:0;overflow-wrap:anywhere}
+  #privacy-panel .n2k-hub-actions{flex-wrap:wrap}
+  #privacy-panel .n2k-hub-actions button{min-height:44px}
+}
+@media screen and (max-width:360px){
+  #dashboard-top .n2k-rns-hub-widget .n2k-rns-extra{grid-template-columns:minmax(0,1fr)!important}
+  #privacy-panel .n2k-hub-stats{grid-template-columns:minmax(0,1fr)!important}
+}
