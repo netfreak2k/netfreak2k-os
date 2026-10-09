@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 
 SERVICE = "netfreak2k-reticulum-lan"
-VOLUMES = ("netfreak2k-reticulum-lan-data", "netfreak2k-messenger-data")
+VOLUMES = ("netfreak2k_netfreak2k-reticulum-lan-data", "netfreak2k_netfreak2k-messenger-data")
 
 
 def inspect_host(run=subprocess.run):
