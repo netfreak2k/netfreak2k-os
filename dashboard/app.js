@@ -7911,6 +7911,30 @@ async function refreshN2KNetworkServices() {
       const hubOff = document.getElementById(hubPrefix + "-off");
       if (hubOn) hubOn.disabled = data.running || (spec.type === "mesh" && !data.installed);
       if (hubOff) hubOff.disabled = !data.running;
+      if (spec.type === "shadow") {
+        const assign = (id, value) => { const node = document.getElementById(id); if (node) node.textContent = value; };
+        let uptime = "–";
+        if (data.running && data.started_at) {
+          const timestamp = Date.parse(data.started_at);
+          if (Number.isFinite(timestamp)) {
+            const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+            uptime = Math.floor(seconds / 86400) + " T " + Math.floor((seconds % 86400) / 3600) + " h";
+          }
+        }
+        assign("n2k-shadow-hub-uptime", uptime);
+        assign("n2k-shadow-hub-port", "TCP " + (data.port || 9001) + " · Erreichbarkeit ungeprüft");
+        assign("n2k-shadow-hub-mode", data.mode === "non-exit" ? "Non-Exit" : "Nicht bestätigt");
+        assign("n2k-shadow-hub-peers", "Nicht verfügbar");
+        assign("n2k-shadow-hub-container", data.state || "Unbekannt");
+        const current = n2kServiceSamples[hubPrefix];
+        const rate = document.getElementById("n2k-shadow-hub-rate");
+        if (rate) {
+          const v = current?.values || [];
+          // Delta between Docker snapshots, sampled roughly every 30 seconds.
+          const bytesPerSecond = v.length > 1 ? v[v.length - 1] / 30 : null;
+          rate.textContent = bytesPerSecond === null ? "Live-Rate: –" : "Traffic ≈ " + (bytesPerSecond / 1024).toFixed(1) + " KiB/s";
+        }
+      }
       n2kUpdateTrafficChart(hubPrefix, data.traffic, data.running);
       if (nodes) nodes.textContent = spec.type === "shadow" ? "Non-Exit · Port " + (data.port || 9001) : "Nodes: " + (data.nodes == null ? "nicht verfügbar" : data.nodes);
       if (meter) meter.style.width = data.running ? "100%" : "0%";
@@ -7948,5 +7972,20 @@ for (const [id, type, enabled] of [
 for (const [id, type, enabled] of [
   ["n2k-hub-mesh-on", "mesh", true], ["n2k-hub-mesh-off", "mesh", false]
 ]) document.getElementById(id)?.addEventListener("click", () => setN2KNetworkService(type, enabled));
+// Clicking the overview service card, except its action buttons, opens Network Hub.
+for (const card of document.querySelectorAll(".n2k-network-service-widget")) {
+  card.setAttribute("role", "link");
+  card.setAttribute("tabindex", "0");
+  card.addEventListener("click", event => {
+    if (event.target.closest("button, a, input")) return;
+    switchView("privacy-panel");
+  });
+  card.addEventListener("keydown", event => {
+    if ((event.key === "Enter" || event.key === " ") && event.target === card) {
+      event.preventDefault();
+      switchView("privacy-panel");
+    }
+  });
+}
 refreshN2KNetworkServices();
 setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000);
