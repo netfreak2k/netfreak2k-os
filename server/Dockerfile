@@ -2,6 +2,7 @@ FROM nginx:1.27-alpine
 
 COPY server/nginx.conf /etc/nginx/conf.d/default.conf
 COPY dashboard/ /usr/share/nginx/html/
+COPY prototypes/reticulum/index.html /usr/share/nginx/html/reticulum-beta/index.html
 
 EXPOSE 80
 
