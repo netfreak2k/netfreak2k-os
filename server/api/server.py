@@ -3350,6 +3350,27 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error":"native_messenger_unavailable"}, 503)
             return
 
+        if path == "/reticulum/status":
+            # Authenticated, read-only feature status. No unauthenticated guest route.
+            session = self.require_auth()
+            if not session:
+                return
+            if session.get("role") == "guest":
+                self.send_json({"error": "forbidden"}, 403)
+                return
+            # Existing LAN transport is not equivalent to a configured user identity,
+            # authenticated LXMF service, or a verified remote network path.
+            self.send_json({
+                "available": False,
+                "connected": None,
+                "state": "integration_pending",
+                "enabled": False,
+                "transport_enabled": False,
+                "interfaces": [],
+                "note": "User-scoped Reticulum integration not yet connected"
+            })
+            return
+
         if path == "/meshlink/service":
             session = self.require_auth()
             if not session:
