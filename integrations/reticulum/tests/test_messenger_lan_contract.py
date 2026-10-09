@@ -18,7 +18,7 @@ class MessengerLanContractTests(unittest.TestCase):
         runtime = (ROOT / "server/reticulum-lan/service.py").read_text()
         self.assertIn("TCPServerInterface", runtime)
         self.assertIn("listen_port = 4243", runtime)
-        self.assertIn("migration required", runtime)
+        self.assertIn("validate_config(existing, TRANSPORT)", runtime)
 
     def test_messenger_host_routing_preserved(self):
         compose = (ROOT / "server/docker-compose.yml").read_text()
