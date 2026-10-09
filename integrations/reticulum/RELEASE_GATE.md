@@ -24,6 +24,10 @@
 - [ ] Persist explicit activation across Compose updates without overwriting RNS identities.
 - [ ] Verify end-to-end tests on a disposable host before showing an Update available badge.
 
+## Read-only beta preflight
+
+Run `python3 integrations/reticulum/beta_preflight.py` on a disposable test host before considering an upgrade. It inspects the exact managed container and two named persistent volumes without changing them. An existing volume requires an independently verified identity and data backup. A reported `review_required` state is **not deployment authorization**: legacy transport, port conflicts, live peer checks, rollback, and manual controller approval still need validation. The preflight never issues Docker start, stop or compose commands.
+
 ## Known limitations
 
 The preview uses the existing Messenger API. Its send action is admin-only, CSRF protected, and returns *queued*, not delivered. Activation requests are stored, and an admin-only read-only multi-user activation plan is available. A separate **host-only, dry-run-first controller** exists in source, but is not installed, scheduled, connected to the UI, or production-tested. Its client start command is opt-in for that invocation; Compose upgrades may revert to disabled until persistence is designed. Existing persisted RNS configurations missing the Messenger LAN port now fail closed instead of being silently rewritten. The new Reticulum website editor is not implemented. No production installation has been changed.
