@@ -26,6 +26,7 @@ services:
     container_name: netfreak2k-messenger
     labels:
       netfreak2k.core: "true"
+      netfreak2k.managed: "true"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
