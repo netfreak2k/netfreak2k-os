@@ -41,6 +41,11 @@ class HostControllerTests(unittest.TestCase):
             conn.execute("INSERT INTO user_preferences VALUES ('a','reticulum_requested_enabled','yes')")
         with self.assertRaises(ValueError):
             read_requests(self.db)
+    def test_host_controller_requires_explicit_confirmation(self):
+        source = (pathlib.Path(__file__).resolve().parents[1] / "host_controller.py").read_text()
+        self.assertIn('args.confirm_service != "netfreak2k-reticulum-lan"', source)
+        self.assertIn('env.pop("COMPOSE_PROJECT_NAME", None)', source)
+        self.assertIn('["--project-name", project]', source)
     def test_commands_are_fixed(self):
         self.assertIn("netfreak2k-reticulum-lan", compose_command("/tmp/compose.yml", "start_client"))
         self.assertEqual(compose_command("/tmp/compose.yml", "stop")[-2:], ["stop", "netfreak2k-reticulum-lan"])
