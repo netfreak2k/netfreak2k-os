@@ -174,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
             candidates.sort(key=lambda p:(not p["path_known"],p["hops"] if isinstance(p["hops"],int) else 999,p["age_seconds"]))
             best=next((p for p in candidates if p["path_known"] and p["age_seconds"]<=86400),None)
             result={"best":best,"known_count":len(candidates),"reachable_route_count":sum(1 for p in candidates if p["path_known"]),
-                    "connected_transport_count":None,"diagnostic":"Keine LXMF-Announcements. Docker-Bridge AutoInterface erreicht das HA-Pi-Netz nicht automatisch." if not candidates and not public_peer()["enabled"] else "Ein bekanntes LXMF-Ziel ist keine bestätigte TCP-Verbindung.", "note":"Known route != active TCP connection"}
+                    "connected_transport_count":None,"diagnostic":"Keine LXMF-Announcements. Der lokale LAN-Transport muss auf Erreichbarkeit geprüft werden." if not candidates and not public_peer()["enabled"] else "Ein bekanntes LXMF-Ziel ist keine bestätigte TCP-Verbindung.", "note":"Known route != active TCP connection"}
         elif self.path == "/gateway":
             result=dict(public_peer(), applied=RUNTIME.get("online",False))
         elif self.path == "/peers":
@@ -189,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
                     entry["path_known"]=False
                     entry["hops"]=None
                 peers.append(entry)
-            result={"peers":peers,"known_count":len(peers),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("Kein externer TCP-Uplink konfiguriert; Docker-Bridge isoliert AutoInterface vom Heimnetz." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
+            result={"peers":peers,"known_count":len(peers),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("N2K LAN-Transport vorkonfiguriert; erreichbare Knoten erst nach Empfang von Announcements sichtbar." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
         elif self.path == "/node":
             result = dict(node_settings(), applied_name=RUNTIME.get("node_name"), applied_transport=RUNTIME.get("transport_enabled"))
         else:
