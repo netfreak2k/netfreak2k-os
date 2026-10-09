@@ -38,7 +38,7 @@ else:
         if fresh_config:
             # Fresh installs may opt in explicitly; never alter persisted settings.
             config.write_text(
-                "[reticulum]\n  enable_transport = No\n  share_instance = No\n\n"
+                "[reticulum]\n  " + ("Yes" if TRANSPORT else "No") + "\n  share_instance = No\n\n"
                 "[interfaces]\n  [[N2K LAN Discovery]]\n"
                 "    type = AutoInterface\n    enabled = Yes\n"
                 "    ignored_devices = docker0, veth, virbr0, tailscale0, br-\n"
@@ -54,8 +54,9 @@ else:
         # refuse activation until it is reviewed by a migration.
         existing = config.read_text(encoding="utf-8")
         import re
-        if re.search(r"(?im)^\s*enable_transport\s*=\s*(yes|true|1)\s*$", existing):
-            raise RuntimeError("Legacy transport configuration needs explicit migration")
+        persisted_transport = bool(re.search(r"(?im)^\s*enable_transport\s*=\s*(yes|true|1)\s*$", existing))
+        if not fresh_config and persisted_transport != TRANSPORT:
+            raise RuntimeError("Persisted transport mode differs from requested mode; migration required")
         # Existing persisted configurations must provide the Messenger LAN endpoint.
         # Do not silently rewrite a user configuration during upgrade.
         if not re.search(r"(?im)^\s*type\s*=\s*TCPServerInterface\s*$", existing) or not re.search(r"(?im)^\s*listen_port\s*=\s*4243\s*$", existing):
