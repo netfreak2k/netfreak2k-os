@@ -15,6 +15,12 @@ class LANContractTests(unittest.TestCase):
         self.assertIn("TCPServerInterface", source)
         self.assertIn("listen_port = 4243", source)
 
+    def test_listener_validation_is_interface_scoped(self):
+        source = (ROOT / "server/reticulum-lan/service.py").read_text()
+        self.assertIn("listener_valid = any(", source)
+        self.assertIn("for section in sections", source)
+        self.assertIn("if not listener_valid:", source)
+
     def test_compose_uses_host_gateway(self):
         source = (ROOT / "server/docker-compose.yml").read_text()
         self.assertIn("N2K_LAN_TRANSPORT_HOST", source)
