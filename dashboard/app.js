@@ -7610,13 +7610,22 @@ async function refreshN2KNetworkServices() {
       const hubTraffic = document.getElementById(hubPrefix + "-traffic");
       const hubState = document.getElementById(hubPrefix + (spec.type === "shadow" ? "-status" : "-state"));
       if (hubTraffic) hubTraffic.textContent = data.traffic || "–";
-      if (hubState) hubState.textContent = data.running ? "● Aktiv" : data.installed ? "○ Aus" : "○ Nicht installiert";
+      if (hubState) hubState.textContent = data.running ? "● Container läuft · LXMF wird geprüft" : data.installed ? "○ Container ausgeschaltet" : "○ Container nicht installiert";
       let meshKnownNodes = data.nodes;
       if (spec.type === "mesh") {
         // Host agent reports container state, but does not know Reticulum routes.
         // Fetch the actual observed LXMF announces via the authenticated messenger API.
         try {
           const peers = await request("/api/messenger/peers");
+          if (hubState) hubState.textContent = !data.running ? "○ Container ausgeschaltet" :
+            peers.online === true ? "● Container läuft · LXMF aktiv" :
+            "◷ Container läuft · LXMF nicht bereit";
+          if (peers.online !== true) {
+            const routes = document.getElementById("n2k-rns-routes");
+            const discovery = document.getElementById("n2k-rns-discovery");
+            if (routes) routes.textContent = "Nicht verfügbar";
+            if (discovery) discovery.textContent = "LXMF offline";
+          }
           if (peers.online && Number.isFinite(Number(peers.known_count))) {
             meshKnownNodes = Math.max(0, Number(peers.known_count));
             const routes = document.getElementById("n2k-rns-routes");
@@ -7626,6 +7635,11 @@ async function refreshN2KNetworkServices() {
           }
         } catch (error) {
           console.debug("MeshLink peer count unavailable:", error);
+          if (hubState && data.running) hubState.textContent = "◷ Container läuft · LXMF-Status unbekannt";
+          const routes = document.getElementById("n2k-rns-routes");
+          const discovery = document.getElementById("n2k-rns-discovery");
+          if (routes) routes.textContent = "Nicht verfügbar";
+          if (discovery) discovery.textContent = "Status nicht abrufbar";
         }
       }
       if (spec.type === "mesh") {
