@@ -12,7 +12,7 @@ class MessengerLanContractTests(unittest.TestCase):
     def test_messenger_uses_legacy_tcp_port(self):
         messenger = (ROOT / "server/messenger/service.py").read_text()
         self.assertIn("TCPClientInterface", messenger)
-        self.assertIn("target_port = 4243", messenger)
+        self.assertIn('target_port = 4243', messenger)
 
     def test_lan_runtime_exposes_legacy_tcp_server(self):
         runtime = (ROOT / "server/reticulum-lan/service.py").read_text()
