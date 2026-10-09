@@ -33,3 +33,25 @@ The UI and API persist per-user **requested** settings. The service has
 environment-controlled opt-in, but there is no authorized reconciler and
 no verified messenger compatibility. Status reflects only the local runtime;
 remote path connectivity and LXMF delivery remain unverified.
+
+## Verified from source inspection (2026-10-09)
+- `server/messenger/service.py` explicitly adds `[[N2K LAN Transport]]`
+  with `TCPClientInterface`, `target_host = host.docker.internal`, and
+  `target_port = 4243` whenever `N2K_LAN_TRANSPORT_HOST` is nonempty.
+- `server/docker-compose.yml` sets that environment variable unconditionally.
+- The previous LAN service configured `TCPServerInterface` on port 4243.
+  The feature-branch replacement currently has **no** matching server.
+  This is a confirmed configuration incompatibility, though no live outage
+  has been measured.
+- The Messenger already has an LXMF identity at `/state/identity`, an
+  `LXMRouter`, `/messages`, `/contacts`, `/peers`, and `/status`.
+  Avoid creating a second independent identity/router until the intended
+  per-user model is designed and existing messages are preserved.
+- Messenger `/node` toggles its own transport mode; it is separate from
+  the new per-user Reticulum preference. Reconcile both controls explicitly.
+
+## Decision
+**Block runtime rollout** until the port-4243 contract and existing
+Messenger behavior are covered by an integration test. Continue building
+the new UI against authenticated API routes without switching live
+containers. No network connectivity was verified by source inspection.
