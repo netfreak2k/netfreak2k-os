@@ -1,0 +1,21 @@
+name: Reticulum foundation checks
+on:
+  push:
+    branches: [feature/reticulum-integration-foundation]
+  pull_request:
+    paths:
+      - 'integrations/reticulum/**'
+      - 'server/api/reticulum_status.py'
+      - '.github/workflows/reticulum-foundation.yml'
+jobs:
+  policy-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile policy modules
+        run: python -m compileall -q integrations/reticulum server/api/reticulum_status.py
+      - name: Run foundation unit tests
+        run: python -m unittest discover -s integrations/reticulum/tests -p 'test_*.py' -v
