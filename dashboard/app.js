@@ -7852,6 +7852,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     meshFrame=window.requestAnimationFrame(meshAnimationTick);
   }
   document.addEventListener("visibilitychange",startMeshAnimation);
+  document.addEventListener("n2k-rns-mesh-visible",startMeshAnimation);
   function drawLivingMesh(peers,now=0) {
     latestMeshPeers=peers;
     if (!meshCanvas) return;
@@ -8052,6 +8053,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     b.addEventListener("click",()=>activate(id));
   });
   const activate=id=>{
+    if(id==="mesh")window.requestAnimationFrame(()=>document.dispatchEvent(new Event("n2k-rns-mesh-visible")));
     for(const [key,page] of elements){
       const active=id===key;
       page.hidden=!active;
