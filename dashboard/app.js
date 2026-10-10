@@ -4128,10 +4128,14 @@ async function refreshNativeMessenger() {
       const button = document.createElement("button");
       button.className = "secondary compact";
       button.textContent = (item.name || "Kontakt") + " · " + (item.destination || "").slice(0,8);
-      button.onclick = () => { document.getElementById("n2k-send-dest").value = item.destination || ""; };
+      button.onclick = () => { document.getElementById("n2k-send-dest").value = item.destination || ""; const filter=document.getElementById("n2k-chat-filter");if(filter&&[...filter.options].some(o=>o.value===item.destination)){filter.value=item.destination;refreshNativeMessenger();} };
       contactBox.appendChild(button);
     });
     if (!contactBox.childNodes.length) contactBox.textContent = "Noch keine Kontakte";
+    const conversationBox=document.getElementById("n2k-chat-conversations");
+    const conversationSearch=document.getElementById("n2k-chat-search");
+    const activeTitle=document.getElementById("n2k-chat-active-title");
+
 
     const chatFilter=document.getElementById("n2k-chat-filter");
     const chatCount=document.getElementById("n2k-chat-count");
@@ -4144,6 +4148,32 @@ async function refreshNativeMessenger() {
       ids.forEach(id=>chatFilter.add(new Option((contactsByDestination.get(id)||id.slice(0,12)+"…"),id)));
       chatFilter.value=ids.includes(selected)?selected:"";
     }
+
+    const knownContacts=Array.isArray(contacts.contacts)?contacts.contacts:[];
+    const destinations=[...new Set([...knownContacts.map(c=>c.destination),...records.map(m=>m.source)].filter(Boolean))];
+    const messageTime=id=>records.filter(m=>m.source===id).reduce((a,m)=>Math.max(a,Number(m.time)||0),0);
+    destinations.sort((a,b)=>messageTime(b)-messageTime(a));
+    if(conversationBox){
+      const selected=chatFilter?.value||"";
+      const term=(conversationSearch?.value||"").toLocaleLowerCase().trim();
+      conversationBox.replaceChildren();
+      for(const dest of destinations){
+        const name=contactsByDestination.get(dest)||dest.slice(0,12)+"…";
+        if(term&&!name.toLocaleLowerCase().includes(term)&&!dest.includes(term))continue;
+        const button=document.createElement("button");button.type="button";
+        button.className="n2k-chat-conversation"+(selected===dest?" is-selected":"");
+        const nameEl=document.createElement("strong");nameEl.textContent=name;
+        const meta=document.createElement("small");meta.textContent=records.filter(m=>m.source===dest).length+" Nachrichten · "+dest.slice(0,10)+"…";
+        button.append(nameEl,meta);
+        button.addEventListener("click",()=>{
+          if(chatFilter){chatFilter.value=dest;refreshNativeMessenger();}
+          document.getElementById("n2k-send-dest").value=dest;
+        });
+        conversationBox.append(button);
+      }
+      if(!conversationBox.childNodes.length)conversationBox.textContent="Noch keine passenden Unterhaltungen";
+    }
+    if(activeTitle)activeTitle.textContent=chatFilter?.value?(contactsByDestination.get(chatFilter.value)||chatFilter.value):"Alle Nachrichten";
     const filtered=chatFilter?.value?records.filter(m=>String(m.source||"")===chatFilter.value):records;
     if(chatCount)chatCount.textContent=filtered.length+" Nachrichten · Zustellung separat prüfen";
     const messageBox = document.getElementById("n2k-native-messages");
@@ -4177,6 +4207,13 @@ async function nativeMessengerSubmit(endpoint, payload) {
 }
 document.getElementById("n2k-native-refresh")?.addEventListener("click", refreshNativeMessenger);
 document.getElementById("n2k-chat-filter")?.addEventListener("change", refreshNativeMessenger);
+document.getElementById("n2k-chat-search")?.addEventListener("input",()=>{
+  // Keep all message data on the server; filter only the visible conversation buttons.
+  const term=document.getElementById("n2k-chat-search").value.toLocaleLowerCase().trim();
+  for(const button of document.querySelectorAll("#n2k-chat-conversations button")){
+    button.hidden=Boolean(term&&!button.textContent.toLocaleLowerCase().includes(term));
+  }
+});
 document.getElementById("n2k-contact-save")?.addEventListener("click", () => nativeMessengerSubmit("contacts", {
   name: document.getElementById("n2k-contact-name").value,
   destination: document.getElementById("n2k-contact-dest").value
