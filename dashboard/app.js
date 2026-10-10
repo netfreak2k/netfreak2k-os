@@ -7907,7 +7907,9 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       if(d.error) throw Error(d.error);
       const peers=Array.isArray(d.peers)?d.peers:[];
       const routed=peers.filter(peer=>peer.path_known===true).length;
-      count.textContent=peers.length+" LXMF-Ziele · "+routed+" bekannte Routen · TCP-Verbindungen nicht ermittelt";
+      count.textContent=peers.length+" gespeicherte LXMF-Ziele · "+routed+" bekannte Routen · TCP-Verbindungen nicht ermittelt";
+      const windows=document.getElementById("n2k-announce-windows");
+      if(windows) windows.textContent="Announcements zuletzt gesehen: 15 Min "+(d.recent_15m??"–")+" · 1 Std "+(d.recent_1h??"–")+" · 24 Std "+(d.recent_24h??"–")+" · nicht gleich online";
       cachedPeers=peers;
       renderPeers();
     }catch(e){count.textContent="Knotenstatus nicht verfügbar";list.textContent="Reticulum-Discovery momentan nicht erreichbar."}
