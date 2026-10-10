@@ -8382,3 +8382,42 @@ window.setInterval(()=>{
   setInterval(refreshInbox, 30000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInbox(); });
 })();
+
+
+/* Gallery preview: last three real local photographs, no external thumbnails. */
+(() => {
+  const holder = document.getElementById("n2k-photo-home-preview");
+  if (!holder) return;
+  let busy = false;
+  async function refreshPreview() {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const response = await fetch("/api/photos/library", {credentials:"same-origin",cache:"no-store"});
+      if (!response.ok) throw Error("Gallery unavailable");
+      const data = await response.json();
+      const photos = (Array.isArray(data.items) ? data.items : [])
+        .filter(item => item && typeof item.name === "string" && /\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(item.name))
+        .sort((a,b) => (Number(b.taken_at)||Number(b.modified_at)||0) - (Number(a.taken_at)||Number(a.modified_at)||0))
+        .slice(0,3);
+      if (!photos.length) { holder.replaceChildren(); holder.textContent = "Noch keine Fotos"; return; }
+      const fragment = document.createDocumentFragment();
+      for (const item of photos) {
+        const image = document.createElement("img");
+        image.src = "/api/workspace/file?" + new URLSearchParams({area:"media",path:item.path||"",name:item.name});
+        image.alt = "";
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.referrerPolicy = "same-origin";
+        fragment.append(image);
+      }
+      holder.replaceChildren(fragment);
+    } catch (_) {
+      holder.replaceChildren();
+      holder.textContent = "Fotos nicht verfügbar";
+    } finally { busy = false; }
+  }
+  refreshPreview();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshPreview(); });
+  setInterval(refreshPreview, 120000);
+})();
