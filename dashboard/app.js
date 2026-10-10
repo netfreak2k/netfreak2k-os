@@ -7820,9 +7820,30 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   const meshCount = document.getElementById("n2k-mesh-visual-count");
   let meshTargets = [];
   let selectedMesh = "";
+  const cinemaToggle=document.getElementById("n2k-cinema-toggle");
+  const cinemaReset=document.getElementById("n2k-cinema-reset");
+  const cinemaState=document.getElementById("n2k-cinema-state");
+  let cinemaEnabled=true;
+  const camera={x:0,y:0,zoom:1};
+  const cameraTarget={x:0,y:0,zoom:1};
+  let focusUntil=0;
+  cinemaToggle?.addEventListener("click",()=>{
+    cinemaEnabled=!cinemaEnabled;
+    cinemaToggle.textContent="Cinema: "+(cinemaEnabled?"Ein":"Aus");
+    cinemaToggle.setAttribute("aria-pressed",String(cinemaEnabled));
+    if(cinemaState)cinemaState.textContent=cinemaEnabled?"Kamerafahrt aktiv · schematische Darstellung":"Kamera angehalten";
+    if(!cinemaEnabled){cameraTarget.x=0;cameraTarget.y=0;cameraTarget.zoom=1;}
+    startMeshAnimation();
+  });
+  cinemaReset?.addEventListener("click",()=>{
+    selectedMesh="";focusUntil=0;cameraTarget.x=0;cameraTarget.y=0;cameraTarget.zoom=1;
+    if(inspector)inspector.textContent="Gesamtansicht · schematische Positionen";
+    drawLivingMesh(cachedPeers);
+  });
   const inspector = document.getElementById("n2k-mesh-inspector");
   function selectMeshPeer(peer) {
     selectedMesh=String(peer.destination||"");
+    focusUntil=performance.now()+11000;
     if (inspector) inspector.textContent=(peer.name||"Unbenannter Knoten")+" · "+(Number.isInteger(peer.hops)?peer.hops+" Hops":"Hops unbekannt")+" · "+(peer.path_known?"Route bekannt":"Route unbekannt")+" · "+selectedMesh+" · Kein direkter Verbindungsnachweis";
     drawLivingMesh(cachedPeers);
   }
@@ -7865,17 +7886,40 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     const w=meshCanvas.width, ht=meshCanvas.height;
     ctx.clearRect(0,0,w,ht);
     const center={x:w/2,y:ht/2};
+    const motion=animatedTime=>animatedTime>0 && cinemaEnabled && !calmMotion.matches;
+    const moving=motion(now);
+    if(moving){
+      const t=now/1000;
+      if(now>focusUntil){
+        cameraTarget.x=Math.sin(t*.115)*29;
+        cameraTarget.y=Math.cos(t*.092)*12;
+        cameraTarget.zoom=1.05+Math.sin(t*.14)*.08;
+      }
+    }else if(!cinemaEnabled||calmMotion.matches){cameraTarget.x=0;cameraTarget.y=0;cameraTarget.zoom=1;}
+    const ease=moving?.055:1;
+    camera.x+=(cameraTarget.x-camera.x)*ease;
+    camera.y+=(cameraTarget.y-camera.y)*ease;
+    camera.zoom+=(cameraTarget.zoom-camera.zoom)*ease;
+    const project=(x,y)=>({x:center.x+(x-center.x)*camera.zoom+camera.x,y:center.y+(y-center.y)*camera.zoom+camera.y});
     const ranks=peers.filter(p=>p.path_known===true && Number.isInteger(p.hops)).sort((a,b)=>(b.last_seen||0)-(a.last_seen||0)).slice(0,90);
     const wallNow=Date.now()/1000;
     const animated=now>0;
+    if(selectedMesh && now && now<focusUntil){
+      const focused=ranks.findIndex(p=>p.destination===selectedMesh);
+      if(focused>=0){const fp=ranks[focused];const hops=Math.max(1,Math.min(7,fp.hops));const a=focused*2.399963229728653;const radius=24+hops*19;
+        cameraTarget.zoom=1.40;
+        cameraTarget.x=-Math.cos(a)*radius*1.8*.38;
+        cameraTarget.y=-Math.sin(a)*radius*.87*.38;
+      }
+    }
     for(let hop=1;hop<=7;hop++){
-      const r=24+hop*19;
-      ctx.beginPath();ctx.arc(center.x,center.y,r,0,Math.PI*2);
+      const r=(24+hop*19)*camera.zoom;
+      ctx.beginPath();ctx.ellipse(center.x+camera.x,center.y+camera.y,r,r*.9,0,0,Math.PI*2);
       ctx.strokeStyle="rgba(154,189,230,.16)";ctx.lineWidth=1;ctx.stroke();
     }
     if(animated){
       const sweep=(now/8500)%(Math.PI*2);
-      ctx.save();ctx.translate(center.x,center.y);
+      ctx.save();ctx.translate(center.x+camera.x,center.y+camera.y);
       ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,184,sweep-.35,sweep);ctx.closePath();
       ctx.fillStyle="rgba(91,184,209,.045)";ctx.fill();ctx.restore();
     }
@@ -7885,15 +7929,18 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const hops=Math.max(1,Math.min(7,p.hops));
       const a=i*2.399963229728653;
       const radius=24+hops*19;
-      const x=center.x+Math.cos(a)*radius*1.8;
-      const y=center.y+Math.sin(a)*radius*.87;
+      const baseX=center.x+Math.cos(a)*radius*1.8;
+      const baseY=center.y+Math.sin(a)*radius*.87;
+      const projected=project(baseX,baseY);
+      const x=projected.x,y=projected.y;
+      const origin=project(center.x,center.y);
       const age=Math.max(0,wallNow-Number(p.last_seen||0));
       const freshness=age<=900?1:age<=3600?.65:age<=86400?.35:.16;
-      ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(x,y);
+      ctx.beginPath();ctx.moveTo(origin.x,origin.y);ctx.lineTo(x,y);
       ctx.strokeStyle="rgba(215,182,112,"+(.09+freshness*.17).toFixed(3)+")";ctx.stroke();
       if(animated && freshness>=.65 && i%3===0){
         const t=(now/5200+i*.137)%1;
-        ctx.beginPath();ctx.arc(center.x+(x-center.x)*t,center.y+(y-center.y)*t,1.6,0,Math.PI*2);
+        ctx.beginPath();ctx.arc(origin.x+(x-origin.x)*t,origin.y+(y-origin.y)*t,1.6,0,Math.PI*2);
         ctx.fillStyle="rgba(246,211,139,.60)";ctx.fill();
       }
       meshTargets.push({peer:p,x,y});
@@ -7906,7 +7953,8 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       ctx.globalAlpha=.30+.70*freshness;
       ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();ctx.globalAlpha=1;
     });
-    ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
+    const hub=project(center.x,center.y);
+    ctx.beginPath();ctx.arc(hub.x,hub.y,8*camera.zoom,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
     if(meshCount)meshCount.textContent=ranks.length+" Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
     if(!now)startMeshAnimation();
   }
