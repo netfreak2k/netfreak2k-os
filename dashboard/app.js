@@ -7865,38 +7865,49 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     const w=meshCanvas.width, ht=meshCanvas.height;
     ctx.clearRect(0,0,w,ht);
     const center={x:w/2,y:ht/2};
-    const ranks=peers.filter(p=>p.path_known===true && Number.isInteger(p.hops)).slice(0,90);
+    const ranks=peers.filter(p=>p.path_known===true && Number.isInteger(p.hops)).sort((a,b)=>(b.last_seen||0)-(a.last_seen||0)).slice(0,90);
+    const wallNow=Date.now()/1000;
+    const animated=now>0;
     for(let hop=1;hop<=7;hop++){
       const r=24+hop*19;
       ctx.beginPath();ctx.arc(center.x,center.y,r,0,Math.PI*2);
       ctx.strokeStyle="rgba(154,189,230,.16)";ctx.lineWidth=1;ctx.stroke();
     }
+    if(animated){
+      const sweep=(now/8500)%(Math.PI*2);
+      ctx.save();ctx.translate(center.x,center.y);
+      ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,184,sweep-.35,sweep);ctx.closePath();
+      ctx.fillStyle="rgba(91,184,209,.045)";ctx.fill();ctx.restore();
+    }
     meshTargets=[];
-    const pulse=now?Math.sin(now/1000*1.6):0;
+    const pulse=animated?Math.sin(now/1000*1.6):0;
     ranks.forEach((p,i)=>{
       const hops=Math.max(1,Math.min(7,p.hops));
       const a=i*2.399963229728653;
       const radius=24+hops*19;
       const x=center.x+Math.cos(a)*radius*1.8;
       const y=center.y+Math.sin(a)*radius*.87;
+      const age=Math.max(0,wallNow-Number(p.last_seen||0));
+      const freshness=age<=900?1:age<=3600?.65:age<=86400?.35:.16;
       ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(x,y);
-      ctx.strokeStyle="rgba(215,182,112,.18)";ctx.stroke();
-      if(now){
+      ctx.strokeStyle="rgba(215,182,112,"+(.09+freshness*.17).toFixed(3)+")";ctx.stroke();
+      if(animated && freshness>=.65 && i%3===0){
         const t=(now/5200+i*.137)%1;
         ctx.beginPath();ctx.arc(center.x+(x-center.x)*t,center.y+(y-center.y)*t,1.6,0,Math.PI*2);
         ctx.fillStyle="rgba(246,211,139,.60)";ctx.fill();
       }
       meshTargets.push({peer:p,x,y});
-      if(now){
-        const phase=(now/1700+i*.17)%1;
+      if(animated && freshness>=.35){
+        const phase=(now/(1900+((i%5)*290))+i*.17)%1;
         ctx.beginPath();ctx.arc(x,y,5+phase*13,0,Math.PI*2);
         ctx.strokeStyle="rgba(123,218,226,"+(0.55*(1-phase)).toFixed(3)+")";ctx.lineWidth=1.7;ctx.stroke();
       }
       ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6+(pulse+1)*1.15,0,Math.PI*2);
-      ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();
+      ctx.globalAlpha=.30+.70*freshness;
+      ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();ctx.globalAlpha=1;
     });
     ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
-    if(meshCount)meshCount.textContent=ranks.length+" Routen visualisiert";
+    if(meshCount)meshCount.textContent=ranks.length+" Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
     if(!now)startMeshAnimation();
   }
 
