@@ -7649,7 +7649,11 @@ async function refreshN2KNetworkServices() {
             const routes = document.getElementById("n2k-rns-routes");
             const discovery = document.getElementById("n2k-rns-discovery");
             if (routes) routes.textContent = peers.reachable_route_count != null && Number.isFinite(Number(peers.reachable_route_count)) ? String(peers.reachable_route_count) : "Nicht gemessen";
-            if (discovery) discovery.textContent = peers.online ? "Aktiv · " + meshKnownNodes + " erkannt" : "Nicht verfügbar";
+            if (discovery) discovery.textContent = peers.online ? "Gespeichert · " + meshKnownNodes : "Nicht verfügbar";
+            const windowValue=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=Number.isFinite(Number(value))&&value!=null?String(value):"–";};
+            windowValue("n2k-rns-15m",peers.recent_15m);
+            windowValue("n2k-rns-1h",peers.recent_1h);
+            windowValue("n2k-rns-24h",peers.recent_24h);
           }
         } catch (error) {
           console.debug("MeshLink peer count unavailable:", error);
@@ -7844,7 +7848,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   function meshAnimationTick(now){
     meshFrame=0;
     if(!meshVisible()||calmMotion.matches)return;
-    drawLivingMesh(latestMeshPeers,now);
+    if(!meshAnimationTick.last || now-meshAnimationTick.last>45){drawLivingMesh(latestMeshPeers,now);meshAnimationTick.last=now;}
     meshFrame=window.requestAnimationFrame(meshAnimationTick);
   }
   function startMeshAnimation(){
@@ -7883,7 +7887,12 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
         ctx.fillStyle="rgba(246,211,139,.60)";ctx.fill();
       }
       meshTargets.push({peer:p,x,y});
-      ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6+(pulse+1)*.45,0,Math.PI*2);
+      if(now){
+        const phase=(now/1700+i*.17)%1;
+        ctx.beginPath();ctx.arc(x,y,5+phase*13,0,Math.PI*2);
+        ctx.strokeStyle="rgba(123,218,226,"+(0.55*(1-phase)).toFixed(3)+")";ctx.lineWidth=1.7;ctx.stroke();
+      }
+      ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6+(pulse+1)*1.15,0,Math.PI*2);
       ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();
     });
     ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
