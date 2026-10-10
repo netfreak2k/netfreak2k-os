@@ -1,0 +1,35 @@
+/* N2K Reticulum Cinematic — additive visual theme, no backend/API changes.
+   Preview branch. Uses existing view targets; diagram is decorative, not telemetry. */
+:root{--n2k-orange:#ff751e;--n2k-cyan:#22d9eb;--n2k-ink:#030c13;--n2k-edge:rgba(62,154,178,.35)}
+body{background:#030a11!important;color:#e8f7fb}
+body::after{background:linear-gradient(180deg,rgba(1,9,15,.60),rgba(1,9,15,.86))!important}
+.app-shell .sidebar{background:linear-gradient(180deg,#020a10,#06131d)!important;border-right:1px solid var(--n2k-edge)!important}
+.sidebar .brand-mark{background:linear-gradient(145deg,#ff8126,#e94c08)!important;box-shadow:0 0 28px #ff641744!important}
+.side-nav .nav-item.active{background:linear-gradient(90deg,#fb641e,#5d2414)!important;box-shadow:inset 3px 0 #ffb16a,0 0 22px #ff57172f!important}
+.side-nav .nav-item:hover{background:#1a3440!important}
+.topbar{background:rgba(3,12,19,.93)!important;border-bottom:1px solid var(--n2k-edge)!important}
+.topbar h1{color:#f6fbff}
+#dashboard-top .overview-inline-status{border-left:3px solid var(--n2k-orange);padding-left:13px}
+#dashboard-top .overview-inline-status .eyebrow{color:var(--n2k-orange)!important}
+#dashboard-top .mini-metric.n2k-monitor-card,#dashboard-top .widget-grid>.widget,.panel{background:linear-gradient(145deg,rgba(7,25,36,.97),rgba(3,15,23,.97))!important;border:1px solid var(--n2k-edge)!important;box-shadow:inset 0 1px rgba(119,222,245,.07),0 9px 26px rgba(0,0,0,.19)}
+#dashboard-top .n2k-monitor-card[data-metric="cpu"],#dashboard-top .n2k-monitor-card[data-metric="storage"]{--n2k-accent:var(--n2k-cyan)}
+#dashboard-top .n2k-monitor-card[data-metric="ram"],#dashboard-top .n2k-monitor-card[data-metric="uptime"]{--n2k-accent:var(--n2k-orange)}
+.n2k-cine-hero{position:relative;display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,.75fr);gap:0;min-height:320px;margin:14px 0 17px;border:1px solid #205365;border-radius:15px;overflow:hidden;background:radial-gradient(ellipse at 48% 55%,#0c3542 0%,#041621 45%,#020c13 78%);box-shadow:0 16px 38px #0006}
+.n2k-cine-map{position:relative;min-height:320px;overflow:hidden;background-image:linear-gradient(#2e7c8b16 1px,transparent 1px),linear-gradient(90deg,#2e7c8b16 1px,transparent 1px);background-size:32px 32px}
+.n2k-cine-map::before{content:"";position:absolute;inset:4%;border-radius:50%;background:radial-gradient(ellipse,#063a4659,transparent 69%);filter:blur(6px)}
+.n2k-cine-map svg{position:absolute;inset:48px 0 0;width:100%;height:calc(100% - 48px);opacity:.95}
+.n2k-cine-map .n2k-cine-title{position:absolute;top:18px;left:22px;z-index:1;font-size:20px;font-weight:850;letter-spacing:.05em;color:white}
+.n2k-cine-map .n2k-cine-title small{display:block;font-size:11px;font-weight:500;color:#8fd4df;letter-spacing:.06em;margin-top:4px}
+.n2k-cine-side{padding:22px;border-left:1px solid var(--n2k-edge);background:linear-gradient(155deg,#061b27f7,#030f19f9);display:flex;flex-direction:column;gap:12px}
+.n2k-cine-kicker{color:var(--n2k-orange);letter-spacing:.16em;font-size:10px;font-weight:900}
+.n2k-cine-side h2{font-size:23px;line-height:1.12;margin:0;color:#fff}
+.n2k-cine-side p{color:#b3ccd4;line-height:1.5;font-size:12px;margin:0}
+.n2k-cine-items{display:grid;gap:8px;margin:8px 0}
+.n2k-cine-items span{font-size:12px;color:#d1e8eb;padding:8px 10px;border:1px solid #225266;border-radius:7px;background:#092330}
+.n2k-cine-items b{color:#40d3df}
+.n2k-cine-btn{cursor:pointer;text-align:center;border:1px solid #ff9044;border-radius:8px;padding:12px;background:linear-gradient(120deg,#f46b19,#c44909);color:#fff;font-weight:800;font-size:12px;margin-top:auto}
+.n2k-cine-btn:hover{filter:brightness(1.14)}
+.n2k-cine-note{font-size:10px;color:#7dabb5}
+@media(max-width:900px){.n2k-cine-hero{grid-template-columns:1fr}.n2k-cine-map{min-height:260px}.n2k-cine-side{border-left:0;border-top:1px solid var(--n2k-edge)}}
+@media(max-width:620px){.n2k-cine-hero{margin:10px 0 13px;border-radius:12px}.n2k-cine-map{min-height:235px}.n2k-cine-map svg{inset:42px 0 0;height:calc(100% - 42px)}.n2k-cine-map .n2k-cine-title{top:13px;left:13px;font-size:17px}.n2k-cine-side{padding:13px;gap:8px}.n2k-cine-side h2{font-size:19px}.n2k-cine-items{grid-template-columns:1fr 1fr}.n2k-cine-items span{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.n2k-cine-hero *{animation:none!important;transition:none!important}}
