@@ -8364,7 +8364,7 @@ window.setInterval(()=>{
       if (data.error) throw Error(data.error);
       if (!Array.isArray(data.messages)) throw Error("Invalid messages response");
       const incoming = data.messages.filter(m => m.direction === "in");
-      count.textContent = String(incoming.length);
+      count.textContent = incoming.length + " Eingänge";
       const latest = incoming.reduce((a,b) => !a || Number(b.time||0) > Number(a.time||0) ? b : a, null);
       sender.textContent = latest ? "Von " + String(latest.source || "Unbekannt").slice(0,12) + "…" : "Noch keine Eingänge";
       preview.textContent = latest ? String(latest.content || "(ohne Text)").slice(0,100) : "Keine empfangenen Nachrichten";
