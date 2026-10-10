@@ -7791,6 +7791,39 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   const refresh = document.getElementById("n2k-peers-refresh");
   const count = document.getElementById("n2k-peers-count");
   const list = document.getElementById("n2k-peers-list");
+  const search = document.getElementById("n2k-peer-filter");
+  const routeFilter = document.getElementById("n2k-peer-route-filter");
+  const visibleCount = document.getElementById("n2k-peer-visible-count");
+  let cachedPeers = [];
+  function renderPeers() {
+    if (!list) return;
+    const term = (search?.value || "").trim().toLocaleLowerCase();
+    const route = routeFilter?.value || "all";
+    const matching = cachedPeers.filter(peer => {
+      const matchesText = !term || String(peer.name || "").toLocaleLowerCase().includes(term) || String(peer.destination || "").toLowerCase().includes(term);
+      return matchesText && (route === "all" || (route === "known" ? peer.path_known === true : peer.path_known !== true));
+    }).sort((a,b)=>(b.last_seen||0)-(a.last_seen||0));
+    if (visibleCount) visibleCount.textContent = matching.length + " von " + cachedPeers.length + " Knoten angezeigt" + (matching.length > 50 ? " · erste 50 sichtbar" : "");
+    list.replaceChildren();
+    if (!matching.length) { list.textContent = cachedPeers.length ? "Keine Knoten für diesen Filter gefunden." : "Noch keine Knoten entdeckt."; return; }
+    for (const peer of matching.slice(0,50)) {
+      const row=document.createElement("div"); row.className="n2k-peer-item";
+      const info=document.createElement("div"); info.className="n2k-peer-info";
+      const name=document.createElement("strong"); name.textContent=peer.name||"Unbenannter Knoten";
+      const details=document.createElement("small");
+      details.textContent=String(peer.destination||"").slice(0,16)+"… · "+(peer.path_known?"Route bekannt":"Route unbekannt")+(Number.isInteger(peer.hops)?" · "+peer.hops+" Hops":"");
+      info.append(name,details); row.append(info);
+      const action=document.createElement("button"); action.type="button"; action.className="secondary compact"; action.textContent="Pfad anfragen";
+      action.addEventListener("click",async ()=>{
+        action.disabled=true;
+        try { await request("/api/messenger/peers/request",{method:"POST",headers:{"X-CSRF-Token":csrfToken},body:JSON.stringify({destination:peer.destination})}); action.textContent="Angefragt"; await loadPeers(); }
+        catch(e) { action.textContent="Nicht möglich"; action.disabled=false; }
+      });
+      row.append(action); list.append(row);
+    }
+  }
+  search?.addEventListener("input",renderPeers);
+  routeFilter?.addEventListener("change",renderPeers);
   async function loadPeers() {
     if(!list || !count) return;
     try {
@@ -7799,30 +7832,8 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const peers=Array.isArray(d.peers)?d.peers:[];
       const routed=peers.filter(peer=>peer.path_known===true).length;
       count.textContent=peers.length+" LXMF-Ziele · "+routed+" bekannte Routen · TCP-Verbindungen nicht ermittelt";
-      list.replaceChildren();
-      if(!peers.length) {
-        list.textContent=d.diagnostic || "Keine LXMF-Knoten entdeckt. Prüfe TCP-Uplink und Reticulum-Interfaces.";;
-        return;
-      }
-      for(const peer of peers.slice().sort((a,b)=>(b.last_seen||0)-(a.last_seen||0)).slice(0,50)) {
-        const row=document.createElement("div");row.className="n2k-peer-item";
-        const info=document.createElement("div");info.className="n2k-peer-info";
-        const name=document.createElement("strong");name.textContent=peer.name||"Unbenannter Knoten";
-        const details=document.createElement("small");
-        details.textContent=String(peer.destination||"").slice(0,16)+"… · "+(peer.path_known?"Route bekannt":"Route unbekannt")+(Number.isInteger(peer.hops)?" · "+peer.hops+" Hops":"");
-        info.append(name,details);row.append(info);
-        const action=document.createElement("button");action.type="button";action.className="secondary compact";action.textContent="Pfad anfragen";
-        action.addEventListener("click",async ()=>{
-          action.disabled=true;
-          try {
-            await request("/api/messenger/peers/request",{method:"POST",headers:{"X-CSRF-Token":csrfToken},
-              body:JSON.stringify({destination:peer.destination})});
-            action.textContent="Angefragt";
-            await loadPeers();
-          }catch(e){action.textContent="Nicht möglich";action.disabled=false}
-        });
-        row.append(action);list.append(row);
-      }
+      cachedPeers=peers;
+      renderPeers();
     }catch(e){count.textContent="Knotenstatus nicht verfügbar";list.textContent="Reticulum-Discovery momentan nicht erreichbar."}
   }
   refresh?.addEventListener("click",loadPeers);
