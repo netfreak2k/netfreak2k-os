@@ -1947,6 +1947,15 @@ async function loadOverview() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   try {
     const data = await request("/api/overview", {headers: {}});
+    // HA status must not depend on unrelated monitoring widgets rendering successfully.
+    const ha = data.homeassistant || {};
+    const haOnline = ha.available === true && ha.state === "running" && ha.reachable === true;
+    const haLabel = document.getElementById("overview-ha");
+    const haDetail = document.getElementById("overview-ha-detail");
+    const haIndicator = document.getElementById("overview-ha-dot");
+    if (haLabel) haLabel.textContent = haOnline ? "HAOS online" : !ha.available ? "HAOS nicht erkannt" : ha.state === "running" ? "HAOS nicht erreichbar" : "HAOS gestoppt";
+    if (haDetail) haDetail.textContent = haOnline ? "VM läuft · Oberfläche erreichbar" : !ha.available ? "Keine HAOS-Instanz gemeldet" : ha.state === "running" ? "VM läuft · Verbindung prüfen" : "VM: " + String(ha.state || "unbekannt");
+    if (haIndicator) { haIndicator.classList.toggle("ok", haOnline); haIndicator.classList.toggle("warn", !haOnline); }
     const memory = data.memory || {};
     const storage = data.storage || {};
     const network = data.network || {};
@@ -2010,21 +2019,6 @@ async function loadOverview() {
 
     renderOverviewList("overview-calendar", data.upcoming || [], eventItemNode, "Keine kommenden Termine.");
     renderOverviewList("overview-recent", data.recent || [], recentItemNode, "Noch keine Dateien.");
-
-    const haOk = data.homeassistant?.available &&
-      data.homeassistant?.state === "running" &&
-      data.homeassistant?.reachable;
-    document.getElementById("overview-ha").textContent =
-      haOk ? "HAOS online" :
-      !data.homeassistant?.available ? "HAOS nicht erkannt" :
-      data.homeassistant?.state === "running" ? "HAOS nicht erreichbar" : "HAOS gestoppt";
-    document.getElementById("overview-ha-detail").textContent =
-      haOk ? "VM aktiv · Weboberfläche erreichbar" :
-      !data.homeassistant?.available ? "Keine HAOS-Instanz gemeldet" :
-      data.homeassistant?.state === "running" ? "VM läuft · Verbindung prüfen" :
-      "VM-Status: " + String(data.homeassistant?.state || "unbekannt");
-    document.getElementById("overview-ha-dot").classList.toggle("ok", haOk);
-    document.getElementById("overview-ha-dot").classList.toggle("warn", !haOk);
 
     const apps = data.apps || {};
     document.getElementById("overview-apps").textContent =
@@ -2097,9 +2091,9 @@ async function loadOverview() {
     const haTitle = document.getElementById("overview-ha");
     const haDetail = document.getElementById("overview-ha-detail");
     const haDot = document.getElementById("overview-ha-dot");
-    if (haTitle) haTitle.textContent = "Status nicht abrufbar";
-    if (haDetail) haDetail.textContent = "Übersichts-API prüfen";
-    if (haDot) { haDot.classList.remove("ok"); haDot.classList.add("warn"); }
+    if (haTitle && haTitle.textContent === "Prüfe HAOS …") haTitle.textContent = "Status nicht abrufbar";
+    if (haDetail && haTitle?.textContent === "Status nicht abrufbar") haDetail.textContent = "Übersichts-API prüfen";
+    if (haDot && haTitle?.textContent === "Status nicht abrufbar") { haDot.classList.remove("ok"); haDot.classList.add("warn"); }
   }
 }
 
