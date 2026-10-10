@@ -4132,13 +4132,28 @@ async function refreshNativeMessenger() {
       contactBox.appendChild(button);
     });
     if (!contactBox.childNodes.length) contactBox.textContent = "Noch keine Kontakte";
+
+    const chatFilter=document.getElementById("n2k-chat-filter");
+    const chatCount=document.getElementById("n2k-chat-count");
+    const records=Array.isArray(inbox.messages)?inbox.messages:[];
+    const contactsByDestination=new Map((contacts.contacts||[]).map(c=>[c.destination,c.name||c.destination]));
+    if(chatFilter){
+      const selected=chatFilter.value;
+      const ids=[...new Set(records.map(m=>String(m.source||"")).filter(Boolean))];
+      chatFilter.replaceChildren(new Option("Alle Unterhaltungen",""));
+      ids.forEach(id=>chatFilter.add(new Option((contactsByDestination.get(id)||id.slice(0,12)+"…"),id)));
+      chatFilter.value=ids.includes(selected)?selected:"";
+    }
+    const filtered=chatFilter?.value?records.filter(m=>String(m.source||"")===chatFilter.value):records;
+    if(chatCount)chatCount.textContent=filtered.length+" Nachrichten · Zustellung separat prüfen";
     const messageBox = document.getElementById("n2k-native-messages");
     messageBox.replaceChildren();
-    (inbox.messages || []).slice(-30).reverse().forEach(item => {
+    filtered.slice(-80).reverse().forEach(item => {
       const row = document.createElement("div");
       row.style.cssText = "padding:8px;border-bottom:1px solid #7774;overflow-wrap:anywhere";
       const title = document.createElement("strong");
-      title.textContent = item.direction === "in" ? "Empfangen" : "Gesendet / eingereiht";
+      title.textContent = (item.direction === "in" ? "Empfangen" : "Gesendet") + " · " + (contactsByDestination.get(item.source) || String(item.source||"").slice(0,12)) + " · " + (item.status === "queued" ? "eingereiht" : (item.status || "Status unbekannt"));
+      row.className="n2k-chat-message";
       const body = document.createElement("div");
       body.textContent = String(item.content || "");
       row.append(title, body);
@@ -4159,6 +4174,7 @@ async function nativeMessengerSubmit(endpoint, payload) {
   }
 }
 document.getElementById("n2k-native-refresh")?.addEventListener("click", refreshNativeMessenger);
+document.getElementById("n2k-chat-filter")?.addEventListener("change", refreshNativeMessenger);
 document.getElementById("n2k-contact-save")?.addEventListener("click", () => nativeMessengerSubmit("contacts", {
   name: document.getElementById("n2k-contact-name").value,
   destination: document.getElementById("n2k-contact-dest").value
@@ -7794,6 +7810,36 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   const search = document.getElementById("n2k-peer-filter");
   const routeFilter = document.getElementById("n2k-peer-route-filter");
   const visibleCount = document.getElementById("n2k-peer-visible-count");
+  const meshCanvas = document.getElementById("n2k-living-mesh-canvas");
+  const meshCount = document.getElementById("n2k-mesh-visual-count");
+  function drawLivingMesh(peers) {
+    if (!meshCanvas) return;
+    const ctx=meshCanvas.getContext("2d");
+    if (!ctx) return;
+    const w=meshCanvas.width, ht=meshCanvas.height;
+    ctx.clearRect(0,0,w,ht);
+    const center={x:w/2,y:ht/2};
+    const ranks=peers.filter(p=>p.path_known===true && Number.isInteger(p.hops)).slice(0,90);
+    for(let hop=1;hop<=7;hop++){
+      const r=24+hop*19;
+      ctx.beginPath();ctx.arc(center.x,center.y,r,0,Math.PI*2);
+      ctx.strokeStyle="rgba(154,189,230,.16)";ctx.lineWidth=1;ctx.stroke();
+    }
+    ranks.forEach((p,i)=>{
+      const hops=Math.max(1,Math.min(7,p.hops));
+      const a=i*2.399963229728653;
+      const radius=24+hops*19;
+      const x=center.x+Math.cos(a)*radius*1.8;
+      const y=center.y+Math.sin(a)*radius*.87;
+      ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(x,y);
+      ctx.strokeStyle="rgba(215,182,112,.18)";ctx.stroke();
+      ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);
+      ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();
+    });
+    ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
+    if(meshCount)meshCount.textContent=ranks.length+" Routen visualisiert";
+  }
+
   let cachedPeers = [];
   function renderPeers() {
     if (!list) return;
@@ -7803,6 +7849,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const matchesText = !term || String(peer.name || "").toLocaleLowerCase().includes(term) || String(peer.destination || "").toLowerCase().includes(term);
       return matchesText && (route === "all" || (route === "known" ? peer.path_known === true : peer.path_known !== true));
     }).sort((a,b)=>(b.last_seen||0)-(a.last_seen||0));
+    drawLivingMesh(cachedPeers);
     if (visibleCount) visibleCount.textContent = matching.length + " von " + cachedPeers.length + " Knoten angezeigt" + (matching.length > 50 ? " · erste 50 sichtbar" : "");
     list.replaceChildren();
     if (!matching.length) { list.textContent = cachedPeers.length ? "Keine Knoten für diesen Filter gefunden." : "Noch keine Knoten entdeckt."; return; }
