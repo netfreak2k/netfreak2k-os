@@ -4135,6 +4135,8 @@ async function refreshNativeMessenger() {
     }
 
     document.getElementById("n2k-native-id").value = state.identity || "";
+    const qrImage=document.getElementById("n2k-lxmf-qr-image");
+    if(qrImage && typeof state.qr_image==="string" && state.qr_image.startsWith("data:image/png;base64,")) qrImage.src=state.qr_image;
     const qr=document.getElementById("n2k-lxmf-qr");
     if(qr&&!qr.hidden)drawNativeLxmfQr();
     const contactBox = document.getElementById("n2k-native-contacts");
@@ -4197,7 +4199,7 @@ async function refreshNativeMessenger() {
       const row = document.createElement("div");
       row.style.cssText = "padding:8px;border-bottom:1px solid #7774;overflow-wrap:anywhere";
       const title = document.createElement("strong");
-      title.textContent = (item.direction === "in" ? "Empfangen" : "Gesendet") + " · " + (contactsByDestination.get(item.source) || String(item.source||"").slice(0,12)) + " · " + (item.status === "queued" ? "eingereiht" : (item.status || "Status unbekannt"));
+      title.textContent = (item.direction === "in" ? "Empfangen" : "Gesendet") + " · " + (contactsByDestination.get(item.source) || String(item.source||"").slice(0,12)) + " · " + ({queued:"eingereiht",delivered:"zugestellt",failed:"fehlgeschlagen"}[item.status] || (item.status || "Status unbekannt"));
       row.className="n2k-chat-message";
       const body = document.createElement("div");
       body.textContent = String(item.content || "");
@@ -8241,9 +8243,12 @@ function drawNativeLxmfQr(){
   const hash=nativeLxmfHash(document.getElementById("n2k-native-id")?.value);
   const canvas=document.getElementById("n2k-lxmf-qr-canvas");
   if(!canvas||!hash)return;
-  // Do not misrepresent a decorative visual as a scannable QR code.
-  if(note)note.textContent="Adresse kopieren und über einen vertrauenswürdigen Kanal teilen. Scannbarer QR-Code folgt.";
+  const img=document.getElementById("n2k-lxmf-qr-image");
   canvas.hidden=true;
+  if(img?.src?.startsWith("data:image/png;base64,")){
+    img.hidden=false;
+    if(note)note.textContent="Offline erzeugter, scannbarer LXMF-QR-Code.";
+  }else if(note)note.textContent="QR-Bild wird geladen. Adresse kann kopiert werden.";
 }
 document.getElementById("n2k-lxmf-qr-toggle")?.addEventListener("click",()=>{
   const panel=document.getElementById("n2k-lxmf-qr");if(!panel)return;
