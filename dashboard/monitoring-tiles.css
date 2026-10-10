@@ -592,3 +592,21 @@
  #dashboard-top .widget-grid > .ha-widget #overview-ha{font-size:15px!important}
  #dashboard-top .widget-grid > .ha-widget #overview-ha-detail{font-size:12px!important}
 }
+
+/* Uptime: actual live LAN traffic retained by monitoring-tiles.js. */
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:6px;width:100%;margin-top:5px;padding-top:7px;
+ border-top:1px solid rgba(180,202,223,.22);
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic>span{
+ display:flex;flex-direction:column;gap:2px;min-width:0;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic small{
+ color:#b4cde1;font-size:10px!important;line-height:1.2;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic #network-down,
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic #network-up{
+ color:#e9f6ff;font-size:12px!important;line-height:1.3;
+ font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums;
+}
