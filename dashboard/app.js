@@ -8409,6 +8409,10 @@ window.setInterval(()=>{
         image.loading = "lazy";
         image.decoding = "async";
         image.referrerPolicy = "same-origin";
+        image.addEventListener("error", () => {
+          image.remove();
+          if (!holder.querySelector("img")) holder.textContent = "Fotovorschau nicht ladbar";
+        }, {once:true});
         fragment.append(image);
       }
       holder.replaceChildren(fragment);
