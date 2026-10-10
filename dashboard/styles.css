@@ -3463,3 +3463,12 @@ body::after{
 .n2k-chat-message{padding:12px 8px;border-bottom:1px solid rgba(175,195,226,.18);overflow-wrap:anywhere;font-size:14px;line-height:1.5}
 .n2k-chat-message strong{display:block;font-size:12px;opacity:.75;margin-bottom:5px}
 @media(max-width:700px){.n2k-messenger-toolbar{display:grid;grid-template-columns:minmax(0,1fr)}.n2k-messenger-toolbar label{min-width:0}.n2k-living-mesh{padding:10px}.n2k-chat-message{font-size:15px}}
+
+/* RNS interactive node inspection and touchscreen messenger */
+.n2k-living-mesh canvas{cursor:crosshair;touch-action:pan-y}
+.n2k-living-mesh canvas:focus-visible{outline:2px solid #e6bd68;outline-offset:3px}
+.n2k-mesh-inspector{margin:10px 0 4px;padding:11px 13px;min-height:42px;border:1px solid rgba(182,197,218,.2);background:rgba(10,25,44,.48);border-radius:10px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.n2k-chat-history{max-height:440px;overflow-y:auto;overscroll-behavior:contain}
+.n2k-chat-message small{display:block;font-size:11px;opacity:.6;margin-top:7px}
+.n2k-peer-item button{min-height:40px}
+@media(max-width:700px){.n2k-chat-history{max-height:55vh}.n2k-peer-item button{min-height:44px}.n2k-mesh-inspector{font-size:12px}.n2k-node-settings input,.n2k-messenger-toolbar select,#n2k-send-dest,#n2k-send-content{font-size:16px}}
