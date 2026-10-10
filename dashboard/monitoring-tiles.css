@@ -638,3 +638,15 @@
  #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:5!important}
  #dashboard-top .widget-grid>.calendar-widget{order:6!important}
 }
+
+/* Final bottom-row order: Reticulum (2) / Activity (2) / Calendar (1). */
+@media(min-width:751px){
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:4!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.activity-widget{order:5!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important;grid-column:span 1!important}
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:4!important}
+ #dashboard-top .widget-grid>.activity-widget{order:5!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important}
+}
