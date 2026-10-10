@@ -3519,3 +3519,9 @@ body::after{
 #privacy-panel .n2k-rns-workspace-tab{transition:background-color .2s ease,border-color .2s ease,transform .2s ease}
 #privacy-panel .n2k-rns-workspace-tab:active{transform:scale(.98)}
 @media(prefers-reduced-motion:reduce){#privacy-panel .n2k-rns-workspace-page,#privacy-panel .n2k-chat-message{animation:none!important}#privacy-panel .n2k-rns-workspace-tab{transition:none!important}}
+
+/* Freshness counts in the existing RNS overview card */
+.n2k-rns-hub-widget .n2k-rns-freshness{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.n2k-rns-freshness>div{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 9px;border:1px solid rgba(102,203,192,.17);border-radius:9px;background:rgba(7,26,38,.32)}
+.n2k-rns-freshness small{font-size:10px;opacity:.7}.n2k-rns-freshness strong{font-size:14px;color:#b7f0e4;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.n2k-rns-freshness>div{padding:6px}.n2k-rns-freshness strong{font-size:12px}}
