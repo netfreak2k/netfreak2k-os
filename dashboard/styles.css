@@ -3476,3 +3476,13 @@ body::after{
 /* LXMF announcement freshness, independent of route cache */
 .n2k-announce-windows{padding:10px 12px;margin:10px 0;border-radius:10px;border:1px solid rgba(180,200,225,.18);background:rgba(12,34,53,.45);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 @media(max-width:700px){.n2k-announce-windows{font-size:12px;padding:10px}}
+
+/* RNS full-page workspace: remove nested window appearance */
+#privacy-panel.panel{width:100%;max-width:none;min-width:0;box-sizing:border-box}
+#privacy-panel .n2k-hub-tiles{width:100%;max-width:none;min-width:0;gap:14px}
+#privacy-panel .n2k-hub-card,#privacy-panel .tor-browser-shell{box-sizing:border-box;width:100%;max-width:none;min-width:0}
+#privacy-panel .tor-browser-shell{border:0!important;box-shadow:none!important;background:transparent!important;padding:8px 0!important;border-radius:0!important}
+#privacy-panel .n2k-living-mesh{width:100%;box-sizing:border-box}
+#privacy-panel .n2k-peers-list{width:100%;box-sizing:border-box}
+@media(min-width:950px){#privacy-panel .n2k-living-mesh canvas{max-height:420px}#privacy-panel .n2k-chat-history{max-height:520px}}
+@media(max-width:700px){#privacy-panel.panel{padding:12px!important}#privacy-panel .n2k-hub-tiles{gap:10px}#privacy-panel .n2k-hub-card{padding:12px}#privacy-panel .tor-browser-shell{padding:0!important}#privacy-panel .n2k-living-mesh{padding:8px}}
