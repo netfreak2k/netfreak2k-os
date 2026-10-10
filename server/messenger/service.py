@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Native N2K Reticulum/LXMF runtime. Internal API: reachable only from N2K API."""
 import json
+import io
+import base64
+import qrcode
 import os
 import threading
 import time
@@ -100,6 +103,30 @@ def append_message(record):
         temp.chmod(0o600)
         temp.replace(MESSAGES)
 
+def lxmf_qr_image(identity):
+    if not identity or not re.fullmatch(r"[0-9a-f]{32}", identity):
+        return None
+    img = qrcode.make("lxmf://" + identity, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=6, border=4)
+    stream = io.BytesIO()
+    img.save(stream, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(stream.getvalue()).decode("ascii")
+
+
+def update_message_status(message_hash, status):
+    with LOCK:
+        rows = read_records(MESSAGES)
+        for item in reversed(rows):
+            if item.get("message_hash") == message_hash and item.get("direction") == "out":
+                if item.get("status") != "delivered":
+                    item["status"] = status
+                    item["status_time"] = int(time.time())
+                temp = MESSAGES.with_suffix(".tmp")
+                temp.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+                temp.chmod(0o600)
+                temp.replace(MESSAGES)
+                return
+
+
 def on_delivery(message):
     try:
         append_message({'direction':'in', 'source':message.source_hash.hex(), 'content':(message.content.decode('utf-8', errors='replace') if isinstance(message.content, bytes) else str(message.content)), 'time':int(time.time())})
@@ -168,6 +195,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/status":
             result = dict(RUNTIME)
+            result["qr_image"] = lxmf_qr_image(result.get("identity"))
         elif self.path == "/messages":
             result = {"messages":read_records(MESSAGES)}
         elif self.path == "/contacts":
@@ -318,9 +346,16 @@ class Handler(BaseHTTPRequestHandler):
                 destination = RNS.Destination(identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
                 message = LXMF.LXMessage(destination, DELIVERY, content, desired_method=LXMF.LXMessage.DIRECT)
                 # Identity/path resolution and delivery success are asynchronous.
-                ROUTER.handle_outbound(message)
-                append_message({"direction":"out","source":dest,"content":content,"time":int(time.time()),"status":"queued"})
-                result = {"queued":True}
+                message_hash = message.hash.hex()
+                append_message({"direction":"out","source":dest,"content":content,"time":int(time.time()),"status":"queued","message_hash":message_hash})
+                message.register_delivery_callback(lambda msg, key=message_hash: update_message_status(key, "delivered"))
+                message.register_failed_callback(lambda msg, key=message_hash: update_message_status(key, "failed"))
+                try:
+                    ROUTER.handle_outbound(message)
+                except Exception:
+                    update_message_status(message_hash, "failed")
+                    raise
+                result = {"queued":True, "message_hash":message_hash}
             self.send_result(result, 200)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self.send_result({"error":str(exc)}, 400)
