@@ -3531,3 +3531,23 @@ body::after{
 .n2k-cinema-controls button{min-height:40px}
 .n2k-cinema-controls span{font-size:11px;opacity:.75}
 @media(max-width:700px){.n2k-cinema-controls button{min-height:44px}.n2k-cinema-controls span{width:100%}}
+
+/* Messenger 2.0: two-pane native LXMF workspace, existing symbols preserved */
+#privacy-panel .n2k-messenger-v2{min-width:0}
+#privacy-panel .n2k-messenger-v2-grid{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(0,1.7fr);gap:14px;align-items:start}
+#privacy-panel .n2k-chat-sidebar,#privacy-panel .n2k-chat-main{min-width:0;padding:14px;border:1px solid rgba(170,198,225,.18);border-radius:14px;background:rgba(13,27,44,.36)}
+#privacy-panel .n2k-chat-sidebar>strong,#privacy-panel .n2k-chat-main>strong{display:block;margin-bottom:12px;font-size:15px}
+#privacy-panel #n2k-chat-search{box-sizing:border-box;width:100%;min-height:44px;padding:10px 12px;border-radius:10px;margin-bottom:10px;background:rgba(11,25,42,.72);border:1px solid rgba(169,194,216,.24);color:inherit}
+#privacy-panel .n2k-chat-conversations{display:grid;gap:5px;max-height:480px;overflow-y:auto}
+#privacy-panel .n2k-chat-conversation{display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:5px;width:100%;border:1px solid transparent;border-radius:10px;background:rgba(24,47,67,.45);padding:10px 12px;min-height:58px;color:inherit;cursor:pointer}
+#privacy-panel .n2k-chat-conversation.is-selected{border-color:rgba(128,210,204,.52);background:rgba(48,105,110,.25)}
+#privacy-panel .n2k-chat-conversation small{font-size:11px;opacity:.7;overflow-wrap:anywhere}
+#privacy-panel .n2k-chat-conversation[hidden]{display:none}
+#privacy-panel .n2k-chat-add-contact{margin-top:12px;border-top:1px solid rgba(160,196,220,.15);padding-top:11px}
+#privacy-panel .n2k-chat-add-contact summary{cursor:pointer;font-size:13px}
+#privacy-panel .n2k-chat-contact-editor{display:grid;gap:8px;margin-top:10px}
+#privacy-panel .n2k-chat-composer{display:grid;gap:8px}
+#privacy-panel .n2k-chat-composer textarea,#privacy-panel .n2k-chat-composer input{min-width:0;width:100%;box-sizing:border-box}
+#privacy-panel .n2k-chat-history{max-height:55vh;min-height:120px}
+@media(max-width:800px){#privacy-panel .n2k-messenger-v2-grid{grid-template-columns:1fr}#privacy-panel .n2k-chat-conversations{max-height:190px}#privacy-panel .n2k-chat-sidebar,#privacy-panel .n2k-chat-main{padding:11px}#privacy-panel #n2k-chat-search{font-size:16px}}
+@media(prefers-reduced-motion:no-preference){#privacy-panel .n2k-chat-conversation{transition:background .18s,border-color .18s}}
