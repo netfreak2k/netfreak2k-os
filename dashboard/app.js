@@ -7797,7 +7797,8 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const d=await request("/api/messenger/peers");
       if(d.error) throw Error(d.error);
       const peers=Array.isArray(d.peers)?d.peers:[];
-      count.textContent=peers.length+" bekannte LXMF-Ziele · direkte Verbindungen nicht ermittelt";
+      const routed=peers.filter(peer=>peer.path_known===true).length;
+      count.textContent=peers.length+" LXMF-Ziele · "+routed+" bekannte Routen · TCP-Verbindungen nicht ermittelt";
       list.replaceChildren();
       if(!peers.length) {
         list.textContent=d.diagnostic || "Keine LXMF-Knoten entdeckt. Prüfe TCP-Uplink und Reticulum-Interfaces.";;
