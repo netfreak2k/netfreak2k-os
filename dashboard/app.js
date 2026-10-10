@@ -8325,3 +8325,10 @@ document.getElementById("n2k-lxmf-scan-btn")?.addEventListener("click",async()=>
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopLxmfScan();});
 
 document.getElementById("n2k-lxmf-diag-retry")?.addEventListener("click",refreshNativeMessenger);
+/* Poll delivery callbacks while Messenger is visible, without disturbing other pages. */
+window.setInterval(()=>{
+  if(document.hidden)return;
+  const panel=document.getElementById("n2k-rns-page-chat");
+  if(panel && !panel.hidden)refreshNativeMessenger();
+},12000);
+
