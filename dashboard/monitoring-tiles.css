@@ -541,3 +541,34 @@
     max-height:none !important;
   }
 }
+
+/* Dashboard corrections: five-column grid overrides generic twelve-column CSS. */
+@media(min-width:751px){
+ #dashboard-top .widget-grid > .n2k-photo-home-widget{
+   grid-column:span 2!important;
+   aspect-ratio:auto!important;
+   width:100%!important;
+   height:auto!important;
+   max-height:none!important;
+   min-height:155px!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net{
+   display:flex!important;flex-wrap:wrap;gap:7px!important;
+   font-size:12px!important;line-height:1.35!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net b{
+   font-size:12px!important;line-height:1.35!important;
+ }
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid > .n2k-photo-home-widget{
+   grid-column:1 / -1!important;
+   aspect-ratio:auto!important;
+   height:auto!important;
+   min-height:145px!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net,
+ #dashboard-top .mini-metrics .n2k-uptime-net b{
+   font-size:11px!important;
+ }
+}
