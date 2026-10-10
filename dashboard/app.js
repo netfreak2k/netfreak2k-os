@@ -4156,7 +4156,9 @@ async function refreshNativeMessenger() {
       row.className="n2k-chat-message";
       const body = document.createElement("div");
       body.textContent = String(item.content || "");
-      row.append(title, body);
+      const when=document.createElement("small");
+      if(Number.isFinite(Number(item.time))&&Number(item.time)>0)when.textContent=new Date(Number(item.time)*1000).toLocaleString("de-DE");
+      row.append(title,body,when);
       messageBox.appendChild(row);
     });
     if (!messageBox.childNodes.length) messageBox.textContent = "Noch keine Nachrichten";
@@ -7812,6 +7814,30 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   const visibleCount = document.getElementById("n2k-peer-visible-count");
   const meshCanvas = document.getElementById("n2k-living-mesh-canvas");
   const meshCount = document.getElementById("n2k-mesh-visual-count");
+  let meshTargets = [];
+  let selectedMesh = "";
+  const inspector = document.getElementById("n2k-mesh-inspector");
+  function selectMeshPeer(peer) {
+    selectedMesh=String(peer.destination||"");
+    if (inspector) inspector.textContent=(peer.name||"Unbenannter Knoten")+" · "+(Number.isInteger(peer.hops)?peer.hops+" Hops":"Hops unbekannt")+" · "+(peer.path_known?"Route bekannt":"Route unbekannt")+" · "+selectedMesh+" · Kein direkter Verbindungsnachweis";
+    drawLivingMesh(cachedPeers);
+  }
+  meshCanvas?.addEventListener("click",event=>{
+    const rect=meshCanvas.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    const x=(event.clientX-rect.left)*meshCanvas.width/rect.width;
+    const y=(event.clientY-rect.top)*meshCanvas.height/rect.height;
+    const found=meshTargets.filter(t=>Math.hypot(t.x-x,t.y-y)<19).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0];
+    if(found)selectMeshPeer(found.peer);
+  });
+  meshCanvas?.addEventListener("keydown",event=>{
+    if(event.key!=="ArrowRight"&&event.key!=="ArrowLeft"&&event.key!=="Enter")return;
+    if(!meshTargets.length)return;
+    event.preventDefault();
+    const index=meshTargets.findIndex(t=>t.peer.destination===selectedMesh);
+    const next=event.key==="ArrowLeft"?(index<0?meshTargets.length-1:(index+meshTargets.length-1)%meshTargets.length):(index+1)%meshTargets.length;
+    selectMeshPeer(meshTargets[next].peer);
+  });
   function drawLivingMesh(peers) {
     if (!meshCanvas) return;
     const ctx=meshCanvas.getContext("2d");
@@ -7825,6 +7851,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       ctx.beginPath();ctx.arc(center.x,center.y,r,0,Math.PI*2);
       ctx.strokeStyle="rgba(154,189,230,.16)";ctx.lineWidth=1;ctx.stroke();
     }
+    meshTargets=[];
     ranks.forEach((p,i)=>{
       const hops=Math.max(1,Math.min(7,p.hops));
       const a=i*2.399963229728653;
@@ -7833,7 +7860,8 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const y=center.y+Math.sin(a)*radius*.87;
       ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(x,y);
       ctx.strokeStyle="rgba(215,182,112,.18)";ctx.stroke();
-      ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);
+      meshTargets.push({peer:p,x,y});
+      ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6,0,Math.PI*2);
       ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();
     });
     ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
@@ -7866,7 +7894,8 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
         try { await request("/api/messenger/peers/request",{method:"POST",headers:{"X-CSRF-Token":csrfToken},body:JSON.stringify({destination:peer.destination})}); action.textContent="Angefragt"; await loadPeers(); }
         catch(e) { action.textContent="Nicht möglich"; action.disabled=false; }
       });
-      row.append(action); list.append(row);
+      const detail=document.createElement("button");detail.type="button";detail.className="secondary compact";detail.textContent="Details";detail.addEventListener("click",()=>{selectMeshPeer(peer);meshCanvas?.scrollIntoView({behavior:"smooth",block:"nearest"});});
+      row.append(detail,action); list.append(row);
     }
   }
   search?.addEventListener("input",renderPeers);
