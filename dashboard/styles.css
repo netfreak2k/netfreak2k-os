@@ -3452,3 +3452,14 @@ body::after{
 .n2k-peer-tools input:focus-visible,.n2k-peer-tools select:focus-visible{outline:2px solid #e6bd68;outline-offset:2px}
 .n2k-peer-visible-count{font-size:12px;opacity:.8;margin:3px 0 10px}
 @media(max-width:700px){.n2k-peer-tools{grid-template-columns:minmax(0,1fr)}.n2k-peer-item{gap:8px;flex-wrap:wrap}.n2k-peer-item button{min-height:42px;max-width:100%}.n2k-peers-list{max-width:100%;overflow-wrap:anywhere}}
+
+/* RNS Living Mesh and responsive message history */
+.n2k-living-mesh{margin:14px 0;padding:14px;border-radius:14px;border:1px solid rgba(178,192,216,.18);background:linear-gradient(140deg,rgba(16,39,61,.65),rgba(9,19,34,.35))}
+.n2k-living-mesh canvas{display:block;width:100%;height:auto;max-height:300px;border-radius:10px}
+.n2k-living-mesh p{font-size:11px;opacity:.8;margin:6px 0 0}
+.n2k-messenger-toolbar{display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:16px 0}
+.n2k-messenger-toolbar label{display:flex;flex-direction:column;gap:6px;min-width:220px}
+.n2k-messenger-toolbar select{width:100%;min-height:42px;padding:8px;border-radius:9px;background:rgba(16,29,50,.7);color:inherit;border:1px solid rgba(185,200,228,.25)}
+.n2k-chat-message{padding:12px 8px;border-bottom:1px solid rgba(175,195,226,.18);overflow-wrap:anywhere;font-size:14px;line-height:1.5}
+.n2k-chat-message strong{display:block;font-size:12px;opacity:.75;margin-bottom:5px}
+@media(max-width:700px){.n2k-messenger-toolbar{display:grid;grid-template-columns:minmax(0,1fr)}.n2k-messenger-toolbar label{min-width:0}.n2k-living-mesh{padding:10px}.n2k-chat-message{font-size:15px}}
