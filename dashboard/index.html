@@ -233,7 +233,7 @@
             </button>
             <button class="mini-metric" data-view="system">
               <span class="mini-icon" aria-hidden="true">◷</span>
-              <div><small>UPTIME</small><strong id="overview-uptime">–</strong></div>
+              <div class="n2k-uptime-info"><small>UPTIME</small><strong id="overview-uptime">–</strong><span class="n2k-uptime-net"><span>↓ <b id="network-down">0 B/s</b></span><span>↑ <b id="network-up">0 B/s</b></span></span></div>
             </button>
           </div>
 
@@ -252,10 +252,6 @@
             <button class="widget network-widget" data-target-view="network-panel">
               <div class="widget-head"><div><small>NETZWERK</small><h3>Internet & LAN</h3></div><span>›</span></div>
               <div id="network-device-alert" class="n2k-network-alert" hidden></div>
-              <div class="network-values">
-                <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
-                <div><span>↑ Upload</span><strong id="network-up">0 B/s</strong></div>
-              </div>
               <canvas id="network-chart" width="420" height="64" aria-label="Netzwerkverlauf"></canvas>
               <div class="widget-detail-lines">
                 <span><b>Provider</b><strong id="network-provider">–</strong></span>
