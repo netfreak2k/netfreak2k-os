@@ -7991,3 +7991,64 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   refresh?.addEventListener("click",()=>setTimeout(best,700));
   best();
 })();
+
+/* RNS Workspace: move existing functional widgets into independent full-page tabs.
+   Move nodes, never clone them; event listeners and component state survive. */
+(() => {
+  const root=document.getElementById("privacy-panel");
+  if(!root || root.querySelector(".n2k-rns-workspace-nav"))return;
+  const tiles=root.querySelector(".n2k-hub-tiles");
+  const hub=root.querySelector(".n2k-hub-card");
+  const peer=root.querySelector(".n2k-peer-browser");
+  const radar=root.querySelector(".n2k-living-mesh");
+  const gateway=root.querySelector(".n2k-public-peer-config");
+  const messenger=root.querySelector(".tor-browser-shell");
+  const node=messenger?.querySelector(".n2k-node-settings");
+  if(!tiles||!hub||!peer||!radar||!gateway||!messenger||!node)return;
+  const nav=document.createElement("nav");
+  nav.className="n2k-rns-workspace-nav";
+  nav.setAttribute("aria-label","RNS Arbeitsbereiche");
+  const pages=document.createElement("div");
+  pages.className="n2k-rns-workspace-pages";
+  const tabs=[
+    ["mesh","Living Mesh"],
+    ["chat","Messenger"],
+    ["peers","Knoten & Routen"],
+    ["settings","Einstellungen"]
+  ];
+  const elements=new Map();
+  const buttons=new Map();
+  tabs.forEach(([id,label])=>{
+    const b=document.createElement("button");
+    b.type="button";b.className="n2k-rns-workspace-tab";
+    b.textContent=label;b.setAttribute("aria-controls","n2k-rns-page-"+id);
+    nav.append(b);buttons.set(id,b);
+    const p=document.createElement("section");
+    p.id="n2k-rns-page-"+id;p.className="n2k-rns-workspace-page";
+    p.setAttribute("aria-label",label);
+    pages.append(p);elements.set(id,p);
+    b.addEventListener("click",()=>activate(id));
+  });
+  const activate=id=>{
+    for(const [key,page] of elements){
+      const active=id===key;
+      page.hidden=!active;
+      buttons.get(key).setAttribute("aria-current",active?"page":"false");
+      buttons.get(key).classList.toggle("is-active",active);
+    }
+  };
+  // Put the existing chart and service controls above the workspaces as a compact header.
+  hub.classList.add("n2k-rns-status-strip");
+  // Detach nested elements before relocating their original parents.
+  node.remove();
+  gateway.remove();
+  radar.remove();
+  peer.remove();
+  elements.get("mesh").append(radar);
+  elements.get("chat").append(messenger);
+  elements.get("peers").append(peer);
+  elements.get("settings").append(node,gateway);
+  tiles.insertAdjacentElement("afterend",nav);
+  nav.insertAdjacentElement("afterend",pages);
+  activate("mesh");
+})();
