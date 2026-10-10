@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="photos.css?v=20261008-10">
   <link rel="stylesheet" href="ollama-chat.css?v=20261008-terminal1">
   <link rel="stylesheet" href="mobile-stabilization.css?v=20261009-rns-grid-ios-fix3">
+  <link rel="stylesheet" href="reticulum-cinematic.css?v=20261010-1">
   </head>
 <body>
   <div id="update-experience" class="update-experience hidden" aria-live="polite">
@@ -217,6 +218,31 @@
             <strong id="overview-greeting">Willkommen</strong>
             <span id="overview-health-copy">Systemstatus wird geprüft …</span>
           </div>
+
+          <!-- Reticulum cinematic landing panel. The mesh schematic is decorative;
+               actual network status remains in the existing RNS Network Hub. -->
+          <section class="n2k-cine-hero" aria-label="Reticulum Netzwerk">
+            <div class="n2k-cine-map">
+              <div class="n2k-cine-title">LIVING MESH<small>RETICULUM · LXMF · OFFGRID COMMUNICATION</small></div>
+              <svg viewBox="0 0 770 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Schematische Illustration eines dezentralen Netzwerks – keine Live-Topologie">
+                <defs><radialGradient id="n2k-halo"><stop stop-color="#fa6f1b" stop-opacity=".45"/><stop offset="1" stop-color="#fa6f1b" stop-opacity="0"/></radialGradient></defs>
+                <g stroke="#19c6dd" stroke-width="1.3" opacity=".75" fill="none"><path d="M380 129L147 52 99 185 274 229 525 216 656 74 380 129 525 216M147 52L274 229M656 74L525 216M380 129L274 229M99 185L380 129" stroke-dasharray="5 4"/></g>
+                <g stroke="#ff791d" stroke-width="2" fill="none" opacity=".85"><path d="M380 129L147 52M380 129L525 216M380 129L656 74M380 129L274 229"/></g>
+                <circle cx="380" cy="129" r="77" fill="url(#n2k-halo)"/>
+                <g fill="#25dbeb" stroke="#99f4ff" stroke-width="2"><circle cx="147" cy="52" r="7"/><circle cx="99" cy="185" r="6"/><circle cx="274" cy="229" r="7"/><circle cx="525" cy="216" r="7"/><circle cx="656" cy="74" r="8"/></g>
+                <circle cx="380" cy="129" r="17" fill="#f7751c" stroke="#ffbd70" stroke-width="4"/><circle cx="380" cy="129" r="32" fill="none" stroke="#fb7c29" opacity=".6"/>
+                <g font-family="system-ui,sans-serif" font-size="12" fill="#b5e7ed"><text x="170" y="48">RNode / LoRa</text><text x="548" y="212">LXMF</text><text x="670" y="70">Backbone</text><text x="397" y="134" fill="#fff" font-weight="700">N2K</text></g>
+              </svg>
+            </div>
+            <div class="n2k-cine-side">
+              <div class="n2k-cine-kicker">KEIN NETZ. KEIN PROBLEM.</div>
+              <h2>Dein Netz.<br>Deine Kontrolle.</h2>
+              <p>Reticulum bildet den Kommunikationskern. LXMF übernimmt Nachrichten, RNode und LoRa ermöglichen Funkverbindungen.</p>
+              <div class="n2k-cine-items"><span><b>◉</b> Reticulum</span><span><b>✉</b> LXMF</span><span><b>⌁</b> RNode / LoRa</span><span><b>⇄</b> Backbones</span></div>
+              <button type="button" class="n2k-cine-btn" data-target-view="privacy-panel">RNS Network Hub öffnen ↗</button>
+              <div class="n2k-cine-note">Netzgrafik schematisch · Live-Daten im RNS Network Hub</div>
+            </div>
+          </section>
 
           <div class="mini-metrics">
             <button class="mini-metric" data-view="system">
