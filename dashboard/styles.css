@@ -3510,3 +3510,12 @@ body::after{
 #privacy-panel .n2k-rns-workspace-page>.n2k-peer-browser{border:0;box-shadow:none;background:transparent;padding:2px 0}
 #privacy-panel .n2k-rns-workspace-page>.n2k-rns-status-strip{margin:0 0 14px;background:rgba(20,39,61,.24)}
 @media(max-width:700px){#privacy-panel>.n2k-rns-workspace-nav{margin:0 0 10px}#privacy-panel .n2k-rns-workspace-page>.n2k-living-mesh{padding:7px}}
+
+/* N2K animations preserve original icons, surfaces and palette */
+@keyframes n2k-rns-page-in{from{opacity:.6;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes n2k-rns-message-in{from{opacity:.5;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+#privacy-panel .n2k-rns-workspace-page:not([hidden]){animation:n2k-rns-page-in .28s ease-out both}
+#privacy-panel .n2k-chat-message{animation:n2k-rns-message-in .26s ease-out both}
+#privacy-panel .n2k-rns-workspace-tab{transition:background-color .2s ease,border-color .2s ease,transform .2s ease}
+#privacy-panel .n2k-rns-workspace-tab:active{transform:scale(.98)}
+@media(prefers-reduced-motion:reduce){#privacy-panel .n2k-rns-workspace-page,#privacy-panel .n2k-chat-message{animation:none!important}#privacy-panel .n2k-rns-workspace-tab{transition:none!important}}
