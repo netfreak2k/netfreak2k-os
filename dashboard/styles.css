@@ -3444,3 +3444,11 @@ body::after{
   .overview-screen .widget-grid > .overview-media-widget { order:3 !important; }
   .overview-screen .widget-grid > .n2k-rns-hub-widget { order:12 !important; grid-column:span 12 !important; }
 }
+
+/* RNS Discovery: accessible search and compact mobile filters */
+.n2k-peer-tools{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:12px;margin:12px 0 5px}
+.n2k-peer-tools label{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px;color:var(--muted,#aab3c2)}
+.n2k-peer-tools input,.n2k-peer-tools select{width:100%;min-width:0;min-height:42px;border-radius:10px;border:1px solid rgba(180,198,226,.24);background:rgba(8,18,35,.50);color:inherit;padding:9px 11px;font:inherit;font-size:14px}
+.n2k-peer-tools input:focus-visible,.n2k-peer-tools select:focus-visible{outline:2px solid #e6bd68;outline-offset:2px}
+.n2k-peer-visible-count{font-size:12px;opacity:.8;margin:3px 0 10px}
+@media(max-width:700px){.n2k-peer-tools{grid-template-columns:minmax(0,1fr)}.n2k-peer-item{gap:8px;flex-wrap:wrap}.n2k-peer-item button{min-height:42px;max-width:100%}.n2k-peers-list{max-width:100%;overflow-wrap:anywhere}}
