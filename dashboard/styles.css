@@ -3551,3 +3551,11 @@ body::after{
 #privacy-panel .n2k-chat-history{max-height:55vh;min-height:120px}
 @media(max-width:800px){#privacy-panel .n2k-messenger-v2-grid{grid-template-columns:1fr}#privacy-panel .n2k-chat-conversations{max-height:190px}#privacy-panel .n2k-chat-sidebar,#privacy-panel .n2k-chat-main{padding:11px}#privacy-panel #n2k-chat-search{font-size:16px}}
 @media(prefers-reduced-motion:no-preference){#privacy-panel .n2k-chat-conversation{transition:background .18s,border-color .18s}}
+
+/* Native LXMF contact sharing */
+#privacy-panel .n2k-lxmf-identity{display:flex;align-items:end;gap:9px;flex-wrap:wrap}
+#privacy-panel .n2k-lxmf-identity>label{flex:1 1 260px;min-width:0}
+#privacy-panel .n2k-lxmf-identity input{box-sizing:border-box;width:100%}
+#privacy-panel .n2k-lxmf-import{display:grid;gap:7px;padding:9px 0}
+#privacy-panel .n2k-lxmf-import input{width:100%;min-width:0;box-sizing:border-box}
+#privacy-panel .n2k-lxmf-qr{width:100%}
