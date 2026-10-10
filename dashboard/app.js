@@ -7838,7 +7838,22 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     const next=event.key==="ArrowLeft"?(index<0?meshTargets.length-1:(index+meshTargets.length-1)%meshTargets.length):(index+1)%meshTargets.length;
     selectMeshPeer(meshTargets[next].peer);
   });
-  function drawLivingMesh(peers) {
+  const calmMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
+  let meshFrame=0, latestMeshPeers=[];
+  const meshVisible=()=>!document.hidden && meshCanvas?.getClientRects().length>0;
+  function meshAnimationTick(now){
+    meshFrame=0;
+    if(!meshVisible()||calmMotion.matches)return;
+    drawLivingMesh(latestMeshPeers,now);
+    meshFrame=window.requestAnimationFrame(meshAnimationTick);
+  }
+  function startMeshAnimation(){
+    if(meshFrame||!meshVisible()||calmMotion.matches)return;
+    meshFrame=window.requestAnimationFrame(meshAnimationTick);
+  }
+  document.addEventListener("visibilitychange",startMeshAnimation);
+  function drawLivingMesh(peers,now=0) {
+    latestMeshPeers=peers;
     if (!meshCanvas) return;
     const ctx=meshCanvas.getContext("2d");
     if (!ctx) return;
@@ -7852,6 +7867,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       ctx.strokeStyle="rgba(154,189,230,.16)";ctx.lineWidth=1;ctx.stroke();
     }
     meshTargets=[];
+    const pulse=now?Math.sin(now/1000*1.6):0;
     ranks.forEach((p,i)=>{
       const hops=Math.max(1,Math.min(7,p.hops));
       const a=i*2.399963229728653;
@@ -7860,12 +7876,18 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       const y=center.y+Math.sin(a)*radius*.87;
       ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(x,y);
       ctx.strokeStyle="rgba(215,182,112,.18)";ctx.stroke();
+      if(now){
+        const t=(now/5200+i*.137)%1;
+        ctx.beginPath();ctx.arc(center.x+(x-center.x)*t,center.y+(y-center.y)*t,1.6,0,Math.PI*2);
+        ctx.fillStyle="rgba(246,211,139,.60)";ctx.fill();
+      }
       meshTargets.push({peer:p,x,y});
-      ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6,0,Math.PI*2);
+      ctx.beginPath();ctx.arc(x,y,p.destination===selectedMesh?7:3.6+(pulse+1)*.45,0,Math.PI*2);
       ctx.fillStyle=hops<=3?"#85e3cb":hops<=5?"#d7b672":"#8faad9";ctx.fill();
     });
     ctx.beginPath();ctx.arc(center.x,center.y,8,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
     if(meshCount)meshCount.textContent=ranks.length+" Routen visualisiert";
+    if(!now)startMeshAnimation();
   }
 
   let cachedPeers = [];
