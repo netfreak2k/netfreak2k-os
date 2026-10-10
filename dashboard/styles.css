@@ -3598,3 +3598,28 @@ body::after{
 .overview-screen .n2k-photo-home-widget .n2k-photo-preview{display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:0;overflow:hidden}
 .overview-screen .n2k-photo-home-widget .n2k-photo-preview img{display:block;width:58px;height:43px;max-width:calc((100% - 12px)/3);object-fit:cover;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(20,23,42,.5)}
 @media(max-width:700px){.overview-screen .n2k-photo-home-widget .n2k-photo-preview img{width:54px;height:39px}}
+
+/* 2026-10-10 visual review: restore breathing room in both bottom-row tiles. */
+.overview-screen .widget-grid > .n2k-photo-home-widget{
+  min-height:155px!important;
+  padding:13px 14px;
+  gap:9px;
+}
+.overview-screen .widget-grid > .n2k-rns-hub-widget{
+  min-height:155px!important;
+  padding:13px 14px;
+  gap:8px;
+}
+.overview-screen .n2k-photo-home-widget .n2k-photo-preview{
+  min-height:48px;
+}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-inline{
+  padding:9px 11px;
+  gap:5px;
+}
+@media(max-width:700px){
+  .overview-screen .widget-grid > .n2k-photo-home-widget,
+  .overview-screen .widget-grid > .n2k-rns-hub-widget{
+    min-height:145px!important;
+  }
+}
