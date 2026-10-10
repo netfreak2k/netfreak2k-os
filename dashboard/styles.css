@@ -3559,3 +3559,12 @@ body::after{
 #privacy-panel .n2k-lxmf-import{display:grid;gap:7px;padding:9px 0}
 #privacy-panel .n2k-lxmf-import input{width:100%;min-width:0;box-sizing:border-box}
 #privacy-panel .n2k-lxmf-qr{width:100%}
+
+/* N2K LXMF native diagnostics and local QR camera */
+#privacy-panel .n2k-lxmf-diagnostics{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 12px;border:1px solid rgba(120,198,189,.21);border-radius:11px;background:rgba(16,49,59,.28)}
+#privacy-panel .n2k-lxmf-diagnostics strong{font-size:13px}
+#privacy-panel .n2k-lxmf-diagnostics span,#privacy-panel .n2k-lxmf-diagnostics small{font-size:11px}
+#privacy-panel #n2k-lxmf-scanner:not([hidden]){display:grid;gap:8px}
+#privacy-panel #n2k-lxmf-video{width:100%;max-height:280px;object-fit:cover;border-radius:12px;background:#050c16}
+#privacy-panel #n2k-lxmf-qr[hidden],#privacy-panel #n2k-lxmf-scanner[hidden]{display:none}
+@media(max-width:700px){#privacy-panel .n2k-lxmf-diagnostics{align-items:stretch;flex-direction:column}#privacy-panel .n2k-lxmf-diagnostics button{min-height:44px}}
