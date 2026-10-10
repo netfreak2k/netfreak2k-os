@@ -57,7 +57,7 @@ class LXMFAnnounces:
                 rows = [x for x in read_records(PEERS) if x.get('destination') != destination_hash.hex()]
                 rows.append({'destination':destination_hash.hex(),'name':name or 'Unbenannter LXMF-Knoten','last_seen':int(time.time())})
                 tmp=PEERS.with_suffix('.tmp')
-                tmp.write_text(json.dumps(rows[-150:],ensure_ascii=False),encoding='utf-8')
+                tmp.write_text(json.dumps(rows[-5000:],ensure_ascii=False),encoding='utf-8')
                 tmp.chmod(0o600)
                 tmp.replace(PEERS)
         except Exception:
@@ -202,7 +202,9 @@ class Handler(BaseHTTPRequestHandler):
                     entry["path_known"]=False
                     entry["hops"]=None
                 peers.append(entry)
-            result={"peers":peers,"known_count":len(peers),"reachable_route_count":sum(1 for peer in peers if peer.get("path_known") is True),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("N2K LAN-Transport vorkonfiguriert; erreichbare Knoten erst nach Empfang von Announcements sichtbar." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
+            now=int(time.time())
+            ages=[max(0,now-int(peer.get("last_seen",0))) for peer in peers if isinstance(peer.get("last_seen"),(int,float))]
+            result={"recent_15m":sum(age<=900 for age in ages),"recent_1h":sum(age<=3600 for age in ages),"recent_24h":sum(age<=86400 for age in ages),"retention_limit":5000,"peers":peers,"known_count":len(peers),"reachable_route_count":sum(1 for peer in peers if peer.get("path_known") is True),"connected_count":None,"online":RUNTIME["online"],"gateway":public_peer(), "diagnostic":("Reticulum ist offline: "+str(RUNTIME.get("error") or "Startfehler")) if not RUNTIME["online"] else ("N2K LAN-Transport vorkonfiguriert; erreichbare Knoten erst nach Empfang von Announcements sichtbar." if not public_peer()["enabled"] else "TCP-Uplink konfiguriert, tatsächliche Verbindung nicht bestätigt."),"note":"path_known means a route is known, not an established TCP peer connection"}
         elif self.path == "/node":
             result = dict(node_settings(), applied_name=RUNTIME.get("node_name"), applied_transport=RUNTIME.get("transport_enabled"))
         else:
