@@ -3472,3 +3472,7 @@ body::after{
 .n2k-chat-message small{display:block;font-size:11px;opacity:.6;margin-top:7px}
 .n2k-peer-item button{min-height:40px}
 @media(max-width:700px){.n2k-chat-history{max-height:55vh}.n2k-peer-item button{min-height:44px}.n2k-mesh-inspector{font-size:12px}.n2k-node-settings input,.n2k-messenger-toolbar select,#n2k-send-dest,#n2k-send-content{font-size:16px}}
+
+/* LXMF announcement freshness, independent of route cache */
+.n2k-announce-windows{padding:10px 12px;margin:10px 0;border-radius:10px;border:1px solid rgba(180,200,225,.18);background:rgba(12,34,53,.45);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:700px){.n2k-announce-windows{font-size:12px;padding:10px}}
