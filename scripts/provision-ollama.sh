@@ -2,6 +2,8 @@
 # Optional, unattended local Ollama provisioning for Netfreak2k Server-OS.
 # Must run as root from the host installer/updater. Never installs Hermes.
 set -Eeuo pipefail
+# systemd-run services may have no HOME; Ollama CLI requires an absolute HOME.
+export HOME="${HOME:-/root}"
 export DEBIAN_FRONTEND=noninteractive
 STATE=/var/lib/netfreak2k/ollama-setup-status.json
 MODEL=qwen2.5:0.5b
