@@ -19,7 +19,7 @@ if not Path(port).exists():
 if not config.exists():
     config.write_text("""[reticulum]
   enable_transport = Yes
-  share_instance = No
+  share_instance = Yes
 
 [interfaces]
   [[N2K LAN Uplink]]
