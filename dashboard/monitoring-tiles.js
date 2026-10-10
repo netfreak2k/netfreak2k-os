@@ -32,7 +32,20 @@ if(type==="uptime"){
   legacy.id="overview-uptime";
   legacy.hidden=true;
   legacy.setAttribute("aria-hidden","true");
-  content.append(value,line,legacy);
+  const traffic=document.createElement("div");
+  traffic.className="n2k-uptime-traffic";
+  const down=document.getElementById("network-down");
+  const up=document.getElementById("network-up");
+  for (const [label,node] of [["↓ Download",down],["↑ Upload",up]]) {
+    const item=document.createElement("span");
+    const caption=document.createElement("small");
+    caption.textContent=label;
+    const amount=node || document.createElement("b");
+    if(!node) amount.textContent="–";
+    item.append(caption,amount);
+    traffic.append(item);
+  }
+  content.append(value,line,traffic,legacy);
   card.replaceChildren(title,content);
   card.setAttribute("aria-label","Betriebsdauer und lokaler Ollama-Status");
   return;
