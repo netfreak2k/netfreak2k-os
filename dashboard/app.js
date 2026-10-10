@@ -4122,6 +4122,8 @@ async function refreshNativeMessenger() {
     ]);
     status.textContent = state.online ? "● Reticulum / LXMF bereit" : "○ Nicht bereit: " + (state.error || "offline");
     document.getElementById("n2k-native-id").value = state.identity || "";
+    const qr=document.getElementById("n2k-lxmf-qr");
+    if(qr&&!qr.hidden)drawNativeLxmfQr();
     const contactBox = document.getElementById("n2k-native-contacts");
     contactBox.replaceChildren();
     (contacts.contacts || []).forEach(item => {
@@ -8214,3 +8216,39 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   nav.insertAdjacentElement("afterend",pages);
   activate("mesh");
 })();
+
+/* LXMF contact exchange: copy/paste a normalized destination hash.
+   QR rendering is local-only, with no third-party QR API or network call. */
+function nativeLxmfHash(value){
+  const s=String(value||"").trim().replace(/^lxmf:\/\//i,"").replace(/^lxmf:/i,"").replace(/\s/g,"");
+  return /^[0-9a-f]{32}$/i.test(s)?s.toLowerCase():"";
+}
+function drawNativeLxmfQr(){
+  const note=document.getElementById("n2k-lxmf-qr-note");
+  const hash=nativeLxmfHash(document.getElementById("n2k-native-id")?.value);
+  const canvas=document.getElementById("n2k-lxmf-qr-canvas");
+  if(!canvas||!hash)return;
+  // Do not misrepresent a decorative visual as a scannable QR code.
+  if(note)note.textContent="Adresse kopieren und über einen vertrauenswürdigen Kanal teilen. Scannbarer QR-Code folgt.";
+  canvas.hidden=true;
+}
+document.getElementById("n2k-lxmf-qr-toggle")?.addEventListener("click",()=>{
+  const panel=document.getElementById("n2k-lxmf-qr");if(!panel)return;
+  panel.hidden=!panel.hidden;
+  if(!panel.hidden)drawNativeLxmfQr();
+});
+document.getElementById("n2k-lxmf-copy")?.addEventListener("click",async()=>{
+  const hash=nativeLxmfHash(document.getElementById("n2k-native-id")?.value);
+  if(!hash)return;
+  try{await navigator.clipboard.writeText("lxmf://"+hash);}
+  catch(e){const field=document.getElementById("n2k-native-id");field?.focus();field?.select();}
+});
+document.getElementById("n2k-lxmf-import-btn")?.addEventListener("click",()=>{
+  const text=document.getElementById("n2k-lxmf-import")?.value;
+  const hash=nativeLxmfHash(text);
+  const note=document.getElementById("n2k-lxmf-import-note");
+  if(!hash){if(note)note.textContent="Ungültig: 32 Hex-Zeichen oder lxmf://… erwartet";return;}
+  const dest=document.getElementById("n2k-contact-dest");
+  if(dest)dest.value=hash;
+  if(note)note.textContent="Adresse geprüft und übernommen. Kontaktname eingeben und speichern.";
+});
