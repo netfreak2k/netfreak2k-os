@@ -1,0 +1,29 @@
+# Optional add-on: start with docker compose -f docker-compose.yml -f docker-compose.rnode.yml --profile rnode up -d --build netfreak2k-rnode
+# Does not alter/recreate netfreak2k-messenger or netfreak2k-reticulum-lan.
+services:
+  netfreak2k-rnode:
+    profiles: ["rnode"]
+    build:
+      context: ..
+      dockerfile: server/rnode-gateway/Dockerfile
+    container_name: netfreak2k-rnode
+    restart: unless-stopped
+    network_mode: host
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    devices:
+      - "${N2K_RNODE_HOST_DEVICE:-/dev/ttyACM0}:/dev/ttyACM0"
+    environment:
+      N2K_RNODE_DEVICE: "/dev/ttyACM0"
+      N2K_RNODE_FREQUENCY: "${N2K_RNODE_FREQUENCY:-868100000}"
+      N2K_RNODE_BANDWIDTH: "${N2K_RNODE_BANDWIDTH:-125000}"
+      N2K_RNODE_SF: "${N2K_RNODE_SF:-10}"
+      N2K_RNODE_CR: "${N2K_RNODE_CR:-5}"
+      N2K_RNODE_TXPOWER: "${N2K_RNODE_TXPOWER:-14}"
+    volumes:
+      - netfreak2k-rnode-data:/state
+volumes:
+  netfreak2k-rnode-data:
+    name: netfreak2k-rnode-data
