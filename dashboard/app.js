@@ -7894,7 +7894,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
         try { await request("/api/messenger/peers/request",{method:"POST",headers:{"X-CSRF-Token":csrfToken},body:JSON.stringify({destination:peer.destination})}); action.textContent="Angefragt"; await loadPeers(); }
         catch(e) { action.textContent="Nicht möglich"; action.disabled=false; }
       });
-      const detail=document.createElement("button");detail.type="button";detail.className="secondary compact";detail.textContent="Details";detail.addEventListener("click",()=>{selectMeshPeer(peer);meshCanvas?.scrollIntoView({behavior:"smooth",block:"nearest"});});
+      const detail=document.createElement("button");detail.type="button";detail.className="secondary compact";detail.textContent="Details";detail.addEventListener("click",()=>{selectMeshPeer(peer);document.querySelector('#privacy-panel .n2k-rns-workspace-tab[data-rns-view="mesh"]')?.click();meshCanvas?.scrollIntoView({behavior:"smooth",block:"nearest"});});
       row.append(detail,action); list.append(row);
     }
   }
@@ -8021,7 +8021,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   tabs.forEach(([id,label])=>{
     const b=document.createElement("button");
     b.type="button";b.className="n2k-rns-workspace-tab";
-    b.textContent=label;b.setAttribute("aria-controls","n2k-rns-page-"+id);
+    b.textContent=label;b.dataset.rnsView=id;b.setAttribute("aria-controls","n2k-rns-page-"+id);
     nav.append(b);buttons.set(id,b);
     const p=document.createElement("section");
     p.id="n2k-rns-page-"+id;p.className="n2k-rns-workspace-page";
@@ -8037,7 +8037,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       buttons.get(key).classList.toggle("is-active",active);
     }
   };
-  // Put the existing chart and service controls above the workspaces as a compact header.
+  // Expose workspace navigation directly under the page heading; keep all controls in their sections.
   hub.classList.add("n2k-rns-status-strip");
   // Detach nested elements before relocating their original parents.
   node.remove();
@@ -8047,8 +8047,9 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
   elements.get("mesh").append(radar);
   elements.get("chat").append(messenger);
   elements.get("peers").append(peer);
-  elements.get("settings").append(node,gateway);
-  tiles.insertAdjacentElement("afterend",nav);
+  elements.get("settings").append(hub,node,gateway);
+  tiles.remove();
+  root.querySelector(".panel-head")?.insertAdjacentElement("afterend",nav);
   nav.insertAdjacentElement("afterend",pages);
   activate("mesh");
 })();
