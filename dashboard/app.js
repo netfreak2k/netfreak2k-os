@@ -8041,7 +8041,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     });
     const hub=project(center.x,center.y);
     ctx.beginPath();ctx.arc(hub.x,hub.y,8*camera.zoom,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
-    if(meshCount)meshCount.textContent=ranks.length+" Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
+    if(meshCount)meshCount.textContent=peers.length===0 ? "Noch keine LXMF-Ziele entdeckt" : ranks.length===0 ? peers.length+" Ziele gespeichert · keine aktuell bekannten Routen" : ranks.length+" dargestellte Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
     if(!now)startMeshAnimation();
   }
 
@@ -8089,8 +8089,16 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       if(windows) windows.textContent="Announcements zuletzt gesehen: 15 Min "+(d.recent_15m??"–")+" · 1 Std "+(d.recent_1h??"–")+" · 24 Std "+(d.recent_24h??"–")+" · nicht gleich online";
       cachedPeers=peers;
       renderPeers();
-    }catch(e){count.textContent="Knotenstatus nicht verfügbar";list.textContent="Reticulum-Discovery momentan nicht erreichbar."}
+    }catch(e){
+      count.textContent="Knotenstatus nicht verfügbar";
+      cachedPeers=[];
+      drawLivingMesh([]);
+      if(meshCount) meshCount.textContent="Radar-Daten nicht abrufbar";
+      if(visibleCount) visibleCount.textContent="Keine verlässlichen Live-Daten";
+      list.textContent="Reticulum-Discovery momentan nicht erreichbar. API-Verbindung prüfen.";
+    }
   }
+  document.addEventListener("n2k-rns-mesh-visible",loadPeers);
   refresh?.addEventListener("click",loadPeers);
   loadPeers();
   setInterval(()=>{if(!document.hidden)loadPeers()},30000);
