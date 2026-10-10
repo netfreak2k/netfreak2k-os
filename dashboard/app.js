@@ -4121,6 +4121,19 @@ async function refreshNativeMessenger() {
       request("/api/messenger/status"), request("/api/messenger/contacts"), request("/api/messenger/messages")
     ]);
     status.textContent = state.online ? "● Reticulum / LXMF bereit" : "○ Nicht bereit: " + (state.error || "offline");
+    const diagnosticState=document.getElementById("n2k-lxmf-diag-state");
+    const diagnosticCounts=document.getElementById("n2k-lxmf-diag-counts");
+    const diagnosticNote=document.getElementById("n2k-lxmf-diag-note");
+    if(diagnosticState)diagnosticState.textContent=state.online?"● Messenger bereit":"○ Messenger offline";
+    try{
+      const peers=await request("/api/messenger/peers");
+      if(diagnosticCounts)diagnosticCounts.textContent=(peers.known_count??"–")+" gespeicherte Ziele · "+(peers.reachable_route_count??"–")+" bekannte Routen · "+(peers.recent_15m??"–")+" Announcements (15 Min)";
+      if(diagnosticNote)diagnosticNote.textContent=peers.diagnostic||"Bekannte Route ist kein Nachweis einer aktiven TCP-Verbindung.";
+    }catch(error){
+      if(diagnosticCounts)diagnosticCounts.textContent="Routenprüfung derzeit nicht verfügbar";
+      if(diagnosticNote)diagnosticNote.textContent=String(error.message||error);
+    }
+
     document.getElementById("n2k-native-id").value = state.identity || "";
     const qr=document.getElementById("n2k-lxmf-qr");
     if(qr&&!qr.hidden)drawNativeLxmfQr();
@@ -8305,3 +8318,5 @@ document.getElementById("n2k-lxmf-scan-btn")?.addEventListener("click",async()=>
   }catch(e){stopLxmfScan();if(note)note.textContent="Kamera nicht verfügbar: "+String(e.message||e);}
 });
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopLxmfScan();});
+
+document.getElementById("n2k-lxmf-diag-retry")?.addEventListener("click",refreshNativeMessenger);
