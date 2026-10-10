@@ -8252,3 +8252,56 @@ document.getElementById("n2k-lxmf-import-btn")?.addEventListener("click",()=>{
   if(dest)dest.value=hash;
   if(note)note.textContent="Adresse geprüft und übernommen. Kontaktname eingeben und speichern.";
 });
+
+/* Camera QR import: local BarcodeDetector only; no uploads or remote QR decoding. */
+let lxmfScanStream=null, lxmfScanFrame=0;
+function stopLxmfScan(){
+  if(lxmfScanFrame)cancelAnimationFrame(lxmfScanFrame);
+  lxmfScanFrame=0;
+  for(const track of lxmfScanStream?.getTracks()||[])track.stop();
+  lxmfScanStream=null;
+  const video=document.getElementById("n2k-lxmf-video");
+  if(video){video.pause();video.srcObject=null;}
+  const panel=document.getElementById("n2k-lxmf-scanner");
+  if(panel)panel.hidden=true;
+}
+document.getElementById("n2k-lxmf-scan-stop")?.addEventListener("click",stopLxmfScan);
+document.getElementById("n2k-lxmf-scan-btn")?.addEventListener("click",async()=>{
+  const note=document.getElementById("n2k-lxmf-import-note");
+  if(!window.BarcodeDetector||!navigator.mediaDevices?.getUserMedia){
+    if(note)note.textContent="QR-Kamera nicht unterstützt. QR-Inhalt stattdessen einfügen.";
+    return;
+  }
+  try{
+    stopLxmfScan();
+    const decoder=new BarcodeDetector({formats:["qr_code"]});
+    lxmfScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+    const video=document.getElementById("n2k-lxmf-video");
+    const panel=document.getElementById("n2k-lxmf-scanner");
+    if(!video||!panel){stopLxmfScan();return;}
+    video.srcObject=lxmfScanStream;panel.hidden=false;await video.play();
+    let nextFrameAt=0;
+    const frame=async(now)=>{
+      if(!lxmfScanStream)return;
+      if(now>=nextFrameAt&&video.readyState>=2){
+        nextFrameAt=now+350;
+        try{
+          const matches=await decoder.detect(video);
+          for(const result of matches){
+            const value=nativeLxmfHash(result.rawValue);
+            if(!value)continue;
+            const input=document.getElementById("n2k-lxmf-import");
+            const destination=document.getElementById("n2k-contact-dest");
+            if(input)input.value="lxmf://"+value;
+            if(destination)destination.value=value;
+            if(note)note.textContent="QR erkannt. Kontaktname eingeben und speichern.";
+            stopLxmfScan();return;
+          }
+        }catch(e){if(note)note.textContent="QR-Kamera konnte nicht lesen: "+String(e.message||e);}
+      }
+      if(lxmfScanStream)lxmfScanFrame=requestAnimationFrame(frame);
+    };
+    lxmfScanFrame=requestAnimationFrame(frame);
+  }catch(e){stopLxmfScan();if(note)note.textContent="Kamera nicht verfügbar: "+String(e.message||e);}
+});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)stopLxmfScan();});
