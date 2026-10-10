@@ -3502,3 +3502,11 @@ body::after{
 #privacy-panel .n2k-rns-workspace-page>.n2k-peer-browser{width:100%;box-sizing:border-box}
 #privacy-panel .n2k-rns-workspace-page>.n2k-node-settings,#privacy-panel .n2k-rns-workspace-page>.n2k-public-peer-config{margin:0 0 16px}
 @media(max-width:700px){#privacy-panel .n2k-rns-workspace-nav{position:sticky;top:0;z-index:3;padding:6px 0;background:rgba(12,25,44,.97)}#privacy-panel .n2k-rns-workspace-tab{min-height:46px;padding:11px 13px;font-size:13px}#privacy-panel .n2k-rns-status-strip{padding:9px}}
+
+/* RNS workspace navigation visible immediately; no empty header frame */
+#privacy-panel>.n2k-rns-workspace-nav{margin:6px 0 14px;width:100%;box-sizing:border-box}
+#privacy-panel .n2k-rns-workspace-pages{width:100%;min-width:0;box-sizing:border-box}
+#privacy-panel .n2k-rns-workspace-page>.n2k-living-mesh{min-height:0}
+#privacy-panel .n2k-rns-workspace-page>.n2k-peer-browser{border:0;box-shadow:none;background:transparent;padding:2px 0}
+#privacy-panel .n2k-rns-workspace-page>.n2k-rns-status-strip{margin:0 0 14px;background:rgba(20,39,61,.24)}
+@media(max-width:700px){#privacy-panel>.n2k-rns-workspace-nav{margin:0 0 10px}#privacy-panel .n2k-rns-workspace-page>.n2k-living-mesh{padding:7px}}
