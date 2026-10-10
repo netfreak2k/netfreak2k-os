@@ -3577,3 +3577,19 @@ body::after{
 .n2k-rns-inbox-open strong,.n2k-rns-inbox-open span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;display:block}
 .n2k-rns-inbox-open small{font-size:.76rem;opacity:.75}
 .n2k-rns-inbox-open:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* Compact the two lower overview tiles; full features remain inside their pages. */
+.overview-screen .widget-grid > .n2k-photo-home-widget{min-height:108px!important;align-self:start;gap:5px;padding:10px 12px}
+.overview-screen .n2k-photo-home-widget .n2k-photo-home-art{min-height:24px;font-size:19px;gap:8px}
+.overview-screen .n2k-photo-home-widget .n2k-service-live{font-size:11px}
+.overview-screen .widget-grid > .n2k-rns-hub-widget{min-height:0!important;align-self:start;gap:5px;padding:10px 12px}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-extra,
+.overview-screen .n2k-rns-hub-widget .n2k-rns-freshness,
+.overview-screen .n2k-rns-hub-widget .n2k-service-graph,
+.overview-screen .n2k-rns-hub-widget .n2k-service-actions{display:none}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-inline{padding:7px 9px;gap:3px}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-open{gap:2px}
+@media(max-width:700px){
+  .overview-screen .widget-grid > .n2k-photo-home-widget{min-height:90px!important}
+  .overview-screen .widget-grid > .n2k-rns-hub-widget{min-height:0!important}
+}
