@@ -572,3 +572,23 @@
    font-size:11px!important;
  }
 }
+
+/* Smart Home tile: stable readable status on five-column desktop and mobile. */
+#dashboard-top .widget-grid > .ha-widget .ha-widget-status{min-width:0;align-items:flex-start;gap:8px}
+#dashboard-top .widget-grid > .ha-widget .ha-widget-status > div{min-width:0;display:grid;gap:5px}
+#dashboard-top .widget-grid > .ha-widget #overview-ha{
+  font-size:clamp(13px,1.2vw,16px)!important;
+  line-height:1.2!important;
+  font-weight:750!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+}
+#dashboard-top .widget-grid > .ha-widget #overview-ha-detail{
+  font-size:12px!important;line-height:1.35!important;
+  white-space:normal!important;overflow-wrap:anywhere;
+  opacity:.9;
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid > .ha-widget #overview-ha{font-size:15px!important}
+ #dashboard-top .widget-grid > .ha-widget #overview-ha-detail{font-size:12px!important}
+}
