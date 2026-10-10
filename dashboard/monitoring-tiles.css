@@ -610,3 +610,31 @@
  color:#e9f6ff;font-size:12px!important;line-height:1.3;
  font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums;
 }
+
+/* Overview layout, five true columns:
+   Row 1: HA(1) / Gallery(2) / N2K Media(2)
+   Row 2: Activity(2) / Reticulum(2) / Calendar(1). */
+@media(min-width:751px){
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.n2k-photo-home-widget{order:2!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.overview-media-widget{
+   order:3!important;grid-column:span 2!important;
+   aspect-ratio:auto!important;width:100%!important;
+   height:auto!important;max-height:none!important;min-height:155px!important;
+ }
+ #dashboard-top .widget-grid>.activity-widget{order:4!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:5!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.calendar-widget{
+   order:6!important;grid-column:span 1!important;
+   aspect-ratio:auto!important;width:100%!important;
+   height:auto!important;max-height:none!important;min-height:155px!important;
+ }
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.n2k-photo-home-widget{order:2!important}
+ #dashboard-top .widget-grid>.overview-media-widget{order:3!important}
+ #dashboard-top .widget-grid>.activity-widget{order:4!important}
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:5!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important}
+}
