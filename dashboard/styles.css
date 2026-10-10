@@ -3568,12 +3568,12 @@ body::after{
 #privacy-panel #n2k-lxmf-video{width:100%;max-height:280px;object-fit:cover;border-radius:12px;background:#050c16}
 #privacy-panel #n2k-lxmf-qr[hidden],#privacy-panel #n2k-lxmf-scanner[hidden]{display:none}
 @media(max-width:700px){#privacy-panel .n2k-lxmf-diagnostics{align-items:stretch;flex-direction:column}#privacy-panel .n2k-lxmf-diagnostics button{min-height:44px}}
-
-/* Compact Reticulum inbox preview on overview; uses authenticated N2K API. */
-.n2k-lxmf-inbox-widget{display:flex;flex-direction:column;gap:11px;min-width:0;text-align:left;cursor:pointer}
-.n2k-lxmf-inbox-line{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-.n2k-lxmf-inbox-line strong{font-size:clamp(1.65rem,2.6vw,2.3rem);line-height:1.1;font-variant-numeric:tabular-nums}
-.n2k-lxmf-inbox-line span,.n2k-lxmf-inbox-preview small,.n2k-lxmf-inbox-widget>small{font-size:.8rem;opacity:.75}
-.n2k-lxmf-inbox-preview{display:grid;gap:4px;min-width:0}
-.n2k-lxmf-inbox-preview strong,.n2k-lxmf-inbox-preview span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%}
-.n2k-lxmf-inbox-widget>small{margin-top:auto}
+/* LXMF inbox integrated into the existing Reticulum hub tile. */
+.n2k-rns-hub-widget .n2k-rns-inbox-inline{display:grid;gap:7px;min-width:0;padding:11px 12px;border:1px solid rgba(120,198,189,.20);border-radius:11px;background:rgba(16,49,59,.18)}
+.n2k-rns-inbox-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.n2k-rns-inbox-head small{font-size:.72rem;letter-spacing:.04em;opacity:.75}
+.n2k-rns-inbox-head strong{font-size:.82rem;font-variant-numeric:tabular-nums}
+.n2k-rns-inbox-open{display:grid;text-align:left;gap:4px;max-width:100%;min-width:0;background:transparent;border:0;padding:4px 0;color:inherit;cursor:pointer}
+.n2k-rns-inbox-open strong,.n2k-rns-inbox-open span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;display:block}
+.n2k-rns-inbox-open small{font-size:.76rem;opacity:.75}
+.n2k-rns-inbox-open:focus-visible{outline:2px solid currentColor;outline-offset:3px}
