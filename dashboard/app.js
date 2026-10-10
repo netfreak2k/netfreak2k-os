@@ -8340,3 +8340,45 @@ window.setInterval(()=>{
   if(panel && !panel.hidden)refreshNativeMessenger();
 },12000);
 
+
+
+/* Overview: read-only LXMF inbox summary. No synthetic unread count. */
+(() => {
+  const open = document.getElementById("n2k-lxmf-inbox-open");
+  const count = document.getElementById("n2k-lxmf-inbox-count");
+  const sender = document.getElementById("n2k-lxmf-inbox-sender");
+  const preview = document.getElementById("n2k-lxmf-inbox-text");
+  const status = document.getElementById("n2k-lxmf-inbox-status");
+  if (!open || !count || !sender || !preview || !status) return;
+  open.addEventListener("click", () => {
+    switchView("privacy-panel");
+    document.querySelector('#privacy-panel .n2k-rns-workspace-tab[data-rns-view="chat"]')?.click();
+    refreshNativeMessenger();
+  });
+  let loading = false;
+  async function refreshInbox() {
+    if (loading || document.hidden) return;
+    loading = true;
+    try {
+      const data = await request("/api/messenger/messages");
+      if (data.error) throw Error(data.error);
+      if (!Array.isArray(data.messages)) throw Error("Invalid messages response");
+      const incoming = data.messages.filter(m => m.direction === "in");
+      count.textContent = String(incoming.length);
+      const latest = incoming.reduce((a,b) => !a || Number(b.time||0) > Number(a.time||0) ? b : a, null);
+      sender.textContent = latest ? "Von " + String(latest.source || "Unbekannt").slice(0,12) + "…" : "Noch keine Eingänge";
+      preview.textContent = latest ? String(latest.content || "(ohne Text)").slice(0,100) : "Keine empfangenen Nachrichten";
+      status.textContent = latest && Number(latest.time) > 0
+        ? "Eingang: " + new Date(Number(latest.time) * 1000).toLocaleString("de-DE")
+        : "Posteingang verfügbar";
+    } catch (error) {
+      count.textContent = "–";
+      sender.textContent = "Posteingang nicht verfügbar";
+      preview.textContent = "Verbindung zum Messenger prüfen";
+      status.textContent = "Kein aktueller Status";
+    } finally { loading = false; }
+  }
+  refreshInbox();
+  setInterval(refreshInbox, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInbox(); });
+})();
