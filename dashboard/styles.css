@@ -3525,3 +3525,9 @@ body::after{
 .n2k-rns-freshness>div{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 9px;border:1px solid rgba(102,203,192,.17);border-radius:9px;background:rgba(7,26,38,.32)}
 .n2k-rns-freshness small{font-size:10px;opacity:.7}.n2k-rns-freshness strong{font-size:14px;color:#b7f0e4;font-variant-numeric:tabular-nums}
 @media(max-width:700px){.n2k-rns-freshness>div{padding:6px}.n2k-rns-freshness strong{font-size:12px}}
+
+/* Cinema mesh controls: original OS icons and colors preserved */
+.n2k-cinema-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 0}
+.n2k-cinema-controls button{min-height:40px}
+.n2k-cinema-controls span{font-size:11px;opacity:.75}
+@media(max-width:700px){.n2k-cinema-controls button{min-height:44px}.n2k-cinema-controls span{width:100%}}
