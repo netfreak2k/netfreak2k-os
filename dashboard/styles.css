@@ -3568,3 +3568,13 @@ body::after{
 #privacy-panel #n2k-lxmf-video{width:100%;max-height:280px;object-fit:cover;border-radius:12px;background:#050c16}
 #privacy-panel #n2k-lxmf-qr[hidden],#privacy-panel #n2k-lxmf-scanner[hidden]{display:none}
 @media(max-width:700px){#privacy-panel .n2k-lxmf-diagnostics{align-items:stretch;flex-direction:column}#privacy-panel .n2k-lxmf-diagnostics button{min-height:44px}}
+
+/* TikTok community overview: safe placeholder until official OAuth is connected. */
+.n2k-tiktok-widget{display:flex;flex-direction:column;gap:12px;min-width:0}
+.n2k-tiktok-widget .widget-head a.widget-open-mini{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.n2k-tiktok-main{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.n2k-tiktok-main strong{font-size:clamp(2rem,3vw,3rem);line-height:1.1;font-variant-numeric:tabular-nums}
+.n2k-tiktok-main span,.n2k-tiktok-widget p,.n2k-tiktok-footer{font-size:.85rem;opacity:.8}
+.n2k-tiktok-widget p{margin:0}
+.n2k-tiktok-footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
+.n2k-tiktok-footer a{color:inherit;text-decoration:underline;text-underline-offset:3px}
