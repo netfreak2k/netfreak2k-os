@@ -3568,3 +3568,71 @@ body::after{
 #privacy-panel #n2k-lxmf-video{width:100%;max-height:280px;object-fit:cover;border-radius:12px;background:#050c16}
 #privacy-panel #n2k-lxmf-qr[hidden],#privacy-panel #n2k-lxmf-scanner[hidden]{display:none}
 @media(max-width:700px){#privacy-panel .n2k-lxmf-diagnostics{align-items:stretch;flex-direction:column}#privacy-panel .n2k-lxmf-diagnostics button{min-height:44px}}
+/* LXMF inbox integrated into the existing Reticulum hub tile. */
+.n2k-rns-hub-widget .n2k-rns-inbox-inline{display:grid;gap:7px;min-width:0;padding:11px 12px;border:1px solid rgba(120,198,189,.20);border-radius:11px;background:rgba(16,49,59,.18)}
+.n2k-rns-inbox-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.n2k-rns-inbox-head small{font-size:.72rem;letter-spacing:.04em;opacity:.75}
+.n2k-rns-inbox-head strong{font-size:.82rem;font-variant-numeric:tabular-nums}
+.n2k-rns-inbox-open{display:grid;text-align:left;gap:4px;max-width:100%;min-width:0;background:transparent;border:0;padding:4px 0;color:inherit;cursor:pointer}
+.n2k-rns-inbox-open strong,.n2k-rns-inbox-open span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;display:block}
+.n2k-rns-inbox-open small{font-size:.76rem;opacity:.75}
+.n2k-rns-inbox-open:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* Compact the two lower overview tiles; full features remain inside their pages. */
+.overview-screen .widget-grid > .n2k-photo-home-widget{min-height:108px!important;align-self:start;gap:5px;padding:10px 12px}
+.overview-screen .n2k-photo-home-widget .n2k-photo-home-art{min-height:24px;font-size:19px;gap:8px}
+.overview-screen .n2k-photo-home-widget .n2k-service-live{font-size:11px}
+.overview-screen .widget-grid > .n2k-rns-hub-widget{min-height:0!important;align-self:start;gap:5px;padding:10px 12px}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-extra,
+.overview-screen .n2k-rns-hub-widget .n2k-rns-freshness,
+.overview-screen .n2k-rns-hub-widget .n2k-service-graph,
+.overview-screen .n2k-rns-hub-widget .n2k-service-actions{display:none}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-inline{padding:7px 9px;gap:3px}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-open{gap:2px}
+@media(max-width:700px){
+  .overview-screen .widget-grid > .n2k-photo-home-widget{min-height:90px!important}
+  .overview-screen .widget-grid > .n2k-rns-hub-widget{min-height:0!important}
+}
+
+/* Small recent photographs in compact gallery dashboard tile. */
+.overview-screen .n2k-photo-home-widget .n2k-photo-preview{display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:0;overflow:hidden}
+.overview-screen .n2k-photo-home-widget .n2k-photo-preview img{display:block;width:58px;height:43px;max-width:calc((100% - 12px)/3);object-fit:cover;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(20,23,42,.5)}
+@media(max-width:700px){.overview-screen .n2k-photo-home-widget .n2k-photo-preview img{width:54px;height:39px}}
+
+/* 2026-10-10 visual review: restore breathing room in both bottom-row tiles. */
+.overview-screen .widget-grid > .n2k-photo-home-widget{
+  min-height:155px!important;
+  padding:13px 14px;
+  gap:9px;
+}
+.overview-screen .widget-grid > .n2k-rns-hub-widget{
+  min-height:155px!important;
+  padding:13px 14px;
+  gap:8px;
+}
+.overview-screen .n2k-photo-home-widget .n2k-photo-preview{
+  min-height:48px;
+}
+.overview-screen .n2k-rns-hub-widget .n2k-rns-inbox-inline{
+  padding:9px 11px;
+  gap:5px;
+}
+@media(max-width:700px){
+  .overview-screen .widget-grid > .n2k-photo-home-widget,
+  .overview-screen .widget-grid > .n2k-rns-hub-widget{
+    min-height:145px!important;
+  }
+}
+
+/* Overview refinement: move network traffic to Uptime, free tile space for gallery.
+   Keep hidden network DOM for legacy monitoring/chart update compatibility. */
+.overview-screen .widget-grid > .network-widget{display:none!important}
+.overview-screen .widget-grid > .n2k-photo-home-widget{grid-column:span 6!important}
+.overview-screen .n2k-uptime-info{display:flex;flex-direction:column;min-width:0;gap:2px}
+.overview-screen .n2k-uptime-net{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:10px;line-height:1.3;color:#bdd1df}
+.overview-screen .n2k-uptime-net span{white-space:nowrap}
+.overview-screen .n2k-uptime-net b{font-weight:650;color:#e5f4f7;font-variant-numeric:tabular-nums}
+@media(max-width:700px){
+ .overview-screen .widget-grid > .n2k-photo-home-widget{grid-column:span 12!important}
+ .overview-screen .n2k-uptime-net{font-size:9px;gap:6px}
+}

@@ -1947,6 +1947,15 @@ async function loadOverview() {
   if (document.getElementById("app-shell").classList.contains("hidden")) return;
   try {
     const data = await request("/api/overview", {headers: {}});
+    // HA status must not depend on unrelated monitoring widgets rendering successfully.
+    const ha = data.homeassistant || {};
+    const haOnline = ha.available === true && ha.state === "running" && ha.reachable === true;
+    const haLabel = document.getElementById("overview-ha");
+    const haDetail = document.getElementById("overview-ha-detail");
+    const haIndicator = document.getElementById("overview-ha-dot");
+    if (haLabel) haLabel.textContent = haOnline ? "HAOS online" : !ha.available ? "HAOS nicht erkannt" : ha.state === "running" ? "HAOS nicht erreichbar" : "HAOS gestoppt";
+    if (haDetail) haDetail.textContent = haOnline ? "VM läuft · Oberfläche erreichbar" : !ha.available ? "Keine HAOS-Instanz gemeldet" : ha.state === "running" ? "VM läuft · Verbindung prüfen" : "VM: " + String(ha.state || "unbekannt");
+    if (haIndicator) { haIndicator.classList.toggle("ok", haOnline); haIndicator.classList.toggle("warn", !haOnline); }
     const memory = data.memory || {};
     const storage = data.storage || {};
     const network = data.network || {};
@@ -2010,15 +2019,6 @@ async function loadOverview() {
 
     renderOverviewList("overview-calendar", data.upcoming || [], eventItemNode, "Keine kommenden Termine.");
     renderOverviewList("overview-recent", data.recent || [], recentItemNode, "Noch keine Dateien.");
-
-    const haOk = data.homeassistant?.available &&
-      data.homeassistant?.state === "running" &&
-      data.homeassistant?.reachable;
-    document.getElementById("overview-ha").textContent = haOk ? "Home Assistant online" : "Home Assistant prüfen";
-    document.getElementById("overview-ha-detail").textContent =
-      haOk ? "VM läuft · Oberfläche erreichbar" : (data.homeassistant?.state || "nicht erreichbar");
-    document.getElementById("overview-ha-dot").classList.toggle("ok", haOk);
-    document.getElementById("overview-ha-dot").classList.toggle("warn", !haOk);
 
     const apps = data.apps || {};
     document.getElementById("overview-apps").textContent =
@@ -2088,6 +2088,12 @@ async function loadOverview() {
       return;
     }
     console.error(error);
+    const haTitle = document.getElementById("overview-ha");
+    const haDetail = document.getElementById("overview-ha-detail");
+    const haDot = document.getElementById("overview-ha-dot");
+    if (haTitle && haTitle.textContent === "Prüfe HAOS …") haTitle.textContent = "Status nicht abrufbar";
+    if (haDetail && haTitle?.textContent === "Status nicht abrufbar") haDetail.textContent = "Übersichts-API prüfen";
+    if (haDot && haTitle?.textContent === "Status nicht abrufbar") { haDot.classList.remove("ok"); haDot.classList.add("warn"); }
   }
 }
 
@@ -8041,7 +8047,7 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
     });
     const hub=project(center.x,center.y);
     ctx.beginPath();ctx.arc(hub.x,hub.y,8*camera.zoom,0,Math.PI*2);ctx.fillStyle="#f6d38b";ctx.fill();
-    if(meshCount)meshCount.textContent=ranks.length+" Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
+    if(meshCount)meshCount.textContent=peers.length===0 ? "Noch keine LXMF-Ziele entdeckt" : ranks.length===0 ? peers.length+" Ziele gespeichert · keine aktuell bekannten Routen" : ranks.length+" dargestellte Routen · "+ranks.filter(p=>wallNow-Number(p.last_seen||0)<=900).length+" in 15 Min gesehen";
     if(!now)startMeshAnimation();
   }
 
@@ -8089,8 +8095,16 @@ setInterval(() => { if (!document.hidden) refreshN2KNetworkServices(); }, 30000)
       if(windows) windows.textContent="Announcements zuletzt gesehen: 15 Min "+(d.recent_15m??"–")+" · 1 Std "+(d.recent_1h??"–")+" · 24 Std "+(d.recent_24h??"–")+" · nicht gleich online";
       cachedPeers=peers;
       renderPeers();
-    }catch(e){count.textContent="Knotenstatus nicht verfügbar";list.textContent="Reticulum-Discovery momentan nicht erreichbar."}
+    }catch(e){
+      count.textContent="Knotenstatus nicht verfügbar";
+      cachedPeers=[];
+      drawLivingMesh([]);
+      if(meshCount) meshCount.textContent="Radar-Daten nicht abrufbar";
+      if(visibleCount) visibleCount.textContent="Keine verlässlichen Live-Daten";
+      list.textContent="Reticulum-Discovery momentan nicht erreichbar. API-Verbindung prüfen.";
+    }
   }
+  document.addEventListener("n2k-rns-mesh-visible",loadPeers);
   refresh?.addEventListener("click",loadPeers);
   loadPeers();
   setInterval(()=>{if(!document.hidden)loadPeers()},30000);
@@ -8332,3 +8346,88 @@ window.setInterval(()=>{
   if(panel && !panel.hidden)refreshNativeMessenger();
 },12000);
 
+
+
+/* Overview: read-only LXMF inbox summary. No synthetic unread count. */
+(() => {
+  const open = document.getElementById("n2k-lxmf-inbox-open");
+  const count = document.getElementById("n2k-lxmf-inbox-count");
+  const sender = document.getElementById("n2k-lxmf-inbox-sender");
+  const preview = document.getElementById("n2k-lxmf-inbox-text");
+  const status = document.getElementById("n2k-lxmf-inbox-status");
+  if (!open || !count || !sender || !preview || !status) return;
+  open.addEventListener("click", () => {
+    switchView("privacy-panel");
+    document.querySelector('#privacy-panel .n2k-rns-workspace-tab[data-rns-view="chat"]')?.click();
+    refreshNativeMessenger();
+  });
+  let loading = false;
+  async function refreshInbox() {
+    if (loading || document.hidden) return;
+    loading = true;
+    try {
+      const data = await request("/api/messenger/messages");
+      if (data.error) throw Error(data.error);
+      if (!Array.isArray(data.messages)) throw Error("Invalid messages response");
+      const incoming = data.messages.filter(m => m.direction === "in");
+      count.textContent = incoming.length + " Eingänge";
+      const latest = incoming.reduce((a,b) => !a || Number(b.time||0) > Number(a.time||0) ? b : a, null);
+      sender.textContent = latest ? "Von " + String(latest.source || "Unbekannt").slice(0,12) + "…" : "Noch keine Eingänge";
+      preview.textContent = latest ? String(latest.content || "(ohne Text)").slice(0,100) : "Keine empfangenen Nachrichten";
+      status.textContent = latest && Number(latest.time) > 0
+        ? "Eingang: " + new Date(Number(latest.time) * 1000).toLocaleString("de-DE")
+        : "Posteingang verfügbar";
+    } catch (error) {
+      count.textContent = "–";
+      sender.textContent = "Posteingang nicht verfügbar";
+      preview.textContent = "Verbindung zum Messenger prüfen";
+      status.textContent = "Kein aktueller Status";
+    } finally { loading = false; }
+  }
+  refreshInbox();
+  setInterval(refreshInbox, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInbox(); });
+})();
+
+
+/* Gallery preview: last three real local photographs, no external thumbnails. */
+(() => {
+  const holder = document.getElementById("n2k-photo-home-preview");
+  if (!holder) return;
+  let busy = false;
+  async function refreshPreview() {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const response = await fetch("/api/photos/library", {credentials:"same-origin",cache:"no-store"});
+      if (!response.ok) throw Error("Gallery unavailable");
+      const data = await response.json();
+      const photos = (Array.isArray(data.items) ? data.items : [])
+        .filter(item => item && typeof item.name === "string" && /\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(item.name))
+        .sort((a,b) => (Number(b.taken_at)||Number(b.modified_at)||0) - (Number(a.taken_at)||Number(a.modified_at)||0))
+        .slice(0,3);
+      if (!photos.length) { holder.replaceChildren(); holder.textContent = "Noch keine Fotos"; return; }
+      const fragment = document.createDocumentFragment();
+      for (const item of photos) {
+        const image = document.createElement("img");
+        image.src = "/api/workspace/file?" + new URLSearchParams({area:"media",path:item.path||"",name:item.name});
+        image.alt = "";
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.referrerPolicy = "same-origin";
+        image.addEventListener("error", () => {
+          image.remove();
+          if (!holder.querySelector("img")) holder.textContent = "Fotovorschau nicht ladbar";
+        }, {once:true});
+        fragment.append(image);
+      }
+      holder.replaceChildren(fragment);
+    } catch (_) {
+      holder.replaceChildren();
+      holder.textContent = "Fotos nicht verfügbar";
+    } finally { busy = false; }
+  }
+  refreshPreview();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshPreview(); });
+  setInterval(refreshPreview, 120000);
+})();

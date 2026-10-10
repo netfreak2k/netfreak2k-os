@@ -20,6 +20,9 @@ services:
       - netfreak2k-inventory:/state
 
   netfreak2k-messenger:
+    depends_on:
+      netfreak2k-reticulum-lan:
+        condition: service_started
     build:
       context: ..
       dockerfile: server/messenger/Dockerfile

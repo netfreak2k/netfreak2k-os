@@ -3386,7 +3386,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 with urlopen("http://netfreak2k-messenger:8091/peers", timeout=5) as response:
-                    result=json.loads(response.read(131072).decode("utf-8"))
+                    result=json.loads(response.read(4 * 1024 * 1024).decode("utf-8"))
                 self.send_json(result)
             except (OSError,ValueError,json.JSONDecodeError):
                 self.send_json({"error":"meshlink_discovery_unavailable"},503)

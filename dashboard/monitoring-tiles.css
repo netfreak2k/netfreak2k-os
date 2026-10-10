@@ -541,3 +541,112 @@
     max-height:none !important;
   }
 }
+
+/* Dashboard corrections: five-column grid overrides generic twelve-column CSS. */
+@media(min-width:751px){
+ #dashboard-top .widget-grid > .n2k-photo-home-widget{
+   grid-column:span 2!important;
+   aspect-ratio:auto!important;
+   width:100%!important;
+   height:auto!important;
+   max-height:none!important;
+   min-height:155px!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net{
+   display:flex!important;flex-wrap:wrap;gap:7px!important;
+   font-size:12px!important;line-height:1.35!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net b{
+   font-size:12px!important;line-height:1.35!important;
+ }
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid > .n2k-photo-home-widget{
+   grid-column:1 / -1!important;
+   aspect-ratio:auto!important;
+   height:auto!important;
+   min-height:145px!important;
+ }
+ #dashboard-top .mini-metrics .n2k-uptime-net,
+ #dashboard-top .mini-metrics .n2k-uptime-net b{
+   font-size:11px!important;
+ }
+}
+
+/* Smart Home tile: stable readable status on five-column desktop and mobile. */
+#dashboard-top .widget-grid > .ha-widget .ha-widget-status{min-width:0;align-items:flex-start;gap:8px}
+#dashboard-top .widget-grid > .ha-widget .ha-widget-status > div{min-width:0;display:grid;gap:5px}
+#dashboard-top .widget-grid > .ha-widget #overview-ha{
+  font-size:clamp(13px,1.2vw,16px)!important;
+  line-height:1.2!important;
+  font-weight:750!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+}
+#dashboard-top .widget-grid > .ha-widget #overview-ha-detail{
+  font-size:12px!important;line-height:1.35!important;
+  white-space:normal!important;overflow-wrap:anywhere;
+  opacity:.9;
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid > .ha-widget #overview-ha{font-size:15px!important}
+ #dashboard-top .widget-grid > .ha-widget #overview-ha-detail{font-size:12px!important}
+}
+
+/* Uptime: actual live LAN traffic retained by monitoring-tiles.js. */
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:6px;width:100%;margin-top:5px;padding-top:7px;
+ border-top:1px solid rgba(180,202,223,.22);
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic>span{
+ display:flex;flex-direction:column;gap:2px;min-width:0;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic small{
+ color:#b4cde1;font-size:10px!important;line-height:1.2;
+}
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic #network-down,
+#dashboard-top .n2k-monitor-card[data-metric="uptime"] .n2k-uptime-traffic #network-up{
+ color:#e9f6ff;font-size:12px!important;line-height:1.3;
+ font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+
+/* Overview layout, five true columns:
+   Row 1: HA(1) / Gallery(2) / N2K Media(2)
+   Row 2: Activity(2) / Reticulum(2) / Calendar(1). */
+@media(min-width:751px){
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.n2k-photo-home-widget{order:2!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.overview-media-widget{
+   order:3!important;grid-column:span 2!important;
+   aspect-ratio:auto!important;width:100%!important;
+   height:auto!important;max-height:none!important;min-height:155px!important;
+ }
+ #dashboard-top .widget-grid>.activity-widget{order:4!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:5!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.calendar-widget{
+   order:6!important;grid-column:span 1!important;
+   aspect-ratio:auto!important;width:100%!important;
+   height:auto!important;max-height:none!important;min-height:155px!important;
+ }
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.ha-widget{order:1!important}
+ #dashboard-top .widget-grid>.n2k-photo-home-widget{order:2!important}
+ #dashboard-top .widget-grid>.overview-media-widget{order:3!important}
+ #dashboard-top .widget-grid>.activity-widget{order:4!important}
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:5!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important}
+}
+
+/* Final bottom-row order: Reticulum (2) / Activity (2) / Calendar (1). */
+@media(min-width:751px){
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:4!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.activity-widget{order:5!important;grid-column:span 2!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important;grid-column:span 1!important}
+}
+@media(max-width:750px){
+ #dashboard-top .widget-grid>.n2k-rns-hub-widget{order:4!important}
+ #dashboard-top .widget-grid>.activity-widget{order:5!important}
+ #dashboard-top .widget-grid>.calendar-widget{order:6!important}
+}

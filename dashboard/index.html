@@ -233,7 +233,7 @@
             </button>
             <button class="mini-metric" data-view="system">
               <span class="mini-icon" aria-hidden="true">◷</span>
-              <div><small>UPTIME</small><strong id="overview-uptime">–</strong></div>
+              <div class="n2k-uptime-info"><small>UPTIME</small><strong id="overview-uptime">–</strong><span class="n2k-uptime-net"><span>↓ <b id="network-down">0 B/s</b></span><span>↑ <b id="network-up">0 B/s</b></span></span></div>
             </button>
           </div>
 
@@ -252,10 +252,6 @@
             <button class="widget network-widget" data-target-view="network-panel">
               <div class="widget-head"><div><small>NETZWERK</small><h3>Internet & LAN</h3></div><span>›</span></div>
               <div id="network-device-alert" class="n2k-network-alert" hidden></div>
-              <div class="network-values">
-                <div><span>↓ Download</span><strong id="network-down">0 B/s</strong></div>
-                <div><span>↑ Upload</span><strong id="network-up">0 B/s</strong></div>
-              </div>
               <canvas id="network-chart" width="420" height="64" aria-label="Netzwerkverlauf"></canvas>
               <div class="widget-detail-lines">
                 <span><b>Provider</b><strong id="network-provider">–</strong></span>
@@ -309,13 +305,21 @@
 
             <button class="widget n2k-photo-home-widget" type="button" data-target-view="photos-panel" aria-label="Fotogalerie öffnen">
               <div class="widget-head"><div><small>FOTO & ALBEN</small><h3>Fotogalerie</h3></div><span class="widget-open-mini">›</span></div>
-              <div class="n2k-photo-home-art" aria-hidden="true"><span>▧</span><span>◩</span><span>▣</span></div>
+              <div class="n2k-photo-home-art n2k-photo-preview" id="n2k-photo-home-preview" aria-label="Vorschau der letzten Fotos"><span>▧</span><span>◩</span><span>▣</span></div>
               <div class="n2k-service-live"><span>Deine Bilder und Alben</span><strong>Galerie öffnen ›</strong></div>
             </button>
             <section class="widget n2k-network-service-widget n2k-rns-hub-widget" aria-label="RNS Network Hub">
               <div class="widget-head"><div><small>RETICULUM NETWORK</small><h3>RNS Network Hub</h3></div><button class="widget-open-mini" data-target-view="privacy-panel" title="RNS Network Hub öffnen">›</button></div>
               <div class="n2k-service-live"><span id="n2k-mesh-state">Status wird geprüft …</span><strong id="n2k-mesh-nodes">Nodes: nicht verfügbar</strong></div>
               <div class="n2k-rns-extra"><div><small>Protokoll</small><strong>Reticulum / LXMF</strong></div><div><small>Erkennung</small><strong id="n2k-rns-discovery">Wird geprüft …</strong></div><div><small>Erreichbare Routen</small><strong id="n2k-rns-routes">–</strong></div></div><div class="n2k-rns-freshness"><div><small>15 Min</small><strong id="n2k-rns-15m">–</strong></div><div><small>1 Std</small><strong id="n2k-rns-1h">–</strong></div><div><small>24 Std</small><strong id="n2k-rns-24h">–</strong></div></div><div class="n2k-service-graph"><span id="n2k-mesh-traffic">Traffic: –</span><canvas id="n2k-mesh-chart" width="280" height="46" aria-label="MeshLink Netzwerkverlauf"></canvas><div class="n2k-service-track"><i id="n2k-mesh-meter"></i></div></div>
+              <div class="n2k-rns-inbox-inline" aria-label="LXMF Nachrichteneingang">
+                <div class="n2k-rns-inbox-head"><small>LXMF · NACHRICHTENEINGANG</small><strong id="n2k-lxmf-inbox-count">– Eingänge</strong></div>
+                <button type="button" id="n2k-lxmf-inbox-open" class="n2k-rns-inbox-open" title="LXMF Messenger öffnen">
+                  <strong id="n2k-lxmf-inbox-sender">Noch nicht geladen</strong>
+                  <span id="n2k-lxmf-inbox-text">Nachrichten werden geprüft …</span>
+                  <small id="n2k-lxmf-inbox-status" role="status">Synchronisierung ausstehend</small>
+                </button>
+              </div>
               <div class="n2k-service-actions"><button type="button" id="n2k-mesh-on" disabled>Ein</button><button type="button" id="n2k-mesh-off" disabled>Aus</button></div>
             </section>
 

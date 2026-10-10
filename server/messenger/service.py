@@ -131,7 +131,8 @@ def on_delivery(message):
     try:
         append_message({'direction':'in', 'source':message.source_hash.hex(), 'content':(message.content.decode('utf-8', errors='replace') if isinstance(message.content, bytes) else str(message.content)), 'time':int(time.time())})
     except Exception:
-        pass
+        import traceback
+        traceback.print_exc()
 
 
 def start_stack():
@@ -346,7 +347,7 @@ class Handler(BaseHTTPRequestHandler):
                 destination = RNS.Destination(identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
                 message = LXMF.LXMessage(destination, DELIVERY, content, desired_method=LXMF.LXMessage.DIRECT)
                 # Identity/path resolution and delivery success are asynchronous.
-                message_hash = message.hash.hex()
+                message_hash = os.urandom(16).hex()
                 append_message({"direction":"out","source":dest,"content":content,"time":int(time.time()),"status":"queued","message_hash":message_hash})
                 message.register_delivery_callback(lambda msg, key=message_hash: update_message_status(key, "delivered"))
                 message.register_failed_callback(lambda msg, key=message_hash: update_message_status(key, "failed"))
@@ -360,6 +361,8 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self.send_result({"error":str(exc)}, 400)
         except Exception:
+            import traceback
+            traceback.print_exc()
             self.send_result({"error":"messenger_internal_error"}, 500)
 
     def send_result(self, result, status=200):
@@ -380,5 +383,16 @@ if __name__ == "__main__":
     threading.Thread(target=httpd.serve_forever, daemon=True, name="n2k-messenger-api").start()
     start_stack()
     # Keep the process running after initialisation so the API and LXMF router remain alive.
+    last_announce = time.monotonic()
     while True:
         time.sleep(60)
+        if RUNTIME.get("online") and ROUTER is not None and DELIVERY is not None:
+            if time.monotonic() - last_announce >= 900:
+                try:
+                    ROUTER.announce(DELIVERY.hash)
+                    print("N2K LXMF announce sent", flush=True)
+                except Exception:
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    last_announce = time.monotonic()
